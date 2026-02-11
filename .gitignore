@@ -1,6 +1,9 @@
 # Rust
 /target
 
+# Test data
+**/test_data/german-gaap-taxonomy
+
 # Environment
 **/.env
 
