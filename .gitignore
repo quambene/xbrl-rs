@@ -2,7 +2,8 @@
 /target
 
 # Test data
-**/test_data/german-gaap-taxonomy
+**/test_data/samples
+**/test_data/schema
 
 # Environment
 **/.env
