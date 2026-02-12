@@ -62,14 +62,6 @@ impl XbrlInstance {
         &self.facts
     }
 
-    /// Get facts for a specific concept
-    pub fn facts_by_concept(&self, concept: &str) -> Vec<&Fact> {
-        self.facts
-            .iter()
-            .filter(|f| f.concept() == concept)
-            .collect()
-    }
-
     /// Add a namespace prefix mapping
     pub fn add_namespace(&mut self, prefix: String, uri: String) {
         self.namespaces.insert(prefix, uri);
