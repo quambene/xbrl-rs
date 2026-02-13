@@ -16,7 +16,7 @@ pub use instance::XbrlInstance;
 pub use parser::XbrlParser;
 pub use taxonomy::{
     ArcroleType, ElementDefinition, LinkbaseRef, RoleType, SchemaImport, SchemaInclude,
-    TaxonomySchema,
+    TaxonomySchema, TaxonomySet,
 };
 pub use unit::Unit;
 
