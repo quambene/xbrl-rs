@@ -1,7 +1,7 @@
 //! Print all facts of an XBRL instance as a grid in the terminal.
 //!
 //! Usage:
-//!     cargo run --example print_facts -- test_data/samples/ebilanz/v6.4/HandelsbilanzGastronom_PersG.xml
+//!     cargo run --example print_facts -- test_data/instances/ebilanz/v6.4/HandelsbilanzGastronom_PersG.xml
 
 use xbrl_rs::{XbrlParser, extract_xbrl};
 
@@ -15,7 +15,7 @@ fn truncate(s: &str, max: usize) -> String {
 
 fn main() -> anyhow::Result<()> {
     let path = std::env::args().nth(1).unwrap_or_else(|| {
-        "test_data/samples/ebilanz/v6.4/HandelsbilanzGastronom_PersG.xml".into()
+        "test_data/instances/ebilanz/v6.4/HandelsbilanzGastronom_PersG.xml".into()
     });
 
     let xml = std::fs::read_to_string(&path)?;
