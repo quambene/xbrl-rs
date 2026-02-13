@@ -1,7 +1,7 @@
 use std::path::Path;
 use xbrl_rs::TaxonomySet;
 
-const TAXONOMY_BASE: &str = "test_data/schema/german-gaap-taxonomy/v6.9";
+const TAXONOMY_BASE: &str = "test_data/taxonomies/german-gaap/v6.9";
 
 #[test]
 fn discover_gcd_shell() {

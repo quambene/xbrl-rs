@@ -2,8 +2,8 @@
 /target
 
 # Test data
-**/test_data/samples
-**/test_data/schema
+**/test_data/instances
+**/test_data/taxonomies
 
 # Environment
 **/.env
