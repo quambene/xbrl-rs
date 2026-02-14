@@ -54,9 +54,7 @@ impl XbrlParser {
 
                     // Parse different XBRL elements
                     if name_str.ends_with(":schemaRef") {
-                        if let Some(href) =
-                            Self::get_attribute(&e.attributes(), b"xlink:href")
-                        {
+                        if let Some(href) = Self::get_attribute(&e.attributes(), b"xlink:href") {
                             instance.add_schema_ref(href);
                         }
                     } else if name_str.ends_with(":context") {
