@@ -1,4 +1,7 @@
-use super::schema::{ElementDefinition, RoleType, TaxonomySchema};
+use super::{
+    label::{self, Label},
+    schema::{ElementDefinition, RoleType, TaxonomySchema},
+};
 use anyhow::{Context, Result};
 use log::warn;
 use std::{
@@ -16,6 +19,9 @@ pub struct TaxonomySet {
     schemas: HashMap<PathBuf, TaxonomySchema>,
     /// All linkbase file paths discovered (canonical absolute paths).
     linkbase_paths: Vec<PathBuf>,
+    /// Concept labels parsed from label linkbase files.
+    /// Keyed by concept element ID (e.g., "de-gaap-ci_bs.ass").
+    labels: HashMap<String, Vec<Label>>,
 }
 
 impl TaxonomySet {
@@ -83,9 +89,44 @@ impl TaxonomySet {
             schemas.insert(path, schema);
         }
 
+        let linkbase_paths: Vec<PathBuf> = linkbase_set.into_iter().collect();
+
+        // Parse label linkbase files.
+        // Collect label linkbase paths from LinkbaseRef entries with a label role.
+        let mut label_linkbase_paths: HashSet<PathBuf> = HashSet::new();
+        for schema in schemas.values() {
+            let schema_dir = schema.file_path.parent().unwrap_or(Path::new("."));
+            for lbref in &schema.linkbase_refs {
+                let is_label = lbref
+                    .role
+                    .as_deref()
+                    .is_some_and(|r| r.contains("labelLinkbaseRef"));
+                if is_label {
+                    if let Some(resolved) = resolve_local_path(schema_dir, &lbref.href)
+                        && resolved.exists()
+                        && let Ok(canonical) = std::fs::canonicalize(&resolved)
+                    {
+                        label_linkbase_paths.insert(canonical);
+                    }
+                }
+            }
+        }
+
+        let mut labels: HashMap<String, Vec<Label>> = HashMap::new();
+        for path in &label_linkbase_paths {
+            let xml_content = std::fs::read_to_string(path)
+                .with_context(|| format!("Failed to read label linkbase: {}", path.display()))?;
+            let file_labels = label::parse_label_linkbase(&xml_content)
+                .with_context(|| format!("Failed to parse label linkbase: {}", path.display()))?;
+            for (concept_id, mut concept_labels) in file_labels {
+                labels.entry(concept_id).or_default().append(&mut concept_labels);
+            }
+        }
+
         Ok(TaxonomySet {
             schemas,
-            linkbase_paths: linkbase_set.into_iter().collect(),
+            linkbase_paths,
+            labels,
         })
     }
 
@@ -115,6 +156,16 @@ impl TaxonomySet {
             .values()
             .flat_map(|s| &s.elements)
             .find(|e| e.name == name)
+    }
+
+    /// Get all concept labels.
+    pub fn labels(&self) -> &HashMap<String, Vec<Label>> {
+        &self.labels
+    }
+
+    /// Get labels for a specific concept by its element ID (e.g., "de-gaap-ci_bs.ass").
+    pub fn labels_for(&self, concept_id: &str) -> Option<&[Label]> {
+        self.labels.get(concept_id).map(|v| v.as_slice())
     }
 
     /// Get a schema by its target namespace.
