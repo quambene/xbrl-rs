@@ -4,7 +4,7 @@ use std::path::Path;
 use xbrl_rs::{TaxonomySet, XbrlParser, XbrlValidator, extract_xbrl};
 
 const INSTANCE_BASE: &str = "test_data/instances/ebilanz";
-const TAXONOMY_BASE: &str = "test_data/taxonomies/german-gaap";
+const TAXONOMY_BASE: &str = "test_data/taxonomies";
 
 fn parse_instance(path: &Path) -> xbrl_rs::XbrlInstance {
     let xml = std::fs::read_to_string(path).expect("failed to read instance file");
@@ -14,29 +14,20 @@ fn parse_instance(path: &Path) -> xbrl_rs::XbrlInstance {
         .expect("failed to parse instance")
 }
 
-fn discover_taxonomy_v64() -> TaxonomySet {
-    let gcd_path =
-        Path::new(TAXONOMY_BASE).join("v6.4/de-gcd-2020-04-01/de-gcd-2020-04-01-shell.xsd");
-    let gaap_path = Path::new(TAXONOMY_BASE)
-        .join("v6.4/de-gaap-ci-2020-04-01/de-gaap-ci-2020-04-01-shell-fiscal.xsd");
-
-    TaxonomySet::discover(&[&gcd_path, &gaap_path]).expect("failed to discover taxonomy")
-}
-
-fn discover_taxonomy_v65() -> TaxonomySet {
-    let gcd_path =
-        Path::new(TAXONOMY_BASE).join("v6.5/de-gcd-2021-04-14/de-gcd-2021-04-14-shell.xsd");
-    let gaap_path = Path::new(TAXONOMY_BASE)
-        .join("v6.5/de-gaap-ci-2021-04-14/de-gaap-ci-2021-04-14-shell-fiscal.xsd");
-
-    TaxonomySet::discover(&[&gcd_path, &gaap_path]).expect("failed to discover taxonomy")
-}
-
 #[test]
 fn validate_instance_v64_balance_sheet_restaurateur() {
     let path = Path::new(INSTANCE_BASE).join("v6.4/HandelsbilanzGastronom_PersG.xml");
     let instance = parse_instance(&path);
-    let taxonomy = discover_taxonomy_v64();
+    let schema_refs = instance
+        .schema_ref_paths()
+        .iter()
+        .map(|schema_ref| Path::new(TAXONOMY_BASE).join(schema_ref))
+        .collect::<Vec<_>>();
+    let schema_refs = schema_refs
+        .iter()
+        .map(|path| path.as_path())
+        .collect::<Vec<_>>();
+    let taxonomy = TaxonomySet::discover(&schema_refs).expect("failed to discover taxonomy");
 
     let result = XbrlValidator::new(&instance, &taxonomy).validate_all();
 
@@ -47,9 +38,20 @@ fn validate_instance_v64_balance_sheet_restaurateur() {
 fn validate_instance_v64_balance_sheet_farmer() {
     let path = Path::new(INSTANCE_BASE).join("v6.4/HandelsbilanzLandwirt_GmbH.xml");
     let instance = parse_instance(&path);
-    let taxonomy = discover_taxonomy_v64();
+    let schema_refs = instance
+        .schema_ref_paths()
+        .iter()
+        .map(|schema_ref| Path::new(TAXONOMY_BASE).join(schema_ref))
+        .collect::<Vec<_>>();
+    let schema_refs = schema_refs
+        .iter()
+        .map(|path| path.as_path())
+        .collect::<Vec<_>>();
+    let taxonomy = TaxonomySet::discover(&schema_refs).expect("failed to discover taxonomy");
 
     let result = XbrlValidator::new(&instance, &taxonomy).validate_all();
+
+    dbg!(&result.errors());
 
     assert!(result.is_valid());
 }
@@ -58,7 +60,16 @@ fn validate_instance_v64_balance_sheet_farmer() {
 fn validate_instance_v64_tax_balance_sheet_car_dealer() {
     let path = Path::new(INSTANCE_BASE).join("v6.4/SteuerbilanzAutoverkaeufer_PersG.xml");
     let instance = parse_instance(&path);
-    let taxonomy = discover_taxonomy_v64();
+    let schema_refs = instance
+        .schema_ref_paths()
+        .iter()
+        .map(|schema_ref| Path::new(TAXONOMY_BASE).join(schema_ref))
+        .collect::<Vec<_>>();
+    let schema_refs = schema_refs
+        .iter()
+        .map(|path| path.as_path())
+        .collect::<Vec<_>>();
+    let taxonomy = TaxonomySet::discover(&schema_refs).expect("failed to discover taxonomy");
 
     let result = XbrlValidator::new(&instance, &taxonomy).validate_all();
 
@@ -69,7 +80,16 @@ fn validate_instance_v64_tax_balance_sheet_car_dealer() {
 fn validate_instance_v65_balance_sheet_restaurateur() {
     let path = Path::new(INSTANCE_BASE).join("v6.5/HandelsbilanzGastronom_PersG.xml");
     let instance = parse_instance(&path);
-    let taxonomy = discover_taxonomy_v65();
+    let schema_refs = instance
+        .schema_ref_paths()
+        .iter()
+        .map(|schema_ref| Path::new(TAXONOMY_BASE).join(schema_ref))
+        .collect::<Vec<_>>();
+    let schema_refs = schema_refs
+        .iter()
+        .map(|path| path.as_path())
+        .collect::<Vec<_>>();
+    let taxonomy = TaxonomySet::discover(&schema_refs).expect("failed to discover taxonomy");
 
     let result = XbrlValidator::new(&instance, &taxonomy).validate_all();
 
@@ -80,7 +100,16 @@ fn validate_instance_v65_balance_sheet_restaurateur() {
 fn validate_instance_v65_balance_sheet_farmer() {
     let path = Path::new(INSTANCE_BASE).join("v6.5/HandelsbilanzLandwirt_GmbH.xml");
     let instance = parse_instance(&path);
-    let taxonomy = discover_taxonomy_v65();
+    let schema_refs = instance
+        .schema_ref_paths()
+        .iter()
+        .map(|schema_ref| Path::new(TAXONOMY_BASE).join(schema_ref))
+        .collect::<Vec<_>>();
+    let schema_refs = schema_refs
+        .iter()
+        .map(|path| path.as_path())
+        .collect::<Vec<_>>();
+    let taxonomy = TaxonomySet::discover(&schema_refs).expect("failed to discover taxonomy");
 
     let result = XbrlValidator::new(&instance, &taxonomy).validate_all();
 
@@ -91,7 +120,16 @@ fn validate_instance_v65_balance_sheet_farmer() {
 fn validate_instance_v65_tax_balance_sheet_car_dealer() {
     let path = Path::new(INSTANCE_BASE).join("v6.5/SteuerbilanzAutoverkaeufer_PersG.xml");
     let instance = parse_instance(&path);
-    let taxonomy = discover_taxonomy_v65();
+    let schema_refs = instance
+        .schema_ref_paths()
+        .iter()
+        .map(|schema_ref| Path::new(TAXONOMY_BASE).join(schema_ref))
+        .collect::<Vec<_>>();
+    let schema_refs = schema_refs
+        .iter()
+        .map(|path| path.as_path())
+        .collect::<Vec<_>>();
+    let taxonomy = TaxonomySet::discover(&schema_refs).expect("failed to discover taxonomy");
 
     let result = XbrlValidator::new(&instance, &taxonomy).validate_all();
 
