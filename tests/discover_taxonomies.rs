@@ -1,5 +1,5 @@
 use std::path::Path;
-use xbrl_rs::TaxonomySet;
+use xbrl_rs::{Label, TaxonomySet};
 
 const TAXONOMY_BASE: &str = "test_data/taxonomies/german-gaap/v6.9";
 
@@ -137,6 +137,68 @@ fn schema_by_namespace() {
         .expect("GCD schema not found by namespace");
     assert!(!gcd.elements.is_empty());
     assert!(gcd.elements.iter().any(|e| e.name == "genInfo"));
+}
+
+#[test]
+fn parse_labels_for_gaap_ci() {
+    let entry =
+        format!("{TAXONOMY_BASE}/de-gaap-ci-2025-04-01/de-gaap-ci-2025-04-01-shell-fiscal.xsd");
+    let dts = TaxonomySet::discover(&[Path::new(&entry)]).unwrap();
+
+    assert!(
+        !dts.labels().is_empty(),
+        "Expected labels to be parsed from label linkbases"
+    );
+
+    // bs.ass should have labels in German and English
+    let bs_ass_labels = dts
+        .labels_for("de-gaap-ci_bs.ass")
+        .expect("Expected labels for de-gaap-ci_bs.ass");
+
+    assert!(bs_ass_labels.contains(&Label {
+        role: "http://www.xbrl.org/2003/role/terseLabel".to_owned(),
+        lang: "en".to_owned(),
+        text: "Total assets".to_owned(),
+    }));
+    assert!(bs_ass_labels.contains(&Label {
+        role: "http://www.xbrl.org/2003/role/label".to_owned(),
+        lang: "en".to_owned(),
+        text: "Balance sheet, total assets".to_owned(),
+    }));
+    assert!(bs_ass_labels.contains(&Label {
+        role: "http://www.xbrl.org/2003/role/terseLabel".to_owned(),
+        lang: "de".to_owned(),
+        text: "Summe Aktiva".to_owned(),
+    }));
+    assert!(bs_ass_labels.contains(&Label {
+        role: "http://www.xbrl.org/2003/role/label".to_owned(),
+        lang: "de".to_owned(),
+        text: "Bilanzsumme, Summe Aktiva".to_owned(),
+    }));
+    assert!(bs_ass_labels.contains(&Label {
+        role: "http://www.xbrl.org/2003/role/definitionGuidance".to_owned(),
+        lang: "de".to_owned(),
+        text: "Dieser Wert muss der Bilanzsumme, Summe Passiva entsprechen".to_owned(),
+    }));
+}
+
+#[test]
+fn parse_labels_include_multiple_roles() {
+    let entry = format!("{TAXONOMY_BASE}/de-gcd-2025-04-01/de-gcd-2025-04-01-shell.xsd");
+    let dts = TaxonomySet::discover(&[Path::new(&entry)]).unwrap();
+
+    // Find a concept that has both a standard label and documentation
+    let concept_labels = dts.labels();
+
+    let has_multiple_roles = concept_labels.values().any(|labels| {
+        let has_label = labels.iter().any(|l| l.role.ends_with("/label"));
+        let has_doc = labels.iter().any(|l| l.role.ends_with("/documentation"));
+        has_label && has_doc
+    });
+    assert!(
+        has_multiple_roles,
+        "Expected at least one concept with both label and documentation roles"
+    );
 }
 
 #[test]
