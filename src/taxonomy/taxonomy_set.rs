@@ -101,13 +101,13 @@ impl TaxonomySet {
                     .role
                     .as_deref()
                     .is_some_and(|r| r.contains("labelLinkbaseRef"));
-                if is_label {
-                    if let Some(resolved) = resolve_local_path(schema_dir, &lbref.href)
-                        && resolved.exists()
-                        && let Ok(canonical) = std::fs::canonicalize(&resolved)
-                    {
-                        label_linkbase_paths.insert(canonical);
-                    }
+
+                if is_label
+                    && let Some(resolved) = resolve_local_path(schema_dir, &lbref.href)
+                    && resolved.exists()
+                    && let Ok(canonical) = std::fs::canonicalize(&resolved)
+                {
+                    label_linkbase_paths.insert(canonical);
                 }
             }
         }
@@ -119,7 +119,10 @@ impl TaxonomySet {
             let file_labels = label::parse_label_linkbase(&xml_content)
                 .with_context(|| format!("Failed to parse label linkbase: {}", path.display()))?;
             for (concept_id, mut concept_labels) in file_labels {
-                labels.entry(concept_id).or_default().append(&mut concept_labels);
+                labels
+                    .entry(concept_id)
+                    .or_default()
+                    .append(&mut concept_labels);
             }
         }
 
