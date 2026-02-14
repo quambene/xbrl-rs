@@ -1,5 +1,9 @@
 use super::{
+    calculation::{self, CalculationArc},
+    definition::{self, DefinitionArc},
     label::{self, Label},
+    presentation::{self, PresentationArc},
+    reference::{self, Reference},
     schema::{ElementDefinition, RoleType, TaxonomySchema},
 };
 use anyhow::{Context, Result};
@@ -22,6 +26,15 @@ pub struct TaxonomySet {
     /// Concept labels parsed from label linkbase files.
     /// Keyed by concept element ID (e.g., "de-gaap-ci_bs.ass").
     labels: HashMap<String, Vec<Label>>,
+    /// Presentation arcs grouped by role URI.
+    presentations: HashMap<String, Vec<PresentationArc>>,
+    /// Calculation arcs grouped by role URI.
+    calculations: HashMap<String, Vec<CalculationArc>>,
+    /// Definition arcs grouped by role URI.
+    definitions: HashMap<String, Vec<DefinitionArc>>,
+    /// Concept references parsed from reference linkbase files.
+    /// Keyed by concept element ID.
+    references: HashMap<String, Vec<Reference>>,
 }
 
 impl TaxonomySet {
@@ -91,38 +104,105 @@ impl TaxonomySet {
 
         let linkbase_paths: Vec<PathBuf> = linkbase_set.into_iter().collect();
 
-        // Parse label linkbase files.
-        // Collect label linkbase paths from LinkbaseRef entries with a label role.
-        let mut label_linkbase_paths: HashSet<PathBuf> = HashSet::new();
+        // Collect linkbase paths by type from LinkbaseRef entries.
+        let mut label_paths: HashSet<PathBuf> = HashSet::new();
+        let mut presentation_paths: HashSet<PathBuf> = HashSet::new();
+        let mut calculation_paths: HashSet<PathBuf> = HashSet::new();
+        let mut definition_paths: HashSet<PathBuf> = HashSet::new();
+        let mut reference_paths: HashSet<PathBuf> = HashSet::new();
+
         for schema in schemas.values() {
             let schema_dir = schema.file_path.parent().unwrap_or(Path::new("."));
             for lbref in &schema.linkbase_refs {
-                let is_label = lbref
-                    .role
-                    .as_deref()
-                    .is_some_and(|r| r.contains("labelLinkbaseRef"));
+                let role = lbref.role.as_deref().unwrap_or("");
+                let set = if role.contains("labelLinkbaseRef") {
+                    &mut label_paths
+                } else if role.contains("presentationLinkbaseRef") {
+                    &mut presentation_paths
+                } else if role.contains("calculationLinkbaseRef") {
+                    &mut calculation_paths
+                } else if role.contains("definitionLinkbaseRef") {
+                    &mut definition_paths
+                } else if role.contains("referenceLinkbaseRef") {
+                    &mut reference_paths
+                } else {
+                    continue;
+                };
 
-                if is_label
-                    && let Some(resolved) = resolve_local_path(schema_dir, &lbref.href)
+                if let Some(resolved) = resolve_local_path(schema_dir, &lbref.href)
                     && resolved.exists()
                     && let Ok(canonical) = std::fs::canonicalize(&resolved)
                 {
-                    label_linkbase_paths.insert(canonical);
+                    set.insert(canonical);
                 }
             }
         }
 
+        // Parse label linkbases
         let mut labels: HashMap<String, Vec<Label>> = HashMap::new();
-        for path in &label_linkbase_paths {
-            let xml_content = std::fs::read_to_string(path)
+        for path in &label_paths {
+            let xml = std::fs::read_to_string(path)
                 .with_context(|| format!("Failed to read label linkbase: {}", path.display()))?;
-            let file_labels = label::parse_label_linkbase(&xml_content)
+            let parsed = label::parse_label_linkbase(&xml)
                 .with_context(|| format!("Failed to parse label linkbase: {}", path.display()))?;
-            for (concept_id, mut concept_labels) in file_labels {
-                labels
-                    .entry(concept_id)
-                    .or_default()
-                    .append(&mut concept_labels);
+            for (id, mut vals) in parsed {
+                labels.entry(id).or_default().append(&mut vals);
+            }
+        }
+
+        // Parse presentation linkbases
+        let mut presentations: HashMap<String, Vec<PresentationArc>> = HashMap::new();
+        for path in &presentation_paths {
+            let xml = std::fs::read_to_string(path).with_context(|| {
+                format!("Failed to read presentation linkbase: {}", path.display())
+            })?;
+            let parsed = presentation::parse_presentation_linkbase(&xml).with_context(|| {
+                format!("Failed to parse presentation linkbase: {}", path.display())
+            })?;
+            for (role, mut arcs) in parsed {
+                presentations.entry(role).or_default().append(&mut arcs);
+            }
+        }
+
+        // Parse calculation linkbases
+        let mut calculations: HashMap<String, Vec<CalculationArc>> = HashMap::new();
+        for path in &calculation_paths {
+            let xml = std::fs::read_to_string(path).with_context(|| {
+                format!("Failed to read calculation linkbase: {}", path.display())
+            })?;
+            let parsed = calculation::parse_calculation_linkbase(&xml).with_context(|| {
+                format!("Failed to parse calculation linkbase: {}", path.display())
+            })?;
+            for (role, mut arcs) in parsed {
+                calculations.entry(role).or_default().append(&mut arcs);
+            }
+        }
+
+        // Parse definition linkbases
+        let mut definitions: HashMap<String, Vec<DefinitionArc>> = HashMap::new();
+        for path in &definition_paths {
+            let xml = std::fs::read_to_string(path).with_context(|| {
+                format!("Failed to read definition linkbase: {}", path.display())
+            })?;
+            let parsed = definition::parse_definition_linkbase(&xml).with_context(|| {
+                format!("Failed to parse definition linkbase: {}", path.display())
+            })?;
+            for (role, mut arcs) in parsed {
+                definitions.entry(role).or_default().append(&mut arcs);
+            }
+        }
+
+        // Parse reference linkbases
+        let mut references: HashMap<String, Vec<Reference>> = HashMap::new();
+        for path in &reference_paths {
+            let xml = std::fs::read_to_string(path).with_context(|| {
+                format!("Failed to read reference linkbase: {}", path.display())
+            })?;
+            let parsed = reference::parse_reference_linkbase(&xml).with_context(|| {
+                format!("Failed to parse reference linkbase: {}", path.display())
+            })?;
+            for (id, mut vals) in parsed {
+                references.entry(id).or_default().append(&mut vals);
             }
         }
 
@@ -130,6 +210,10 @@ impl TaxonomySet {
             schemas,
             linkbase_paths,
             labels,
+            presentations,
+            calculations,
+            definitions,
+            references,
         })
     }
 
@@ -169,6 +253,46 @@ impl TaxonomySet {
     /// Get labels for a specific concept by its element ID (e.g., "de-gaap-ci_bs.ass").
     pub fn labels_for(&self, concept_id: &str) -> Option<&[Label]> {
         self.labels.get(concept_id).map(|v| v.as_slice())
+    }
+
+    /// Get all presentation arcs grouped by role URI.
+    pub fn presentations(&self) -> &HashMap<String, Vec<PresentationArc>> {
+        &self.presentations
+    }
+
+    /// Get presentation arcs for a specific role URI.
+    pub fn presentation_arcs(&self, role: &str) -> Option<&[PresentationArc]> {
+        self.presentations.get(role).map(|v| v.as_slice())
+    }
+
+    /// Get all calculation arcs grouped by role URI.
+    pub fn calculations(&self) -> &HashMap<String, Vec<CalculationArc>> {
+        &self.calculations
+    }
+
+    /// Get calculation arcs for a specific role URI.
+    pub fn calculation_arcs(&self, role: &str) -> Option<&[CalculationArc]> {
+        self.calculations.get(role).map(|v| v.as_slice())
+    }
+
+    /// Get all definition arcs grouped by role URI.
+    pub fn definitions(&self) -> &HashMap<String, Vec<DefinitionArc>> {
+        &self.definitions
+    }
+
+    /// Get definition arcs for a specific role URI.
+    pub fn definition_arcs(&self, role: &str) -> Option<&[DefinitionArc]> {
+        self.definitions.get(role).map(|v| v.as_slice())
+    }
+
+    /// Get all concept references.
+    pub fn references(&self) -> &HashMap<String, Vec<Reference>> {
+        &self.references
+    }
+
+    /// Get references for a specific concept by its element ID.
+    pub fn references_for(&self, concept_id: &str) -> Option<&[Reference]> {
+        self.references.get(concept_id).map(|v| v.as_slice())
     }
 
     /// Get a schema by its target namespace.

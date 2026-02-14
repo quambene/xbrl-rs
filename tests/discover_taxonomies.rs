@@ -140,7 +140,7 @@ fn schema_by_namespace() {
 }
 
 #[test]
-fn parse_labels_for_gaap_ci() {
+fn parse_labels_linkbase() {
     let entry =
         format!("{TAXONOMY_BASE}/de-gaap-ci-2025-04-01/de-gaap-ci-2025-04-01-shell-fiscal.xsd");
     let dts = TaxonomySet::discover(&[Path::new(&entry)]).unwrap();
@@ -183,7 +183,7 @@ fn parse_labels_for_gaap_ci() {
 }
 
 #[test]
-fn parse_labels_include_multiple_roles() {
+fn parse_labels_linkbase_multiple_roles() {
     let entry = format!("{TAXONOMY_BASE}/de-gcd-2025-04-01/de-gcd-2025-04-01-shell.xsd");
     let dts = TaxonomySet::discover(&[Path::new(&entry)]).unwrap();
 
@@ -199,6 +199,100 @@ fn parse_labels_include_multiple_roles() {
         has_multiple_roles,
         "Expected at least one concept with both label and documentation roles"
     );
+}
+
+#[test]
+fn parse_presentation_linkbase() {
+    let entry =
+        format!("{TAXONOMY_BASE}/de-gaap-ci-2025-04-01/de-gaap-ci-2025-04-01-shell-fiscal.xsd");
+    let dts = TaxonomySet::discover(&[Path::new(&entry)]).unwrap();
+
+    assert!(
+        !dts.presentations().is_empty(),
+        "Expected presentation arcs to be parsed"
+    );
+
+    // Balance sheet role should have parent-child arcs
+    let bs_role = "http://www.xbrl.de/taxonomies/de-gaap-ci/role/balanceSheet";
+    let bs_arcs = dts
+        .presentation_arcs(bs_role)
+        .expect("Expected presentation arcs for balanceSheet role");
+
+    // bs.ass -> bs.ass.fixAss should be a known parent-child relationship
+    assert!(
+        bs_arcs
+            .iter()
+            .any(|a| a.from == "de-gaap-ci_bs.ass" && a.to == "de-gaap-ci_bs.ass.fixAss"),
+        "Expected bs.ass -> bs.ass.fixAss presentation arc"
+    );
+}
+
+#[test]
+fn parse_calculation_linkbase() {
+    let entry =
+        format!("{TAXONOMY_BASE}/de-gaap-ci-2025-04-01/de-gaap-ci-2025-04-01-shell-fiscal.xsd");
+    let dts = TaxonomySet::discover(&[Path::new(&entry)]).unwrap();
+
+    assert!(
+        !dts.calculations().is_empty(),
+        "Expected calculation arcs to be parsed"
+    );
+
+    let bs_role = "http://www.xbrl.de/taxonomies/de-gaap-ci/role/balanceSheet";
+    let bs_arcs = dts
+        .calculation_arcs(bs_role)
+        .expect("Expected calculation arcs for balanceSheet role");
+
+    // bs.ass should sum its children with weight 1
+    let child_arc = bs_arcs
+        .iter()
+        .find(|a| a.from == "de-gaap-ci_bs.ass" && a.to == "de-gaap-ci_bs.ass.fixAss")
+        .expect("Expected bs.ass -> bs.ass.fixAss calculation arc");
+    assert_eq!(child_arc.weight, 1.0);
+}
+
+#[test]
+fn parse_definition_linkbase() {
+    let entry =
+        format!("{TAXONOMY_BASE}/de-gaap-ci-2025-04-01/de-gaap-ci-2025-04-01-shell-fiscal.xsd");
+    let dts = TaxonomySet::discover(&[Path::new(&entry)]).unwrap();
+
+    assert!(
+        !dts.definitions().is_empty(),
+        "Expected definition arcs to be parsed"
+    );
+
+    // At least one role should have domain-member arcs
+    let has_domain_member = dts
+        .definitions()
+        .values()
+        .any(|arcs| arcs.iter().any(|a| a.arcrole.contains("domain-member")));
+    assert!(
+        has_domain_member,
+        "Expected at least one domain-member definition arc"
+    );
+}
+
+#[test]
+fn parse_reference_linkbase() {
+    let entry =
+        format!("{TAXONOMY_BASE}/de-gaap-ci-2025-04-01/de-gaap-ci-2025-04-01-shell-fiscal.xsd");
+    let dts = TaxonomySet::discover(&[Path::new(&entry)]).unwrap();
+
+    assert!(
+        !dts.references().is_empty(),
+        "Expected references to be parsed"
+    );
+
+    // bs.ass should have an HGB reference
+    let bs_refs = dts
+        .references_for("de-gaap-ci_bs.ass")
+        .expect("Expected references for de-gaap-ci_bs.ass");
+
+    let has_hgb = bs_refs
+        .iter()
+        .any(|r| r.parts.iter().any(|p| p.name == "Name" && p.value == "HGB"));
+    assert!(has_hgb, "Expected HGB reference for bs.ass");
 }
 
 #[test]
