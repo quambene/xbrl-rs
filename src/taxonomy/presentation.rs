@@ -118,10 +118,10 @@ fn local_name(name: &str) -> &str {
 fn extract_role(attrs: Attributes) -> String {
     for attr in attrs.flatten() {
         let key = String::from_utf8_lossy(attr.key.as_ref());
-        if local_name(&key) == "role" {
-            if let Ok(val) = attr.unescape_value() {
-                return val.to_string();
-            }
+        if local_name(&key) == "role"
+            && let Ok(val) = attr.unescape_value()
+        {
+            return val.to_string();
         }
     }
     String::new()
@@ -136,10 +136,10 @@ fn parse_loc(attrs: Attributes, locators: &mut HashMap<String, String>) {
         let local = local_name(&key);
         match local {
             "href" => {
-                if let Ok(val) = attr.unescape_value() {
-                    if let Some(fragment) = val.split('#').nth(1) {
-                        href = Some(fragment.to_string());
-                    }
+                if let Ok(val) = attr.unescape_value()
+                    && let Some(fragment) = val.split('#').nth(1)
+                {
+                    href = Some(fragment.to_string());
                 }
             }
             "label" => {

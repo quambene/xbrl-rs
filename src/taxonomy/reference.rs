@@ -121,10 +121,10 @@ fn parse_loc(attrs: Attributes, locators: &mut HashMap<String, String>) {
         let local = local_name(&key);
         match local {
             "href" => {
-                if let Ok(val) = attr.unescape_value() {
-                    if let Some(fragment) = val.split('#').nth(1) {
-                        href = Some(fragment.to_string());
-                    }
+                if let Ok(val) = attr.unescape_value()
+                    && let Some(fragment) = val.split('#').nth(1)
+                {
+                    href = Some(fragment.to_string());
                 }
             }
             "label" => {
