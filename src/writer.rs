@@ -5,12 +5,12 @@ use quick_xml::{
     Writer,
     events::{BytesDecl, BytesEnd, BytesStart, BytesText, Event},
 };
-use std::io::Cursor;
 
 /// Serialize an [`XbrlInstance`] to an XBRL XML document.
-pub(crate) fn write_xml(instance: &XbrlInstance) -> Result<String, anyhow::Error> {
-    let mut writer = Writer::new_with_indent(Cursor::new(Vec::new()), b' ', 2);
-
+pub(crate) fn write_xml<W: std::io::Write>(
+    writer: &mut Writer<W>,
+    instance: &XbrlInstance,
+) -> Result<(), anyhow::Error> {
     // XML declaration
     writer.write_event(Event::Decl(BytesDecl::new("1.0", Some("utf-8"), None)))?;
 
@@ -46,28 +46,25 @@ pub(crate) fn write_xml(instance: &XbrlInstance) -> Result<String, anyhow::Error
     let mut ctx_sorted: Vec<_> = instance.contexts().iter().collect();
     ctx_sorted.sort_by_key(|(id, _)| *id);
     for (_, context) in &ctx_sorted {
-        write_context(&mut writer, context)?;
+        write_context(writer, context)?;
     }
 
     // <xbrli:unit> elements
     let mut unit_sorted: Vec<_> = instance.units().iter().collect();
     unit_sorted.sort_by_key(|(id, _)| *id);
     for (_, unit) in &unit_sorted {
-        write_unit(&mut writer, unit)?;
+        write_unit(writer, unit)?;
     }
 
     // Fact elements
     for fact in instance.facts() {
-        write_fact(&mut writer, fact)?;
+        write_fact(writer, fact)?;
     }
 
     // </xbrli:xbrl>
     writer.write_event(Event::End(BytesEnd::new("xbrli:xbrl")))?;
 
-    let buf = writer.into_inner().into_inner();
-    let xml = String::from_utf8(buf)?;
-
-    Ok(xml)
+    Ok(())
 }
 
 fn write_context<W: std::io::Write>(

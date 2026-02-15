@@ -4,6 +4,7 @@ use crate::{
     Context, Fact, TaxonomySet, Unit, reader, validation, validation::ValidationResult, writer,
 };
 use anyhow::Result;
+use quick_xml::Writer;
 use std::collections::HashMap;
 
 /// Represents a complete XBRL instance document
@@ -52,8 +53,11 @@ impl XbrlInstance {
     }
 
     /// Serialize this instance to an XBRL XML document.
-    pub fn to_xml(&self) -> Result<String, anyhow::Error> {
-        writer::write_xml(self)
+    pub fn to_xml<W>(&self, writer: &mut Writer<W>) -> Result<(), anyhow::Error>
+    where
+        W: std::io::Write,
+    {
+        writer::write_xml(writer, self)
     }
 
     /// Add a schema reference (xlink:href from a link:schemaRef element)
