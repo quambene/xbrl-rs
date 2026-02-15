@@ -242,7 +242,7 @@ impl TaxonomySet {
     /// Create an empty [`XbrlInstance`] pre-populated with schema references
     /// and namespace declarations from this DTS.
     pub fn create_instance(&self) -> XbrlInstance {
-        let mut instance = XbrlInstance::new();
+        let mut instance = XbrlInstance::default();
 
         for schema_ref in &self.schema_refs {
             instance.add_schema_ref(schema_ref.clone());
@@ -252,33 +252,6 @@ impl TaxonomySet {
             for (prefix, uri) in &schema.namespaces {
                 instance.add_namespace(prefix.clone(), uri.clone());
             }
-        }
-
-        instance
-    }
-
-    /// Create an [`XbrlInstance`] with provided facts, contexts, and units.
-    ///
-    /// The instance is pre-populated with schema references and namespace
-    /// declarations from this DTS.
-    pub fn create_instance_with_facts(
-        &self,
-        facts: Vec<Fact>,
-        contexts: Vec<Context>,
-        units: Vec<Unit>,
-    ) -> XbrlInstance {
-        let mut instance = self.create_instance();
-
-        for context in contexts {
-            instance.add_context(context);
-        }
-
-        for unit in units {
-            instance.add_unit(unit);
-        }
-
-        for fact in facts {
-            instance.add_fact(fact);
         }
 
         instance
