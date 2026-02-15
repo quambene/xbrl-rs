@@ -24,18 +24,30 @@ pub struct XbrlInstance {
 
 impl Default for XbrlInstance {
     fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl XbrlInstance {
-    pub fn new() -> Self {
         Self {
             schema_refs: Vec::new(),
             contexts: HashMap::new(),
             units: HashMap::new(),
             facts: Vec::new(),
             namespaces: HashMap::new(),
+        }
+    }
+}
+
+impl XbrlInstance {
+    pub fn new(
+        schema_refs: Vec<String>,
+        contexts: HashMap<String, Context>,
+        units: HashMap<String, Unit>,
+        facts: Vec<Fact>,
+        namespaces: HashMap<String, String>,
+    ) -> Self {
+        Self {
+            schema_refs,
+            contexts,
+            units,
+            facts,
+            namespaces,
         }
     }
 

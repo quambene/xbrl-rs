@@ -20,7 +20,7 @@ where
     reader.config_mut().trim_text_start = true;
     reader.config_mut().trim_text_end = true;
 
-    let mut instance = XbrlInstance::new();
+    let mut instance = XbrlInstance::default();
     let mut buf = Vec::new();
     let mut inside_xbrl = false;
 
