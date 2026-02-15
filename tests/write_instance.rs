@@ -13,13 +13,15 @@ fn write_empty_instance() {
         TaxonomySet::discover(vec![gcd.to_owned(), gaap.to_owned()], entry_point).unwrap();
     let instance = taxonomy.create_instance();
 
+    // Validate the generated XBRL
+    let res = instance.validate(&taxonomy);
+    assert!(res.is_valid());
+
     let mut writer: XmlWriter<Vec<u8>> = XmlWriter::new(Vec::new());
-
     instance.to_xml(&mut writer).unwrap();
-
     let xml = String::from_utf8(writer.into_inner()).unwrap();
 
-    // Test parsing the generated XML
+    // Parse the generated XML
     let doc = Document::parse(&xml);
 
     assert!(doc.is_ok());
