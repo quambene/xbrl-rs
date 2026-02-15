@@ -8,7 +8,7 @@ use quick_xml::{Reader, Writer};
 use std::{collections::HashMap, io};
 
 /// Represents a complete XBRL instance document
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct XbrlInstance {
     /// Schema references (xlink:href values from link:schemaRef elements)
     schema_refs: Vec<String>,
@@ -20,18 +20,6 @@ pub struct XbrlInstance {
     facts: Vec<Fact>,
     /// Namespace prefixes used in the document
     namespaces: HashMap<String, String>,
-}
-
-impl Default for XbrlInstance {
-    fn default() -> Self {
-        Self {
-            schema_refs: Vec::new(),
-            contexts: HashMap::new(),
-            units: HashMap::new(),
-            facts: Vec::new(),
-            namespaces: HashMap::new(),
-        }
-    }
 }
 
 impl XbrlInstance {
