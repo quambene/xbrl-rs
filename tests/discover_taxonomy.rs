@@ -1,24 +1,10 @@
 //! Integration tests for parsing the full DTS (Discoverable Taxonomy Set)
 //! across all available taxonomy versions.
 
-use std::path::Path;
-use xbrl_rs::{EntryPoint, TaxonomySet};
+use std::{path::PathBuf, str::FromStr};
+use xbrl_rs::TaxonomySet;
 
-const TAXONOMY_BASE: &str = "test_data/taxonomies";
-const TAXONOMY_URL_BASE: &str = "http://www.xbrl.de/taxonomies";
-
-fn discover(entry_points: &[&str]) -> TaxonomySet {
-    let entries: Vec<_> = entry_points
-        .iter()
-        .map(|path| {
-            EntryPoint::new(
-                format!("{TAXONOMY_URL_BASE}/{path}"),
-                Path::new(TAXONOMY_BASE).join(path),
-            )
-        })
-        .collect();
-    TaxonomySet::discover(&entries).expect("failed to discover taxonomy")
-}
+const TAXONOMY_ENTRY_POINT: &str = "test_data/taxonomies";
 
 fn assert_dts(dts: &TaxonomySet) {
     // GCD elements
@@ -58,14 +44,19 @@ fn assert_dts(dts: &TaxonomySet) {
 
 #[test]
 fn discover_full_dts_2020() {
-    let dts = discover(&[
-        "de-gcd-2020-04-01/de-gcd-2020-04-01-shell.xsd",
-        "de-gaap-ci-2020-04-01/de-gaap-ci-2020-04-01-shell-fiscal.xsd",
-        "de-bra-2020-04-01/de-bra-2020-04-01-shell-fiscal.xsd",
-        "de-fi-2020-04-01/de-fi-2020-04-01-shell-staffelform-fiscal.xsd",
-        "de-ins-2020-04-01/de-ins-2020-04-01-shell-fiscal.xsd",
-        "de-pi-2020-04-01/de-pi-2020-04-01-shell-staffelform-fiscal.xsd",
-    ]);
+    let schema_refs = [
+        "http://www.xbrl.de/taxonomies/de-gcd-2020-04-01/de-gcd-2020-04-01-shell.xsd",
+        "http://www.xbrl.de/taxonomies/de-gaap-ci-2020-04-01/de-gaap-ci-2020-04-01-shell-fiscal.xsd",
+        "http://www.xbrl.de/taxonomies/de-bra-2020-04-01/de-bra-2020-04-01-shell-fiscal.xsd",
+        "http://www.xbrl.de/taxonomies/de-fi-2020-04-01/de-fi-2020-04-01-shell-staffelform-fiscal.xsd",
+        "http://www.xbrl.de/taxonomies/de-ins-2020-04-01/de-ins-2020-04-01-shell-fiscal.xsd",
+        "http://www.xbrl.de/taxonomies/de-pi-2020-04-01/de-pi-2020-04-01-shell-staffelform-fiscal.xsd",
+    ]
+    .into_iter()
+    .map(|href| href.to_owned())
+    .collect();
+    let entry_point = PathBuf::from_str(TAXONOMY_ENTRY_POINT).unwrap();
+    let dts = TaxonomySet::discover(schema_refs, entry_point).unwrap();
 
     assert_dts(&dts);
 }
@@ -74,14 +65,19 @@ fn discover_full_dts_2020() {
 
 #[test]
 fn discover_full_dts_2021() {
-    let dts = discover(&[
-        "de-gcd-2021-04-14/de-gcd-2021-04-14-shell.xsd",
-        "de-gaap-ci-2021-04-14/de-gaap-ci-2021-04-14-shell-fiscal.xsd",
-        "de-bra-2021-04-14/de-bra-2021-04-14-shell-fiscal.xsd",
-        "de-fi-2021-04-14/de-fi-2021-04-14-shell-staffelform-fiscal.xsd",
-        "de-ins-2021-04-14/de-ins-2021-04-14-shell-fiscal.xsd",
-        "de-pi-2021-04-14/de-pi-2021-04-14-shell-staffelform-fiscal.xsd",
-    ]);
+    let schema_refs = [
+        "http://www.xbrl.de/taxonomies/de-gcd-2021-04-14/de-gcd-2021-04-14-shell.xsd",
+        "http://www.xbrl.de/taxonomies/de-gaap-ci-2021-04-14/de-gaap-ci-2021-04-14-shell-fiscal.xsd",
+        "http://www.xbrl.de/taxonomies/de-bra-2021-04-14/de-bra-2021-04-14-shell-fiscal.xsd",
+        "http://www.xbrl.de/taxonomies/de-fi-2021-04-14/de-fi-2021-04-14-shell-staffelform-fiscal.xsd",
+        "http://www.xbrl.de/taxonomies/de-ins-2021-04-14/de-ins-2021-04-14-shell-fiscal.xsd",
+        "http://www.xbrl.de/taxonomies/de-pi-2021-04-14/de-pi-2021-04-14-shell-staffelform-fiscal.xsd",
+    ]
+    .into_iter()
+    .map(|href| href.to_owned())
+    .collect();
+    let entry_point = PathBuf::from_str(TAXONOMY_ENTRY_POINT).unwrap();
+    let dts = TaxonomySet::discover(schema_refs, entry_point).unwrap();
 
     assert_dts(&dts);
 }
@@ -90,14 +86,19 @@ fn discover_full_dts_2021() {
 
 #[test]
 fn discover_full_dts_2022() {
-    let dts = discover(&[
-        "de-gcd-2022-05-02/de-gcd-2022-05-02-shell.xsd",
-        "de-gaap-ci-2022-05-02/de-gaap-ci-2022-05-02-shell-fiscal.xsd",
-        "de-bra-2022-05-02/de-bra-2022-05-02-shell-fiscal.xsd",
-        "de-fi-2022-05-02/de-fi-2022-05-02-shell-staffelform-fiscal.xsd",
-        "de-ins-2022-05-02/de-ins-2022-05-02-shell-fiscal.xsd",
-        "de-pi-2022-05-02/de-pi-2022-05-02-shell-staffelform-fiscal.xsd",
-    ]);
+    let schema_refs = [
+        "http://www.xbrl.de/taxonomies/de-gcd-2022-05-02/de-gcd-2022-05-02-shell.xsd",
+        "http://www.xbrl.de/taxonomies/de-gaap-ci-2022-05-02/de-gaap-ci-2022-05-02-shell-fiscal.xsd",
+        "http://www.xbrl.de/taxonomies/de-bra-2022-05-02/de-bra-2022-05-02-shell-fiscal.xsd",
+        "http://www.xbrl.de/taxonomies/de-fi-2022-05-02/de-fi-2022-05-02-shell-staffelform-fiscal.xsd",
+        "http://www.xbrl.de/taxonomies/de-ins-2022-05-02/de-ins-2022-05-02-shell-fiscal.xsd",
+        "http://www.xbrl.de/taxonomies/de-pi-2022-05-02/de-pi-2022-05-02-shell-staffelform-fiscal.xsd",
+    ]
+    .into_iter()
+    .map(|href| href.to_owned())
+    .collect();
+    let entry_point = PathBuf::from_str(TAXONOMY_ENTRY_POINT).unwrap();
+    let dts = TaxonomySet::discover(schema_refs, entry_point).unwrap();
 
     assert_dts(&dts);
 }

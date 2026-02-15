@@ -14,33 +14,17 @@ use std::{
     path::{Path, PathBuf},
 };
 
-/// An entry point schema of a DTS, combining its public URL with a local path.
-#[derive(Debug, Clone)]
-pub struct EntryPoint {
-    /// The public URL used in `link:schemaRef` elements
-    /// (e.g., `http://www.xbrl.de/taxonomies/de-gcd-2020-04-01/de-gcd-2020-04-01-shell.xsd`).
-    pub href: String,
-    /// The local file system path to the schema file.
-    pub local_path: PathBuf,
-}
-
-impl EntryPoint {
-    pub fn new(href: impl Into<String>, local_path: impl Into<PathBuf>) -> Self {
-        Self {
-            href: href.into(),
-            local_path: local_path.into(),
-        }
-    }
-}
-
 /// The complete Discoverable Taxonomy Set (DTS).
 ///
 /// Built by following all schema imports, includes, and linkbase references
 /// starting from one or more entry point schemas.
 #[derive(Debug)]
 pub struct TaxonomySet {
-    /// The entry point schemas of this DTS.
-    entry_points: Vec<EntryPoint>,
+    /// The directory of the taxonomy files, used to resolve relative
+    /// references.
+    entry_point: PathBuf,
+    /// The public URLs of the entry point schemas.
+    schema_refs: Vec<String>,
     /// All schemas in the DTS, keyed by their canonical absolute path.
     schemas: HashMap<PathBuf, TaxonomySchema>,
     /// All linkbase file paths discovered (canonical absolute paths).
@@ -61,20 +45,30 @@ pub struct TaxonomySet {
 
 impl TaxonomySet {
     /// Discover the DTS starting from one or more entry point schema files.
-    pub fn discover(entry_points: &[EntryPoint]) -> Result<Self> {
+    ///
+    /// Starts from the provided `entry_point` directory and follows the given
+    /// `schema_refs` to find the initial schemas. Then recursively follows all
+    /// `xs:import` and `xs:include` references to discover the full set of
+    /// schemas in the DTS.
+    ///
+    /// Automatic download of taxonomy files is not supported. All referenced
+    /// files must be present locally.
+    pub fn discover(schema_refs: Vec<String>, entry_point: PathBuf) -> Result<Self> {
         let mut visited: HashSet<PathBuf> = HashSet::new();
         let mut queue: VecDeque<PathBuf> = VecDeque::new();
         let mut schemas: HashMap<PathBuf, TaxonomySchema> = HashMap::new();
         let mut linkbase_set: HashSet<PathBuf> = HashSet::new();
 
         // Seed the queue with entry points
-        for entry in entry_points {
-            let canonical = std::fs::canonicalize(&entry.local_path).with_context(|| {
-                format!(
-                    "Failed to resolve entry point: {}",
-                    entry.local_path.display()
-                )
-            })?;
+        for schema_ref in &schema_refs {
+            let schema_ref = strip_prefix(&schema_ref);
+
+            let canonical = std::fs::canonicalize(&entry_point)
+                .with_context(|| {
+                    format!("Failed to resolve entry point: {}", entry_point.display())
+                })?
+                .join(schema_ref);
+
             if visited.insert(canonical.clone()) {
                 queue.push_back(canonical);
             }
@@ -232,10 +226,9 @@ impl TaxonomySet {
             }
         }
 
-        let entry_points = entry_points.to_vec();
-
         Ok(TaxonomySet {
-            entry_points,
+            entry_point,
+            schema_refs,
             schemas,
             linkbase_paths,
             labels,
@@ -251,8 +244,8 @@ impl TaxonomySet {
     pub fn create_instance(&self) -> XbrlInstance {
         let mut instance = XbrlInstance::new();
 
-        for entry in &self.entry_points {
-            instance.add_schema_ref(entry.href.clone());
+        for schema_ref in &self.schema_refs {
+            instance.add_schema_ref(schema_ref.clone());
         }
 
         for schema in self.schemas.values() {
@@ -291,9 +284,9 @@ impl TaxonomySet {
         instance
     }
 
-    /// Get the entry point schemas.
-    pub fn entry_points(&self) -> &[EntryPoint] {
-        &self.entry_points
+    /// Get the entry point directory of taxonomy files.
+    pub fn entry_points(&self) -> &Path {
+        &self.entry_point
     }
 
     /// Get all schemas in the DTS.
@@ -421,4 +414,22 @@ fn resolve_local_path(base_dir: &Path, reference: &str) -> Option<PathBuf> {
         return None;
     }
     Some(base_dir.join(reference))
+}
+
+/// Strips the URL scheme, host, and leading `/taxonomies/` segment to
+/// produce paths suitable for joining with a local taxonomy directory.
+///
+/// For example:
+/// `http://www.xbrl.de/taxonomies/de-gcd-2020-04-01/de-gcd-2020-04-01-shell.xsd`
+/// becomes `de-gcd-2020-04-01/de-gcd-2020-04-01-shell.xsd`.
+pub fn strip_prefix(href: &str) -> &str {
+    let path = href
+        .find("://")
+        .and_then(|i| href[i + 3..].find('/'))
+        .map(|i| &href[href.find("://").unwrap() + 3 + i..])
+        .unwrap_or(href);
+    // Strip leading "/taxonomies/" if present
+    path.strip_prefix("/taxonomies/")
+        .or_else(|| path.strip_prefix("/"))
+        .unwrap_or(path)
 }
