@@ -1,20 +1,17 @@
 //! Integration tests for XBRL instance validation.
 
 use std::path::Path;
-use xbrl_rs::{EntryPoint, TaxonomySet, XbrlParser, XbrlValidator, extract_xbrl};
+use xbrl_rs::{EntryPoint, TaxonomySet, XbrlInstance};
 
 const INSTANCE_BASE: &str = "test_data/instances/ebilanz";
 const TAXONOMY_BASE: &str = "test_data/taxonomies";
 
-fn parse_instance(path: &Path) -> xbrl_rs::XbrlInstance {
+fn parse_instance(path: &Path) -> XbrlInstance {
     let xml = std::fs::read_to_string(path).expect("failed to read instance file");
-    let xbrl = extract_xbrl(&xml);
-    XbrlParser::new()
-        .parse(xbrl)
-        .expect("failed to parse instance")
+    XbrlInstance::from_xml(&xml).expect("failed to parse instance")
 }
 
-fn discover_from_instance(instance: &xbrl_rs::XbrlInstance) -> TaxonomySet {
+fn discover_from_instance(instance: &XbrlInstance) -> TaxonomySet {
     let entry_points: Vec<_> = instance
         .schema_refs()
         .iter()
@@ -32,7 +29,7 @@ fn validate_instance_v64_balance_sheet_restaurateur() {
     let instance = parse_instance(&path);
     let taxonomy = discover_from_instance(&instance);
 
-    let result = XbrlValidator::new(&instance, &taxonomy).validate_all();
+    let result = instance.validate(&taxonomy);
 
     assert!(result.is_valid());
 }
@@ -43,7 +40,7 @@ fn validate_instance_v64_balance_sheet_farmer() {
     let instance = parse_instance(&path);
     let taxonomy = discover_from_instance(&instance);
 
-    let result = XbrlValidator::new(&instance, &taxonomy).validate_all();
+    let result = instance.validate(&taxonomy);
 
     assert!(result.is_valid());
 }
@@ -54,7 +51,7 @@ fn validate_instance_v64_tax_balance_sheet_car_dealer() {
     let instance = parse_instance(&path);
     let taxonomy = discover_from_instance(&instance);
 
-    let result = XbrlValidator::new(&instance, &taxonomy).validate_all();
+    let result = instance.validate(&taxonomy);
 
     assert!(result.is_valid());
 }
@@ -65,7 +62,7 @@ fn validate_instance_v65_balance_sheet_restaurateur() {
     let instance = parse_instance(&path);
     let taxonomy = discover_from_instance(&instance);
 
-    let result = XbrlValidator::new(&instance, &taxonomy).validate_all();
+    let result = instance.validate(&taxonomy);
 
     assert!(result.is_valid());
 }
@@ -76,7 +73,7 @@ fn validate_instance_v65_balance_sheet_farmer() {
     let instance = parse_instance(&path);
     let taxonomy = discover_from_instance(&instance);
 
-    let result = XbrlValidator::new(&instance, &taxonomy).validate_all();
+    let result = instance.validate(&taxonomy);
 
     assert!(result.is_valid());
 }
@@ -87,7 +84,7 @@ fn validate_instance_v65_tax_balance_sheet_car_dealer() {
     let instance = parse_instance(&path);
     let taxonomy = discover_from_instance(&instance);
 
-    let result = XbrlValidator::new(&instance, &taxonomy).validate_all();
+    let result = instance.validate(&taxonomy);
 
     assert!(result.is_valid());
 }

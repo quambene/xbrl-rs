@@ -1,14 +1,13 @@
 //! Integration tests for parsing XBRL instance files.
 
 use std::path::Path;
-use xbrl_rs::{XbrlParser, extract_xbrl};
+use xbrl_rs::XbrlInstance;
 
 const INSTANCE_BASE: &str = "test_data/instances/ebilanz";
 
-fn parse_file(path: &Path) -> xbrl_rs::XbrlInstance {
+fn parse_file(path: &Path) -> XbrlInstance {
     let xml = std::fs::read_to_string(path).expect("failed to read file");
-    let xbrl = extract_xbrl(&xml);
-    XbrlParser::new().parse(xbrl).expect("failed to parse")
+    XbrlInstance::from_xml(&xml).expect("failed to parse")
 }
 
 // v6.4
