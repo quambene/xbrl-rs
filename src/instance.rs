@@ -1,6 +1,8 @@
 //! XBRL instance document representation
 
-use crate::{Context, Fact, Unit};
+use crate::{Context, Fact, TaxonomySet, Unit, validation};
+use crate::{reader, validation::ValidationResult, writer};
+use anyhow::Result;
 use std::collections::HashMap;
 
 /// Represents a complete XBRL instance document
@@ -33,6 +35,24 @@ impl XbrlInstance {
             facts: Vec::new(),
             namespaces: HashMap::new(),
         }
+    }
+
+    /// Parse an XBRL instance document from XML.
+    ///
+    /// Automatically extracts the `<xbrli:xbrl>` element if the input
+    /// contains a wrapper around it.
+    pub fn from_xml(xml: &str) -> Result<Self> {
+        reader::parse_xml(xml)
+    }
+
+    /// Validate this instance against a taxonomy.
+    pub fn validate(&self, taxonomy: &TaxonomySet) -> ValidationResult {
+        validation::validate_all(self, taxonomy)
+    }
+
+    /// Serialize this instance to an XBRL XML document.
+    pub fn to_xml(&self) -> Result<String, anyhow::Error> {
+        writer::write_xml(self)
     }
 
     /// Add a schema reference (xlink:href from a link:schemaRef element)
@@ -114,6 +134,11 @@ impl XbrlInstance {
     /// Get namespace URI for a prefix
     pub fn get_namespace(&self, prefix: &str) -> Option<&str> {
         self.namespaces.get(prefix).map(|s| s.as_str())
+    }
+
+    /// Get all namespace prefix mappings
+    pub fn namespaces(&self) -> &HashMap<String, String> {
+        &self.namespaces
     }
 
     /// Get all contexts
