@@ -7,9 +7,7 @@
 //!     cargo run --example create_empty_instance
 
 use std::{collections::HashSet, path::Path};
-use xbrl_rs::{
-    Context, EntityIdentifier, EntryPoint, Fact, Period, TaxonomySet, Unit, XbrlValidator,
-};
+use xbrl_rs::{Context, EntityIdentifier, EntryPoint, Fact, Period, TaxonomySet, Unit};
 
 const TAXONOMY_PATH_BASE: &str = "test_data/taxonomies/german-gaap/v6.9";
 const TAXONOMY_URL_BASE: &str = "http://www.xbrl.de/taxonomies";
@@ -119,7 +117,7 @@ fn main() -> anyhow::Result<()> {
     println!();
 
     // Validate the created instance
-    let result = XbrlValidator::new(&instance, &taxonomy).validate_all();
+    let result = instance.validate(&taxonomy);
     if result.is_valid() {
         println!("Validation: PASSED");
     } else {

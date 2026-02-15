@@ -3,7 +3,7 @@
 //! Usage:
 //!     cargo run --example print_facts -- test_data/instances/ebilanz/v6.4/HandelsbilanzGastronom_PersG.xml
 
-use xbrl_rs::{XbrlParser, extract_xbrl};
+use xbrl_rs::XbrlInstance;
 
 fn truncate(s: &str, max: usize) -> String {
     if s.len() <= max {
@@ -19,8 +19,7 @@ fn main() -> anyhow::Result<()> {
     });
 
     let xml = std::fs::read_to_string(&path)?;
-    let xbrl = extract_xbrl(&xml);
-    let instance = XbrlParser::new().parse(xbrl)?;
+    let instance = XbrlInstance::from_xml(&xml)?;
 
     let facts: Vec<_> = instance.facts().iter().filter(|f| !f.is_nil()).collect();
 
