@@ -81,40 +81,40 @@ impl ValidationResult {
     }
 }
 
-/// Validates an XBRL instance document against a discovered taxonomy set.
-pub struct XbrlValidator<'a> {
-    instance: &'a XbrlInstance,
-    taxonomy: &'a TaxonomySet,
+/// Run all validation checks: schema, calculation, and dimension.
+pub fn validate_all(instance: &XbrlInstance, taxonomy: &TaxonomySet) -> ValidationResult {
+    let mut result = ValidationResult::new();
+    validate_schema(instance, taxonomy, &mut result);
+    validate_calculations(instance, taxonomy, &mut result);
+    validate_dimensions(instance, taxonomy, &mut result);
+    result
 }
 
-impl<'a> XbrlValidator<'a> {
-    pub fn new(instance: &'a XbrlInstance, taxonomy: &'a TaxonomySet) -> Self {
-        Self { instance, taxonomy }
-    }
+/// Check that facts conform to the DTS element definitions and XBRL
+/// specification structural rules.
+pub fn validate_schema(
+    instance: &XbrlInstance,
+    taxonomy: &TaxonomySet,
+    result: &mut ValidationResult,
+) {
+    schema::validate_schema(instance, taxonomy, result);
+}
 
-    /// Run all validation checks: schema, calculation, and dimension.
-    pub fn validate_all(&self) -> ValidationResult {
-        let mut result = ValidationResult::new();
-        self.validate_schema(&mut result);
-        self.validate_calculations(&mut result);
-        self.validate_dimensions(&mut result);
-        result
-    }
+/// Check calculation linkbase consistency (summation-item relationships).
+pub fn validate_calculations(
+    instance: &XbrlInstance,
+    taxonomy: &TaxonomySet,
+    result: &mut ValidationResult,
+) {
+    calculation::validate_calculations(instance, taxonomy, result);
+}
 
-    /// Check that facts conform to the DTS element definitions and XBRL
-    /// specification structural rules.
-    pub fn validate_schema(&self, result: &mut ValidationResult) {
-        schema::validate_schema(self.instance, self.taxonomy, result);
-    }
-
-    /// Check calculation linkbase consistency (summation-item relationships).
-    pub fn validate_calculations(&self, result: &mut ValidationResult) {
-        calculation::validate_calculations(self.instance, self.taxonomy, result);
-    }
-
-    /// Check that dimension members in contexts are valid per the definition
-    /// linkbase.
-    pub fn validate_dimensions(&self, result: &mut ValidationResult) {
-        dimension::validate_dimensions(self.instance, self.taxonomy, result);
-    }
+/// Check that dimension members in contexts are valid per the definition
+/// linkbase.
+pub fn validate_dimensions(
+    instance: &XbrlInstance,
+    taxonomy: &TaxonomySet,
+    result: &mut ValidationResult,
+) {
+    dimension::validate_dimensions(instance, taxonomy, result);
 }
