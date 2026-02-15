@@ -6,7 +6,7 @@ use super::{
     reference::{self, Reference},
     schema::{ElementDefinition, RoleType, TaxonomySchema},
 };
-use crate::{Context, Fact, Unit, XbrlInstance};
+use crate::XbrlInstance;
 use anyhow::{Context as AnyhowContext, Result};
 use log::warn;
 use std::{
