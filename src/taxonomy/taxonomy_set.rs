@@ -61,7 +61,7 @@ impl TaxonomySet {
 
         // Seed the queue with entry points
         for schema_ref in &schema_refs {
-            let schema_ref = strip_prefix(&schema_ref);
+            let schema_ref = strip_prefix(schema_ref);
 
             let canonical = std::fs::canonicalize(&entry_point)
                 .with_context(|| {
