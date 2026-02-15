@@ -13,10 +13,9 @@ fn entry_point(relative_path: &str) -> EntryPoint {
 
 #[test]
 fn schema_by_namespace() {
-    let dts = TaxonomySet::discover(&[entry_point(
-        "de-gcd-2025-04-01/de-gcd-2025-04-01-shell.xsd",
-    )])
-    .unwrap();
+    let dts =
+        TaxonomySet::discover(&[entry_point("de-gcd-2025-04-01/de-gcd-2025-04-01-shell.xsd")])
+            .unwrap();
 
     let gcd = dts
         .schema_by_namespace("http://www.xbrl.de/taxonomies/de-gcd-2025-04-01")
@@ -71,10 +70,9 @@ fn parse_labels_linkbase() {
 
 #[test]
 fn parse_labels_linkbase_multiple_roles() {
-    let dts = TaxonomySet::discover(&[entry_point(
-        "de-gcd-2025-04-01/de-gcd-2025-04-01-shell.xsd",
-    )])
-    .unwrap();
+    let dts =
+        TaxonomySet::discover(&[entry_point("de-gcd-2025-04-01/de-gcd-2025-04-01-shell.xsd")])
+            .unwrap();
 
     // Find a concept that has both a standard label and documentation
     let concept_labels = dts.labels();

@@ -6,8 +6,7 @@
 //! Usage:
 //!     cargo run --example create_empty_instance
 
-use std::collections::HashSet;
-use std::path::Path;
+use std::{collections::HashSet, path::Path};
 use xbrl_rs::{
     Context, EntityIdentifier, EntryPoint, Fact, Period, TaxonomySet, Unit, XbrlValidator,
 };

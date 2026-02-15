@@ -312,7 +312,11 @@ impl TaxonomySet {
     /// target namespace with a matching prefix.
     pub fn qualified_name(&self, element_id: &str) -> Option<String> {
         for schema in self.schemas.values() {
-            if let Some(elem) = schema.elements.iter().find(|e| e.id.as_deref() == Some(element_id)) {
+            if let Some(elem) = schema
+                .elements
+                .iter()
+                .find(|e| e.id.as_deref() == Some(element_id))
+            {
                 let target_ns = schema.target_namespace.as_deref()?;
                 let prefix = schema
                     .namespaces
