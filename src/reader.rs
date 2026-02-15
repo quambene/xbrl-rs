@@ -219,8 +219,8 @@ fn parse_unit<R: std::io::BufRead>(
     reader: &mut Reader<R>,
     start_element: &quick_xml::events::BytesStart,
 ) -> Result<Unit> {
-    let id = get_attribute(&start_element.attributes(), b"id")
-        .context("Unit missing id attribute")?;
+    let id =
+        get_attribute(&start_element.attributes(), b"id").context("Unit missing id attribute")?;
 
     let mut measure = String::new();
     let mut buf = Vec::new();

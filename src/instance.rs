@@ -1,7 +1,8 @@
 //! XBRL instance document representation
 
-use crate::{Context, Fact, TaxonomySet, Unit, validation};
-use crate::{reader, validation::ValidationResult, writer};
+use crate::{
+    Context, Fact, TaxonomySet, Unit, reader, validation, validation::ValidationResult, writer,
+};
 use anyhow::Result;
 use std::collections::HashMap;
 

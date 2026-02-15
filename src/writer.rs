@@ -1,8 +1,10 @@
 //! XBRL instance XML writer (serialization).
 
 use crate::{Context, Fact, Period, Unit, XbrlInstance};
-use quick_xml::Writer;
-use quick_xml::events::{BytesDecl, BytesEnd, BytesStart, BytesText, Event};
+use quick_xml::{
+    Writer,
+    events::{BytesDecl, BytesEnd, BytesStart, BytesText, Event},
+};
 use std::io::Cursor;
 
 /// Serialize an [`XbrlInstance`] to an XBRL XML document.
