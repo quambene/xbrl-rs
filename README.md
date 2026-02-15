@@ -41,6 +41,7 @@ let xbrl_instance = XbrlInstance::from_xml(&mut reader).unwrap();
 // Write XBRL instance document to XML file
 let mut xml_file = File::create("financial_report.xml")?;
 let mut writer = XmlWriter::new(xml_file);
+let xbrl_instance = XbrlInstance::default();
 xbrl_instance.to_xml(&mut writer).unwrap();
 
 // Validate XBRL instance document against XBRL taxonomy
