@@ -213,3 +213,36 @@ fn linkbase_refs_have_roles() {
         label_refs.len()
     );
 }
+
+#[test]
+fn find_element_by_id() {
+    let dts = TaxonomySet::discover(&[entry_point(
+        "de-gaap-ci-2025-04-01/de-gaap-ci-2025-04-01-shell-fiscal.xsd",
+    )])
+    .unwrap();
+
+    let elem = dts
+        .find_element_by_id("de-gaap-ci_bs.ass")
+        .expect("Expected to find element by ID");
+    assert_eq!(elem.name, "bs.ass");
+    assert_eq!(elem.period_type.as_deref(), Some("instant"));
+    assert!(!elem.is_abstract);
+}
+
+#[test]
+fn qualified_name() {
+    let dts = TaxonomySet::discover(&[entry_point(
+        "de-gaap-ci-2025-04-01/de-gaap-ci-2025-04-01-shell-fiscal.xsd",
+    )])
+    .unwrap();
+
+    assert_eq!(
+        dts.qualified_name("de-gaap-ci_bs.ass").as_deref(),
+        Some("de-gaap-ci:bs.ass")
+    );
+    assert_eq!(
+        dts.qualified_name("de-gaap-ci_bs.ass.fixAss").as_deref(),
+        Some("de-gaap-ci:bs.ass.fixAss")
+    );
+    assert_eq!(dts.qualified_name("nonexistent_element"), None);
+}

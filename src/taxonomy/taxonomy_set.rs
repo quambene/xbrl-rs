@@ -297,6 +297,34 @@ impl TaxonomySet {
             .find(|e| e.name == name)
     }
 
+    /// Find an element definition by its ID attribute (e.g., `de-gaap-ci_bs.ass`).
+    pub fn find_element_by_id(&self, id: &str) -> Option<&ElementDefinition> {
+        self.schemas
+            .values()
+            .flat_map(|s| &s.elements)
+            .find(|e| e.id.as_deref() == Some(id))
+    }
+
+    /// Map an element ID to the qualified concept name used in instance facts.
+    ///
+    /// For example, `de-gaap-ci_bs.ass` becomes `de-gaap-ci:bs.ass`.
+    /// Returns `None` if the element is not found or its schema has no
+    /// target namespace with a matching prefix.
+    pub fn qualified_name(&self, element_id: &str) -> Option<String> {
+        for schema in self.schemas.values() {
+            if let Some(elem) = schema.elements.iter().find(|e| e.id.as_deref() == Some(element_id)) {
+                let target_ns = schema.target_namespace.as_deref()?;
+                let prefix = schema
+                    .namespaces
+                    .iter()
+                    .find(|(_, uri)| uri.as_str() == target_ns)
+                    .map(|(prefix, _)| prefix)?;
+                return Some(format!("{prefix}:{}", elem.name));
+            }
+        }
+        None
+    }
+
     /// Get all concept labels.
     pub fn labels(&self) -> &HashMap<String, Vec<Label>> {
         &self.labels
