@@ -7,7 +7,7 @@
 //!     cargo run --example create_empty_instance
 
 use std::{collections::HashSet, path::PathBuf, str::FromStr};
-use xbrl_rs::{Context, EntityIdentifier, Fact, Period, TaxonomySet, Unit};
+use xbrl_rs::{Context, EntityIdentifier, Fact, Period, TaxonomySet, Unit, XbrlInstance};
 
 const TAXONOMY_ENTRY_POINT: &str = "test_data/taxonomies";
 
@@ -22,7 +22,17 @@ fn main() -> anyhow::Result<()> {
         PathBuf::from_str(TAXONOMY_ENTRY_POINT)?,
     )?;
 
-    let mut instance = taxonomy.create_instance();
+    let mut instance = XbrlInstance::default();
+
+    for schema_ref in taxonomy.schema_refs() {
+        instance.add_schema_ref(schema_ref.clone());
+    }
+
+    for schema in taxonomy.schemas().values() {
+        for (prefix, uri) in &schema.namespaces {
+            instance.add_namespace(prefix.clone(), uri.clone());
+        }
+    }
 
     // Contexts
     let entity = EntityIdentifier {

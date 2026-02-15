@@ -1,6 +1,6 @@
 use roxmltree::Document;
 use std::{path::PathBuf, str::FromStr};
-use xbrl_rs::{TaxonomySet, XmlWriter};
+use xbrl_rs::{TaxonomySet, XbrlInstance, XmlWriter};
 
 const TAXONOMY_ENTRY_POINT: &str = "test_data/taxonomies";
 
@@ -11,7 +11,18 @@ fn write_empty_instance() {
     let gaap = "http://www.xbrl.de/taxonomies/de-gaap-ci-2020-04-01/de-gaap-ci-2020-04-01-shell-fiscal.xsd";
     let taxonomy =
         TaxonomySet::discover(vec![gcd.to_owned(), gaap.to_owned()], entry_point).unwrap();
-    let instance = taxonomy.create_instance();
+
+    let mut instance = XbrlInstance::default();
+
+    for schema_ref in taxonomy.schema_refs() {
+        instance.add_schema_ref(schema_ref.clone());
+    }
+
+    for schema in taxonomy.schemas().values() {
+        for (prefix, uri) in &schema.namespaces {
+            instance.add_namespace(prefix.clone(), uri.clone());
+        }
+    }
 
     // Validate the generated XBRL
     let res = instance.validate(&taxonomy);

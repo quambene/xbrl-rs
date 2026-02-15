@@ -6,7 +6,6 @@ use super::{
     reference::{self, Reference},
     schema::{ElementDefinition, RoleType, TaxonomySchema},
 };
-use crate::XbrlInstance;
 use anyhow::{Context as AnyhowContext, Result};
 use log::warn;
 use std::{
@@ -239,27 +238,14 @@ impl TaxonomySet {
         })
     }
 
-    /// Create an empty [`XbrlInstance`] pre-populated with schema references
-    /// and namespace declarations from this DTS.
-    pub fn create_instance(&self) -> XbrlInstance {
-        let mut instance = XbrlInstance::default();
-
-        for schema_ref in &self.schema_refs {
-            instance.add_schema_ref(schema_ref.clone());
-        }
-
-        for schema in self.schemas.values() {
-            for (prefix, uri) in &schema.namespaces {
-                instance.add_namespace(prefix.clone(), uri.clone());
-            }
-        }
-
-        instance
+    /// Get the entry point directory of taxonomy files.
+    pub fn entry_point(&self) -> &Path {
+        &self.entry_point
     }
 
-    /// Get the entry point directory of taxonomy files.
-    pub fn entry_points(&self) -> &Path {
-        &self.entry_point
+    /// Get the public URLs of the entry point schemas.
+    pub fn schema_refs(&self) -> &[String] {
+        &self.schema_refs
     }
 
     /// Get all schemas in the DTS.
