@@ -16,9 +16,9 @@ pub use fact::Fact;
 pub use instance::XbrlInstance;
 pub use parser::XbrlParser;
 pub use taxonomy::{
-    ArcroleType, CalculationArc, DefinitionArc, ElementDefinition, Label, LinkbaseRef,
-    PresentationArc, Reference, ReferencePart, RoleType, SchemaImport, SchemaInclude,
-    TaxonomySchema, TaxonomySet,
+    ArcroleType, CalculationArc, DefinitionArc, ElementDefinition, EntryPoint, Label,
+    LinkbaseRef, PresentationArc, Reference, ReferencePart, RoleType, SchemaImport,
+    SchemaInclude, TaxonomySchema, TaxonomySet,
 };
 pub use unit::Unit;
 pub use validation::{Severity, ValidationMessage, ValidationResult, XbrlValidator};
