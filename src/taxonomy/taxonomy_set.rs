@@ -6,8 +6,8 @@ use super::{
     reference::{self, Reference},
     schema::{ElementDefinition, RoleType, TaxonomySchema},
 };
-use crate::XbrlInstance;
-use anyhow::{Context, Result};
+use crate::{Context, Fact, Unit, XbrlInstance};
+use anyhow::{Context as AnyhowContext, Result};
 use log::warn;
 use std::{
     collections::{HashMap, HashSet, VecDeque},
@@ -259,6 +259,33 @@ impl TaxonomySet {
             for (prefix, uri) in &schema.namespaces {
                 instance.add_namespace(prefix.clone(), uri.clone());
             }
+        }
+
+        instance
+    }
+
+    /// Create an [`XbrlInstance`] with provided facts, contexts, and units.
+    ///
+    /// The instance is pre-populated with schema references and namespace
+    /// declarations from this DTS.
+    pub fn create_instance_with_facts(
+        &self,
+        facts: Vec<Fact>,
+        contexts: Vec<Context>,
+        units: Vec<Unit>,
+    ) -> XbrlInstance {
+        let mut instance = self.create_instance();
+
+        for context in contexts {
+            instance.add_context(context);
+        }
+
+        for unit in units {
+            instance.add_unit(unit);
+        }
+
+        for fact in facts {
+            instance.add_fact(fact);
         }
 
         instance
