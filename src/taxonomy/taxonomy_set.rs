@@ -6,6 +6,7 @@ use super::{
     reference::{self, Reference},
     schema::{ElementDefinition, RoleType, TaxonomySchema},
 };
+use crate::XbrlInstance;
 use anyhow::{Context, Result};
 use log::warn;
 use std::{
@@ -13,12 +14,33 @@ use std::{
     path::{Path, PathBuf},
 };
 
+/// An entry point schema of a DTS, combining its public URL with a local path.
+#[derive(Debug, Clone)]
+pub struct EntryPoint {
+    /// The public URL used in `link:schemaRef` elements
+    /// (e.g., `http://www.xbrl.de/taxonomies/de-gcd-2020-04-01/de-gcd-2020-04-01-shell.xsd`).
+    pub href: String,
+    /// The local file system path to the schema file.
+    pub local_path: PathBuf,
+}
+
+impl EntryPoint {
+    pub fn new(href: impl Into<String>, local_path: impl Into<PathBuf>) -> Self {
+        Self {
+            href: href.into(),
+            local_path: local_path.into(),
+        }
+    }
+}
+
 /// The complete Discoverable Taxonomy Set (DTS).
 ///
 /// Built by following all schema imports, includes, and linkbase references
 /// starting from one or more entry point schemas.
 #[derive(Debug)]
 pub struct TaxonomySet {
+    /// The entry point schemas of this DTS.
+    entry_points: Vec<EntryPoint>,
     /// All schemas in the DTS, keyed by their canonical absolute path.
     schemas: HashMap<PathBuf, TaxonomySchema>,
     /// All linkbase file paths discovered (canonical absolute paths).
@@ -39,7 +61,7 @@ pub struct TaxonomySet {
 
 impl TaxonomySet {
     /// Discover the DTS starting from one or more entry point schema files.
-    pub fn discover(entry_points: &[&Path]) -> Result<Self> {
+    pub fn discover(entry_points: &[EntryPoint]) -> Result<Self> {
         let mut visited: HashSet<PathBuf> = HashSet::new();
         let mut queue: VecDeque<PathBuf> = VecDeque::new();
         let mut schemas: HashMap<PathBuf, TaxonomySchema> = HashMap::new();
@@ -47,8 +69,12 @@ impl TaxonomySet {
 
         // Seed the queue with entry points
         for entry in entry_points {
-            let canonical = std::fs::canonicalize(entry)
-                .with_context(|| format!("Failed to resolve entry point: {}", entry.display()))?;
+            let canonical = std::fs::canonicalize(&entry.local_path).with_context(|| {
+                format!(
+                    "Failed to resolve entry point: {}",
+                    entry.local_path.display()
+                )
+            })?;
             if visited.insert(canonical.clone()) {
                 queue.push_back(canonical);
             }
@@ -206,7 +232,10 @@ impl TaxonomySet {
             }
         }
 
+        let entry_points = entry_points.to_vec();
+
         Ok(TaxonomySet {
+            entry_points,
             schemas,
             linkbase_paths,
             labels,
@@ -215,6 +244,29 @@ impl TaxonomySet {
             definitions,
             references,
         })
+    }
+
+    /// Create an empty [`XbrlInstance`] pre-populated with schema references
+    /// and namespace declarations from this DTS.
+    pub fn create_instance(&self) -> XbrlInstance {
+        let mut instance = XbrlInstance::new();
+
+        for entry in &self.entry_points {
+            instance.add_schema_ref(entry.href.clone());
+        }
+
+        for schema in self.schemas.values() {
+            for (prefix, uri) in &schema.namespaces {
+                instance.add_namespace(prefix.clone(), uri.clone());
+            }
+        }
+
+        instance
+    }
+
+    /// Get the entry point schemas.
+    pub fn entry_points(&self) -> &[EntryPoint] {
+        &self.entry_points
     }
 
     /// Get all schemas in the DTS.
@@ -243,6 +295,38 @@ impl TaxonomySet {
             .values()
             .flat_map(|s| &s.elements)
             .find(|e| e.name == name)
+    }
+
+    /// Find an element definition by its ID attribute (e.g., `de-gaap-ci_bs.ass`).
+    pub fn find_element_by_id(&self, id: &str) -> Option<&ElementDefinition> {
+        self.schemas
+            .values()
+            .flat_map(|s| &s.elements)
+            .find(|e| e.id.as_deref() == Some(id))
+    }
+
+    /// Map an element ID to the qualified concept name used in instance facts.
+    ///
+    /// For example, `de-gaap-ci_bs.ass` becomes `de-gaap-ci:bs.ass`.
+    /// Returns `None` if the element is not found or its schema has no
+    /// target namespace with a matching prefix.
+    pub fn qualified_name(&self, element_id: &str) -> Option<String> {
+        for schema in self.schemas.values() {
+            if let Some(elem) = schema
+                .elements
+                .iter()
+                .find(|e| e.id.as_deref() == Some(element_id))
+            {
+                let target_ns = schema.target_namespace.as_deref()?;
+                let prefix = schema
+                    .namespaces
+                    .iter()
+                    .find(|(_, uri)| uri.as_str() == target_ns)
+                    .map(|(prefix, _)| prefix)?;
+                return Some(format!("{prefix}:{}", elem.name));
+            }
+        }
+        None
     }
 
     /// Get all concept labels.

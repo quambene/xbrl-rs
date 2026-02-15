@@ -101,6 +101,11 @@ impl XbrlInstance {
         &self.facts
     }
 
+    /// Get all facts mutably
+    pub fn facts_mut(&mut self) -> &mut [Fact] {
+        &mut self.facts
+    }
+
     /// Add a namespace prefix mapping
     pub fn add_namespace(&mut self, prefix: String, uri: String) {
         self.namespaces.insert(prefix, uri);

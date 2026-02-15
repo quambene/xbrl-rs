@@ -56,6 +56,10 @@ impl Fact {
         self.is_nil
     }
 
+    pub fn set_value(&mut self, value: String) {
+        self.value = value;
+    }
+
     pub fn set_nil(&mut self, is_nil: bool) {
         self.is_nil = is_nil;
     }

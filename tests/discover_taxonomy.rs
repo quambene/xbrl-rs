@@ -2,17 +2,22 @@
 //! across all available taxonomy versions.
 
 use std::path::Path;
-use xbrl_rs::TaxonomySet;
+use xbrl_rs::{EntryPoint, TaxonomySet};
 
 const TAXONOMY_BASE: &str = "test_data/taxonomies";
+const TAXONOMY_URL_BASE: &str = "http://www.xbrl.de/taxonomies";
 
 fn discover(entry_points: &[&str]) -> TaxonomySet {
-    let paths: Vec<_> = entry_points
+    let entries: Vec<_> = entry_points
         .iter()
-        .map(|p| Path::new(TAXONOMY_BASE).join(p))
+        .map(|path| {
+            EntryPoint::new(
+                format!("{TAXONOMY_URL_BASE}/{path}"),
+                Path::new(TAXONOMY_BASE).join(path),
+            )
+        })
         .collect();
-    let refs: Vec<&Path> = paths.iter().map(|p| p.as_path()).collect();
-    TaxonomySet::discover(&refs).expect("failed to discover taxonomy")
+    TaxonomySet::discover(&entries).expect("failed to discover taxonomy")
 }
 
 fn assert_dts(dts: &TaxonomySet) {
