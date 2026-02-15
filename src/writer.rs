@@ -5,9 +5,10 @@ use quick_xml::{
     Writer,
     events::{BytesDecl, BytesEnd, BytesStart, BytesText, Event},
 };
+use std::io;
 
 /// Serialize an [`XbrlInstance`] to an XBRL XML document.
-pub(crate) fn write_xml<W: std::io::Write>(
+pub(crate) fn write_xml<W: io::Write>(
     writer: &mut Writer<W>,
     instance: &XbrlInstance,
 ) -> Result<(), anyhow::Error> {
