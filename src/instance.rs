@@ -6,6 +6,8 @@ use std::collections::HashMap;
 /// Represents a complete XBRL instance document
 #[derive(Debug)]
 pub struct XbrlInstance {
+    /// Schema references (xlink:href values from link:schemaRef elements)
+    schema_refs: Vec<String>,
     /// All contexts in the instance
     contexts: HashMap<String, Context>,
     /// All units in the instance
@@ -25,11 +27,48 @@ impl Default for XbrlInstance {
 impl XbrlInstance {
     pub fn new() -> Self {
         Self {
+            schema_refs: Vec::new(),
             contexts: HashMap::new(),
             units: HashMap::new(),
             facts: Vec::new(),
             namespaces: HashMap::new(),
         }
+    }
+
+    /// Add a schema reference (xlink:href from a link:schemaRef element)
+    pub fn add_schema_ref(&mut self, href: String) {
+        self.schema_refs.push(href);
+    }
+
+    /// Get all schema references declared in the instance document.
+    pub fn schema_refs(&self) -> &[String] {
+        &self.schema_refs
+    }
+
+    /// Extract relative path suffixes from schema reference URLs.
+    ///
+    /// Strips the URL scheme, host, and leading `/taxonomies/` segment to
+    /// produce paths suitable for joining with a local taxonomy directory.
+    ///
+    /// For example:
+    /// `http://www.xbrl.de/taxonomies/de-gcd-2020-04-01/de-gcd-2020-04-01-shell.xsd`
+    /// becomes `de-gcd-2020-04-01/de-gcd-2020-04-01-shell.xsd`.
+    pub fn schema_ref_paths(&self) -> Vec<&str> {
+        self.schema_refs
+            .iter()
+            .map(|href| {
+                // Find the path portion after "://" + host
+                let path = href
+                    .find("://")
+                    .and_then(|i| href[i + 3..].find('/'))
+                    .map(|i| &href[href.find("://").unwrap() + 3 + i..])
+                    .unwrap_or(href);
+                // Strip leading "/taxonomies/" if present
+                path.strip_prefix("/taxonomies/")
+                    .or_else(|| path.strip_prefix("/"))
+                    .unwrap_or(path)
+            })
+            .collect()
     }
 
     /// Add a context to the instance

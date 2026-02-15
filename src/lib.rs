@@ -9,6 +9,7 @@ mod instance;
 mod parser;
 mod taxonomy;
 mod unit;
+mod validation;
 
 pub use context::{Context, EntityIdentifier, Period};
 pub use fact::Fact;
@@ -20,6 +21,7 @@ pub use taxonomy::{
     TaxonomySchema, TaxonomySet,
 };
 pub use unit::Unit;
+pub use validation::{Severity, ValidationMessage, ValidationResult, XbrlValidator};
 
 /// Extract the `<xbrli:xbrl>` content from an XML document.
 ///
