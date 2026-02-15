@@ -7,15 +7,16 @@ use quick_xml::{
     escape::unescape,
     events::{Event, attributes::Attributes},
 };
+use std::io;
 
 /// Parse an XBRL instance document from XML content.
 ///
 /// The raw XML may contain a wrapper around the `<xbrli:xbrl>` element; this
 /// function handles extraction automatically.
-pub(crate) fn parse_xml(xml_content: &str) -> Result<XbrlInstance> {
-    let xml_content = extract_xbrl(xml_content);
-
-    let mut reader = Reader::from_str(xml_content);
+pub(crate) fn read_xml<R>(reader: &mut Reader<R>) -> Result<XbrlInstance>
+where
+    R: io::BufRead,
+{
     reader.config_mut().trim_text_start = true;
     reader.config_mut().trim_text_end = true;
 
@@ -46,14 +47,14 @@ pub(crate) fn parse_xml(xml_content: &str) -> Result<XbrlInstance> {
                         instance.add_schema_ref(href);
                     }
                 } else if name_str.ends_with(":context") {
-                    let context = parse_context(&mut reader, &e)?;
+                    let context = parse_context(reader, &e)?;
                     instance.add_context(context);
                 } else if name_str.ends_with(":unit") {
-                    let unit = parse_unit(&mut reader, &e)?;
+                    let unit = parse_unit(reader, &e)?;
                     instance.add_unit(unit);
                 } else if inside_xbrl
                     && is_fact_element(&name_str)
-                    && let Some(fact) = parse_fact(&mut reader, &e, &name_str)?
+                    && let Some(fact) = parse_fact(reader, &e, &name_str)?
                 {
                     instance.add_fact(fact);
                 }
@@ -79,19 +80,6 @@ pub(crate) fn parse_xml(xml_content: &str) -> Result<XbrlInstance> {
     }
 
     Ok(instance)
-}
-
-/// Extract the `<xbrli:xbrl>` content from an XML document.
-///
-/// If no wrapper is detected the input is returned unchanged.
-fn extract_xbrl(xml: &str) -> &str {
-    if let Some(start) = xml.find("<xbrli:xbrl")
-        && let Some(end) = xml.rfind("</xbrli:xbrl>")
-    {
-        return &xml[start..end + "</xbrli:xbrl>".len()];
-    }
-
-    xml
 }
 
 /// Extract namespace declarations from the xbrl element.

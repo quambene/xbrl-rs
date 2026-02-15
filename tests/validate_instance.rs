@@ -1,14 +1,17 @@
 //! Integration tests for XBRL instance validation.
 
-use std::path::Path;
+use quick_xml::Reader;
+use std::{fs::File, io::BufReader, path::Path};
 use xbrl_rs::{EntryPoint, TaxonomySet, XbrlInstance};
 
 const INSTANCE_BASE: &str = "test_data/instances/ebilanz";
 const TAXONOMY_BASE: &str = "test_data/taxonomies";
 
 fn parse_instance(path: &Path) -> XbrlInstance {
-    let xml = std::fs::read_to_string(path).expect("failed to read instance file");
-    XbrlInstance::from_xml(&xml).expect("failed to parse instance")
+    let file = File::open(path).expect("failed to open instance file");
+    let mut reader = Reader::from_reader(BufReader::new(file));
+
+    XbrlInstance::from_xml(&mut reader).expect("failed to parse instance")
 }
 
 fn discover_from_instance(instance: &XbrlInstance) -> TaxonomySet {

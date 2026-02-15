@@ -4,8 +4,8 @@ use crate::{
     Context, Fact, TaxonomySet, Unit, reader, validation, validation::ValidationResult, writer,
 };
 use anyhow::Result;
-use quick_xml::Writer;
-use std::collections::HashMap;
+use quick_xml::{Reader, Writer};
+use std::{collections::HashMap, io};
 
 /// Represents a complete XBRL instance document
 #[derive(Debug)]
@@ -43,8 +43,11 @@ impl XbrlInstance {
     ///
     /// Automatically extracts the `<xbrli:xbrl>` element if the input
     /// contains a wrapper around it.
-    pub fn from_xml(xml: &str) -> Result<Self> {
-        reader::parse_xml(xml)
+    pub fn from_xml<R>(reader: &mut Reader<R>) -> Result<Self>
+    where
+        R: io::BufRead,
+    {
+        reader::read_xml(reader)
     }
 
     /// Validate this instance against a taxonomy.
@@ -55,7 +58,7 @@ impl XbrlInstance {
     /// Serialize this instance to an XBRL XML document.
     pub fn to_xml<W>(&self, writer: &mut Writer<W>) -> Result<(), anyhow::Error>
     where
-        W: std::io::Write,
+        W: io::Write,
     {
         writer::write_xml(writer, self)
     }

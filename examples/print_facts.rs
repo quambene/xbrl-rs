@@ -3,6 +3,8 @@
 //! Usage:
 //!     cargo run --example print_facts -- test_data/instances/ebilanz/v6.4/HandelsbilanzGastronom_PersG.xml
 
+use quick_xml::Reader;
+use std::{fs::File, io::BufReader};
 use xbrl_rs::XbrlInstance;
 
 fn truncate(s: &str, max: usize) -> String {
@@ -18,10 +20,15 @@ fn main() -> anyhow::Result<()> {
         "test_data/instances/ebilanz/v6.4/HandelsbilanzGastronom_PersG.xml".into()
     });
 
-    let xml = std::fs::read_to_string(&path)?;
-    let instance = XbrlInstance::from_xml(&xml)?;
+    let file = File::open(&path)?;
+    let mut reader = Reader::from_reader(BufReader::new(file));
+    let instance = XbrlInstance::from_xml(&mut reader)?;
 
-    let facts: Vec<_> = instance.facts().iter().filter(|f| !f.is_nil()).collect();
+    let facts: Vec<_> = instance
+        .facts()
+        .iter()
+        .filter(|fact| !fact.is_nil())
+        .collect();
 
     // Fixed column widths for better readability
     let w_concept = 100;
