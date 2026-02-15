@@ -15,6 +15,7 @@ pub(crate) mod writer;
 pub use context::{Context, EntityIdentifier, Period};
 pub use fact::Fact;
 pub use instance::XbrlInstance;
+pub use quick_xml::{Reader as XmlReader, Writer as XmlWriter};
 pub use taxonomy::{
     ArcroleType, CalculationArc, DefinitionArc, ElementDefinition, EntryPoint, Label, LinkbaseRef,
     PresentationArc, Reference, ReferencePart, RoleType, SchemaImport, SchemaInclude,
