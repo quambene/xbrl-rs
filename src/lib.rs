@@ -14,6 +14,6 @@ pub use quick_xml::{Reader as XmlReader, Writer as XmlWriter};
 pub use taxonomy::{
     ArcroleType, CalculationArc, DefinitionArc, ElementDefinition, Label, LinkbaseRef,
     PresentationArc, Reference, ReferencePart, RoleType, SchemaImport, SchemaInclude,
-    TaxonomySchema, TaxonomySet,
+    TaxonomyLoader, TaxonomySchema, TaxonomySet,
 };
 pub use validation::{Severity, ValidationMessage, ValidationResult};

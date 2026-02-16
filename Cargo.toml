@@ -8,6 +8,7 @@ thiserror = "2.0"
 env_logger = "0.11.8"
 log = "0.4.29"
 quick-xml = "0.39.0"
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls"] }
 
 [dev-dependencies]
 roxmltree = "0.21.1"
