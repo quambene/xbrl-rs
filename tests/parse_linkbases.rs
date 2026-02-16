@@ -1,21 +1,13 @@
-use std::path::Path;
-use xbrl_rs::{EntryPoint, Label, TaxonomySet};
+use std::{path::PathBuf, str::FromStr};
+use xbrl_rs::{Label, TaxonomySet};
 
-const TAXONOMY_BASE: &str = "test_data/taxonomies/german-gaap/v6.9";
-const TAXONOMY_URL_BASE: &str = "http://www.xbrl.de/taxonomies";
-
-fn entry_point(relative_path: &str) -> EntryPoint {
-    EntryPoint::new(
-        format!("{TAXONOMY_URL_BASE}/{relative_path}"),
-        Path::new(TAXONOMY_BASE).join(relative_path),
-    )
-}
+const TAXONOMY_ENTRY_POINT: &str = "test_data/taxonomies";
 
 #[test]
 fn schema_by_namespace() {
-    let dts =
-        TaxonomySet::discover(&[entry_point("de-gcd-2025-04-01/de-gcd-2025-04-01-shell.xsd")])
-            .unwrap();
+    let entry_point = PathBuf::from_str(TAXONOMY_ENTRY_POINT).unwrap();
+    let gcd = "http://www.xbrl.de/taxonomies/de-gcd-2025-04-01/de-gcd-2025-04-01-shell.xsd";
+    let dts = TaxonomySet::discover(vec![gcd.to_owned()], entry_point).unwrap();
 
     let gcd = dts
         .schema_by_namespace("http://www.xbrl.de/taxonomies/de-gcd-2025-04-01")
@@ -26,10 +18,9 @@ fn schema_by_namespace() {
 
 #[test]
 fn parse_labels_linkbase() {
-    let dts = TaxonomySet::discover(&[entry_point(
-        "de-gaap-ci-2025-04-01/de-gaap-ci-2025-04-01-shell-fiscal.xsd",
-    )])
-    .unwrap();
+    let entry_point = PathBuf::from_str(TAXONOMY_ENTRY_POINT).unwrap();
+    let gaap = "http://www.xbrl.de/taxonomies/de-gaap-ci-2025-04-01/de-gaap-ci-2025-04-01-shell-fiscal.xsd";
+    let dts = TaxonomySet::discover(vec![gaap.to_owned()], entry_point).unwrap();
 
     assert!(
         !dts.labels().is_empty(),
@@ -70,9 +61,9 @@ fn parse_labels_linkbase() {
 
 #[test]
 fn parse_labels_linkbase_multiple_roles() {
-    let dts =
-        TaxonomySet::discover(&[entry_point("de-gcd-2025-04-01/de-gcd-2025-04-01-shell.xsd")])
-            .unwrap();
+    let entry_point = PathBuf::from_str(TAXONOMY_ENTRY_POINT).unwrap();
+    let gcd = "http://www.xbrl.de/taxonomies/de-gcd-2025-04-01/de-gcd-2025-04-01-shell.xsd";
+    let dts = TaxonomySet::discover(vec![gcd.to_owned()], entry_point).unwrap();
 
     // Find a concept that has both a standard label and documentation
     let concept_labels = dts.labels();
@@ -90,10 +81,9 @@ fn parse_labels_linkbase_multiple_roles() {
 
 #[test]
 fn parse_presentation_linkbase() {
-    let dts = TaxonomySet::discover(&[entry_point(
-        "de-gaap-ci-2025-04-01/de-gaap-ci-2025-04-01-shell-fiscal.xsd",
-    )])
-    .unwrap();
+    let entry_point = PathBuf::from_str(TAXONOMY_ENTRY_POINT).unwrap();
+    let gaap = "http://www.xbrl.de/taxonomies/de-gaap-ci-2025-04-01/de-gaap-ci-2025-04-01-shell-fiscal.xsd";
+    let dts = TaxonomySet::discover(vec![gaap.to_owned()], entry_point).unwrap();
 
     assert!(
         !dts.presentations().is_empty(),
@@ -117,10 +107,9 @@ fn parse_presentation_linkbase() {
 
 #[test]
 fn parse_calculation_linkbase() {
-    let dts = TaxonomySet::discover(&[entry_point(
-        "de-gaap-ci-2025-04-01/de-gaap-ci-2025-04-01-shell-fiscal.xsd",
-    )])
-    .unwrap();
+    let entry_point = PathBuf::from_str(TAXONOMY_ENTRY_POINT).unwrap();
+    let gaap = "http://www.xbrl.de/taxonomies/de-gaap-ci-2025-04-01/de-gaap-ci-2025-04-01-shell-fiscal.xsd";
+    let dts = TaxonomySet::discover(vec![gaap.to_owned()], entry_point).unwrap();
 
     assert!(
         !dts.calculations().is_empty(),
@@ -142,10 +131,9 @@ fn parse_calculation_linkbase() {
 
 #[test]
 fn parse_definition_linkbase() {
-    let dts = TaxonomySet::discover(&[entry_point(
-        "de-gaap-ci-2025-04-01/de-gaap-ci-2025-04-01-shell-fiscal.xsd",
-    )])
-    .unwrap();
+    let entry_point = PathBuf::from_str(TAXONOMY_ENTRY_POINT).unwrap();
+    let gaap = "http://www.xbrl.de/taxonomies/de-gaap-ci-2025-04-01/de-gaap-ci-2025-04-01-shell-fiscal.xsd";
+    let dts = TaxonomySet::discover(vec![gaap.to_owned()], entry_point).unwrap();
 
     assert!(
         !dts.definitions().is_empty(),
@@ -165,10 +153,9 @@ fn parse_definition_linkbase() {
 
 #[test]
 fn parse_reference_linkbase() {
-    let dts = TaxonomySet::discover(&[entry_point(
-        "de-gaap-ci-2025-04-01/de-gaap-ci-2025-04-01-shell-fiscal.xsd",
-    )])
-    .unwrap();
+    let entry_point = PathBuf::from_str(TAXONOMY_ENTRY_POINT).unwrap();
+    let gaap = "http://www.xbrl.de/taxonomies/de-gaap-ci-2025-04-01/de-gaap-ci-2025-04-01-shell-fiscal.xsd";
+    let dts = TaxonomySet::discover(vec![gaap.to_owned()], entry_point).unwrap();
 
     assert!(
         !dts.references().is_empty(),
@@ -188,8 +175,9 @@ fn parse_reference_linkbase() {
 
 #[test]
 fn linkbase_refs_have_roles() {
-    let dts =
-        TaxonomySet::discover(&[entry_point("de-gcd-2025-04-01/de-gcd-2025-04-01.xsd")]).unwrap();
+    let entry_point = PathBuf::from_str(TAXONOMY_ENTRY_POINT).unwrap();
+    let gcd = "http://www.xbrl.de/taxonomies/de-gcd-2025-04-01/de-gcd-2025-04-01-shell.xsd";
+    let dts = TaxonomySet::discover(vec![gcd.to_owned()], entry_point).unwrap();
 
     // The GCD main schema has label and reference linkbaseRefs
     let gcd = dts
@@ -214,10 +202,9 @@ fn linkbase_refs_have_roles() {
 
 #[test]
 fn find_element_by_id() {
-    let dts = TaxonomySet::discover(&[entry_point(
-        "de-gaap-ci-2025-04-01/de-gaap-ci-2025-04-01-shell-fiscal.xsd",
-    )])
-    .unwrap();
+    let entry_point = PathBuf::from_str(TAXONOMY_ENTRY_POINT).unwrap();
+    let gaap = "http://www.xbrl.de/taxonomies/de-gaap-ci-2025-04-01/de-gaap-ci-2025-04-01-shell-fiscal.xsd";
+    let dts = TaxonomySet::discover(vec![gaap.to_owned()], entry_point).unwrap();
 
     let elem = dts
         .find_element_by_id("de-gaap-ci_bs.ass")
@@ -229,10 +216,9 @@ fn find_element_by_id() {
 
 #[test]
 fn qualified_name() {
-    let dts = TaxonomySet::discover(&[entry_point(
-        "de-gaap-ci-2025-04-01/de-gaap-ci-2025-04-01-shell-fiscal.xsd",
-    )])
-    .unwrap();
+    let entry_point = PathBuf::from_str(TAXONOMY_ENTRY_POINT).unwrap();
+    let gaap = "http://www.xbrl.de/taxonomies/de-gaap-ci-2025-04-01/de-gaap-ci-2025-04-01-shell-fiscal.xsd";
+    let dts = TaxonomySet::discover(vec![gaap.to_owned()], entry_point).unwrap();
 
     assert_eq!(
         dts.qualified_name("de-gaap-ci_bs.ass").as_deref(),

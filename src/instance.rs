@@ -1,10 +1,14 @@
 //! XBRL instance document representation
 
-use crate::{Context, Fact, Unit};
-use std::collections::HashMap;
+use crate::{
+    Context, Fact, TaxonomySet, Unit, reader, validation, validation::ValidationResult, writer,
+};
+use anyhow::Result;
+use quick_xml::{Reader, Writer};
+use std::{collections::HashMap, io};
 
 /// Represents a complete XBRL instance document
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct XbrlInstance {
     /// Schema references (xlink:href values from link:schemaRef elements)
     schema_refs: Vec<String>,
@@ -18,21 +22,45 @@ pub struct XbrlInstance {
     namespaces: HashMap<String, String>,
 }
 
-impl Default for XbrlInstance {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl XbrlInstance {
-    pub fn new() -> Self {
+    pub fn new(
+        schema_refs: Vec<String>,
+        contexts: HashMap<String, Context>,
+        units: HashMap<String, Unit>,
+        facts: Vec<Fact>,
+        namespaces: HashMap<String, String>,
+    ) -> Self {
         Self {
-            schema_refs: Vec::new(),
-            contexts: HashMap::new(),
-            units: HashMap::new(),
-            facts: Vec::new(),
-            namespaces: HashMap::new(),
+            schema_refs,
+            contexts,
+            units,
+            facts,
+            namespaces,
         }
+    }
+
+    /// Parse an XBRL instance document from XML.
+    ///
+    /// Automatically extracts the `<xbrli:xbrl>` element if the input
+    /// contains a wrapper around it.
+    pub fn from_xml<R>(reader: &mut Reader<R>) -> Result<Self>
+    where
+        R: io::BufRead,
+    {
+        reader::read_xml(reader)
+    }
+
+    /// Validate this instance against a taxonomy.
+    pub fn validate(&self, taxonomy: &TaxonomySet) -> ValidationResult {
+        validation::validate_all(self, taxonomy)
+    }
+
+    /// Serialize this instance to an XBRL XML document.
+    pub fn to_xml<W>(&self, writer: &mut Writer<W>) -> Result<(), anyhow::Error>
+    where
+        W: io::Write,
+    {
+        writer::write_xml(writer, self)
     }
 
     /// Add a schema reference (xlink:href from a link:schemaRef element)
@@ -114,6 +142,11 @@ impl XbrlInstance {
     /// Get namespace URI for a prefix
     pub fn get_namespace(&self, prefix: &str) -> Option<&str> {
         self.namespaces.get(prefix).map(|s| s.as_str())
+    }
+
+    /// Get all namespace prefix mappings
+    pub fn namespaces(&self) -> &HashMap<String, String> {
+        &self.namespaces
     }
 
     /// Get all contexts

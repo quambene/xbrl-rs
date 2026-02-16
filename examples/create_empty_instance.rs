@@ -6,32 +6,33 @@
 //! Usage:
 //!     cargo run --example create_empty_instance
 
-use std::{collections::HashSet, path::Path};
-use xbrl_rs::{
-    Context, EntityIdentifier, EntryPoint, Fact, Period, TaxonomySet, Unit, XbrlValidator,
-};
+use std::{collections::HashSet, path::PathBuf, str::FromStr};
+use xbrl_rs::{Context, EntityIdentifier, Fact, Period, TaxonomySet, Unit, XbrlInstance};
 
-const TAXONOMY_PATH_BASE: &str = "test_data/taxonomies/german-gaap/v6.9";
-const TAXONOMY_URL_BASE: &str = "http://www.xbrl.de/taxonomies";
+const TAXONOMY_ENTRY_POINT: &str = "test_data/taxonomies";
 
 fn main() -> anyhow::Result<()> {
     env_logger::init();
 
-    let taxonomy = TaxonomySet::discover(&[
-        EntryPoint::new(
-            format!("{TAXONOMY_URL_BASE}/de-gcd-2025-04-01/de-gcd-2025-04-01-shell.xsd"),
-            Path::new(TAXONOMY_PATH_BASE).join("de-gcd-2025-04-01/de-gcd-2025-04-01-shell.xsd"),
-        ),
-        EntryPoint::new(
-            format!(
-                "{TAXONOMY_URL_BASE}/de-gaap-ci-2025-04-01/de-gaap-ci-2025-04-01-shell-fiscal.xsd"
-            ),
-            Path::new(TAXONOMY_PATH_BASE)
-                .join("de-gaap-ci-2025-04-01/de-gaap-ci-2025-04-01-shell-fiscal.xsd"),
-        ),
-    ])?;
+    let gcd = "http://www.xbrl.de/taxonomies/de-gcd-2025-04-01/de-gcd-2025-04-01-shell.xsd";
+    let gaap = "http://www.xbrl.de/taxonomies/de-gaap-ci-2025-04-01/de-gaap-ci-2025-04-01-shell-fiscal.xsd";
 
-    let mut instance = taxonomy.create_instance();
+    let taxonomy = TaxonomySet::discover(
+        vec![gcd.to_owned(), gaap.to_owned()],
+        PathBuf::from_str(TAXONOMY_ENTRY_POINT)?,
+    )?;
+
+    let mut instance = XbrlInstance::default();
+
+    for schema_ref in taxonomy.schema_refs() {
+        instance.add_schema_ref(schema_ref.clone());
+    }
+
+    for schema in taxonomy.schemas().values() {
+        for (prefix, uri) in &schema.namespaces {
+            instance.add_namespace(prefix.clone(), uri.clone());
+        }
+    }
 
     // Contexts
     let entity = EntityIdentifier {
@@ -119,7 +120,7 @@ fn main() -> anyhow::Result<()> {
     println!();
 
     // Validate the created instance
-    let result = XbrlValidator::new(&instance, &taxonomy).validate_all();
+    let result = instance.validate(&taxonomy);
     if result.is_valid() {
         println!("Validation: PASSED");
     } else {
