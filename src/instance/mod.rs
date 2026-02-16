@@ -1,11 +1,18 @@
 //! XBRL instance document representation
 
-use crate::{
-    Context, Fact, TaxonomySet, Unit, reader, validation, validation::ValidationResult, writer,
-};
+mod context;
+mod fact;
+mod reader;
+mod unit;
+mod writer;
+
+use crate::{TaxonomySet, validation, validation::ValidationResult};
 use anyhow::Result;
+pub use context::{Context, EntityIdentifier, Period};
+pub use fact::Fact;
 use quick_xml::{Reader, Writer};
 use std::{collections::HashMap, io};
+pub use unit::Unit;
 
 /// Represents a complete XBRL instance document
 #[derive(Debug, Default)]

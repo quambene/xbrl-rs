@@ -1,6 +1,6 @@
 //! XBRL instance XML writer (serialization).
 
-use crate::{Context, Fact, Period, Unit, XbrlInstance};
+use crate::{Context, Fact, Period, XbrlInstance, instance::Unit};
 use quick_xml::{
     Writer,
     events::{BytesDecl, BytesEnd, BytesStart, BytesText, Event},

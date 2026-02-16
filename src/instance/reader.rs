@@ -1,6 +1,6 @@
 //! XBRL instance XML reader (deserialization).
 
-use crate::{Context, EntityIdentifier, Fact, Period, Unit, XbrlInstance};
+use crate::{Context, EntityIdentifier, Fact, Period, XbrlInstance, instance::Unit};
 use anyhow::{Context as _, Result};
 use quick_xml::{
     Reader,
