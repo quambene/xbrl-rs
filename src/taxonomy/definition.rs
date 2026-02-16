@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::error::{LinkbaseType, Result, XbrlError};
 use quick_xml::{
     Reader,
     events::{Event, attributes::Attributes},
@@ -75,7 +75,13 @@ pub fn parse_definition_linkbase(xml_content: &str) -> Result<HashMap<String, Ve
                 }
             }
             Ok(Event::Eof) => break,
-            Err(e) => return Err(anyhow::anyhow!("Error parsing definition linkbase: {}", e)),
+            Err(err) => {
+                return Err(XbrlError::LinkbaseParse {
+                    linkbase_type: LinkbaseType::Definition,
+                    file_path: None,
+                    source: err,
+                });
+            }
             _ => {}
         }
         buf.clear();

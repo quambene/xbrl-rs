@@ -6,8 +6,7 @@ mod reader;
 mod unit;
 mod writer;
 
-use crate::{TaxonomySet, validation, validation::ValidationResult};
-use anyhow::Result;
+use crate::{TaxonomySet, error::Result, validation, validation::ValidationResult};
 pub use context::{Context, EntityIdentifier, Period};
 pub use fact::Fact;
 use quick_xml::{Reader, Writer};
@@ -63,7 +62,7 @@ impl XbrlInstance {
     }
 
     /// Serialize this instance to an XBRL XML document.
-    pub fn to_xml<W>(&self, writer: &mut Writer<W>) -> Result<(), anyhow::Error>
+    pub fn to_xml<W>(&self, writer: &mut Writer<W>) -> Result<()>
     where
         W: io::Write,
     {

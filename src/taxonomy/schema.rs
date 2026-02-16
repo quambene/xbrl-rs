@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::error::{Result, XbrlError};
 use quick_xml::{
     Reader,
     events::{Event, attributes::Attributes},
@@ -195,12 +195,12 @@ impl TaxonomySchema {
                     }
                 }
                 Ok(Event::Eof) => break,
-                Err(e) => {
-                    return Err(anyhow::anyhow!(
-                        "Error parsing schema {}: {}",
-                        path.display(),
-                        e
-                    ));
+                Err(err) => {
+                    return Err(XbrlError::XmlParse {
+                        position: reader.buffer_position(),
+                        element: Some(format!("schema {}", path.display())),
+                        source: err,
+                    });
                 }
                 _ => {}
             }
@@ -322,7 +322,13 @@ fn parse_role_type(reader: &mut Reader<&[u8]>, attrs: Attributes) -> Result<Role
                 }
             }
             Ok(Event::Eof) => break,
-            Err(e) => return Err(anyhow::anyhow!("Error parsing roleType: {}", e)),
+            Err(err) => {
+                return Err(XbrlError::XmlParse {
+                    position: reader.buffer_position(),
+                    element: Some("roleType".to_string()),
+                    source: err,
+                });
+            }
             _ => {}
         }
         buf.clear();
@@ -395,7 +401,13 @@ fn parse_arcrole_type(reader: &mut Reader<&[u8]>, attrs: Attributes) -> Result<A
                 }
             }
             Ok(Event::Eof) => break,
-            Err(e) => return Err(anyhow::anyhow!("Error parsing arcroleType: {}", e)),
+            Err(err) => {
+                return Err(XbrlError::XmlParse {
+                    position: reader.buffer_position(),
+                    element: Some("arcroleType".to_string()),
+                    source: err,
+                });
+            }
             _ => {}
         }
         buf.clear();
@@ -526,12 +538,12 @@ fn skip_to_end(reader: &mut Reader<&[u8]>, tag_name: &str) -> Result<()> {
                 }
             }
             Ok(Event::Eof) => break,
-            Err(e) => {
-                return Err(anyhow::anyhow!(
-                    "Error skipping element <{}>: {}",
-                    tag_name,
-                    e
-                ));
+            Err(err) => {
+                return Err(XbrlError::XmlParse {
+                    position: reader.buffer_position(),
+                    element: Some(tag_name.to_string()),
+                    source: err,
+                });
             }
             _ => {}
         }

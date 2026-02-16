@@ -11,7 +11,7 @@ use xbrl_rs::{Context, EntityIdentifier, Fact, Period, TaxonomySet, Unit, XbrlIn
 
 const TAXONOMY_ENTRY_POINT: &str = "test_data/taxonomies";
 
-fn main() -> anyhow::Result<()> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
 
     let gcd = "http://www.xbrl.de/taxonomies/de-gcd-2025-04-01/de-gcd-2025-04-01-shell.xsd";
