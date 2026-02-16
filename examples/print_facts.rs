@@ -15,7 +15,7 @@ fn truncate(s: &str, max: usize) -> String {
     }
 }
 
-fn main() -> anyhow::Result<()> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let path = std::env::args().nth(1).unwrap_or_else(|| {
         "test_data/instances/ebilanz/v6.4/HandelsbilanzGastronom_PersG.xml".into()
     });

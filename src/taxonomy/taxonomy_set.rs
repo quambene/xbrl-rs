@@ -6,7 +6,7 @@ use super::{
     reference::{self, Reference},
     schema::{ElementDefinition, RoleType, TaxonomySchema},
 };
-use anyhow::{Context as AnyhowContext, Result};
+use crate::error::{Result, XbrlError};
 use log::warn;
 use std::{
     collections::{HashMap, HashSet, VecDeque},
@@ -63,8 +63,10 @@ impl TaxonomySet {
             let schema_ref = strip_prefix(schema_ref);
 
             let canonical = std::fs::canonicalize(&entry_point)
-                .with_context(|| {
-                    format!("Failed to resolve entry point: {}", entry_point.display())
+                .map_err(|err| XbrlError::FileRead {
+                    path: entry_point.clone(),
+                    context: "entry point".to_string(),
+                    source: err,
                 })?
                 .join(schema_ref);
 
@@ -74,11 +76,14 @@ impl TaxonomySet {
         }
 
         while let Some(path) = queue.pop_front() {
-            let xml_content = std::fs::read_to_string(&path)
-                .with_context(|| format!("Failed to read schema: {}", path.display()))?;
+            let xml_content =
+                std::fs::read_to_string(&path).map_err(|err| XbrlError::FileRead {
+                    path: path.clone(),
+                    context: "schema".to_string(),
+                    source: err,
+                })?;
 
-            let schema = TaxonomySchema::parse(&path, &xml_content)
-                .with_context(|| format!("Failed to parse schema: {}", path.display()))?;
+            let schema = TaxonomySchema::parse(&path, &xml_content)?;
 
             let schema_dir = path.parent().unwrap_or(Path::new("."));
 
@@ -160,10 +165,12 @@ impl TaxonomySet {
         // Parse label linkbases
         let mut labels: HashMap<String, Vec<Label>> = HashMap::new();
         for path in &label_paths {
-            let xml = std::fs::read_to_string(path)
-                .with_context(|| format!("Failed to read label linkbase: {}", path.display()))?;
-            let parsed = label::parse_label_linkbase(&xml)
-                .with_context(|| format!("Failed to parse label linkbase: {}", path.display()))?;
+            let xml = std::fs::read_to_string(path).map_err(|err| XbrlError::FileRead {
+                path: path.clone(),
+                context: "label linkbase".to_string(),
+                source: err,
+            })?;
+            let parsed = label::parse_label_linkbase(&xml)?;
             for (id, mut vals) in parsed {
                 labels.entry(id).or_default().append(&mut vals);
             }
@@ -172,12 +179,12 @@ impl TaxonomySet {
         // Parse presentation linkbases
         let mut presentations: HashMap<String, Vec<PresentationArc>> = HashMap::new();
         for path in &presentation_paths {
-            let xml = std::fs::read_to_string(path).with_context(|| {
-                format!("Failed to read presentation linkbase: {}", path.display())
+            let xml = std::fs::read_to_string(path).map_err(|err| XbrlError::FileRead {
+                path: path.clone(),
+                context: "presentation linkbase".to_string(),
+                source: err,
             })?;
-            let parsed = presentation::parse_presentation_linkbase(&xml).with_context(|| {
-                format!("Failed to parse presentation linkbase: {}", path.display())
-            })?;
+            let parsed = presentation::parse_presentation_linkbase(&xml)?;
             for (role, mut arcs) in parsed {
                 presentations.entry(role).or_default().append(&mut arcs);
             }
@@ -186,12 +193,12 @@ impl TaxonomySet {
         // Parse calculation linkbases
         let mut calculations: HashMap<String, Vec<CalculationArc>> = HashMap::new();
         for path in &calculation_paths {
-            let xml = std::fs::read_to_string(path).with_context(|| {
-                format!("Failed to read calculation linkbase: {}", path.display())
+            let xml = std::fs::read_to_string(path).map_err(|err| XbrlError::FileRead {
+                path: path.clone(),
+                context: "calculation linkbase".to_string(),
+                source: err,
             })?;
-            let parsed = calculation::parse_calculation_linkbase(&xml).with_context(|| {
-                format!("Failed to parse calculation linkbase: {}", path.display())
-            })?;
+            let parsed = calculation::parse_calculation_linkbase(&xml)?;
             for (role, mut arcs) in parsed {
                 calculations.entry(role).or_default().append(&mut arcs);
             }
@@ -200,12 +207,12 @@ impl TaxonomySet {
         // Parse definition linkbases
         let mut definitions: HashMap<String, Vec<DefinitionArc>> = HashMap::new();
         for path in &definition_paths {
-            let xml = std::fs::read_to_string(path).with_context(|| {
-                format!("Failed to read definition linkbase: {}", path.display())
+            let xml = std::fs::read_to_string(path).map_err(|err| XbrlError::FileRead {
+                path: path.clone(),
+                context: "definition linkbase".to_string(),
+                source: err,
             })?;
-            let parsed = definition::parse_definition_linkbase(&xml).with_context(|| {
-                format!("Failed to parse definition linkbase: {}", path.display())
-            })?;
+            let parsed = definition::parse_definition_linkbase(&xml)?;
             for (role, mut arcs) in parsed {
                 definitions.entry(role).or_default().append(&mut arcs);
             }
@@ -214,12 +221,12 @@ impl TaxonomySet {
         // Parse reference linkbases
         let mut references: HashMap<String, Vec<Reference>> = HashMap::new();
         for path in &reference_paths {
-            let xml = std::fs::read_to_string(path).with_context(|| {
-                format!("Failed to read reference linkbase: {}", path.display())
+            let xml = std::fs::read_to_string(path).map_err(|err| XbrlError::FileRead {
+                path: path.clone(),
+                context: "reference linkbase".to_string(),
+                source: err,
             })?;
-            let parsed = reference::parse_reference_linkbase(&xml).with_context(|| {
-                format!("Failed to parse reference linkbase: {}", path.display())
-            })?;
+            let parsed = reference::parse_reference_linkbase(&xml)?;
             for (id, mut vals) in parsed {
                 references.entry(id).or_default().append(&mut vals);
             }

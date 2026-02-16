@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::error::{LinkbaseType, Result, XbrlError};
 use quick_xml::{
     Reader,
     events::{Event, attributes::Attributes},
@@ -77,7 +77,13 @@ pub fn parse_calculation_linkbase(
                 }
             }
             Ok(Event::Eof) => break,
-            Err(e) => return Err(anyhow::anyhow!("Error parsing calculation linkbase: {}", e)),
+            Err(err) => {
+                return Err(XbrlError::LinkbaseParse {
+                    linkbase_type: LinkbaseType::Calculation,
+                    file_path: None,
+                    source: err,
+                });
+            }
             _ => {}
         }
         buf.clear();

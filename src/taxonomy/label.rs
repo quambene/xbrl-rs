@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::error::{LinkbaseType, Result, XbrlError};
 use quick_xml::{Reader, events::Event};
 use std::collections::HashMap;
 
@@ -85,7 +85,13 @@ pub fn parse_label_linkbase(xml_content: &str) -> Result<HashMap<String, Vec<Lab
                 }
             }
             Ok(Event::Eof) => break,
-            Err(e) => return Err(anyhow::anyhow!("Error parsing label linkbase: {}", e)),
+            Err(err) => {
+                return Err(XbrlError::LinkbaseParse {
+                    linkbase_type: LinkbaseType::Label,
+                    file_path: None,
+                    source: err,
+                });
+            }
             _ => {}
         }
         buf.clear();

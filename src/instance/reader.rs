@@ -1,7 +1,10 @@
 //! XBRL instance XML reader (deserialization).
 
-use crate::{Context, EntityIdentifier, Fact, Period, XbrlInstance, instance::Unit};
-use anyhow::{Context as _, Result};
+use crate::{
+    Context, EntityIdentifier, Fact, Period, XbrlInstance,
+    error::{Result, XbrlError},
+    instance::Unit,
+};
 use quick_xml::{
     Reader,
     escape::unescape,
@@ -67,12 +70,12 @@ where
                 }
             }
             Ok(Event::Eof) => break,
-            Err(e) => {
-                return Err(anyhow::anyhow!(
-                    "Error parsing XBRL at position {}: {}",
-                    reader.buffer_position(),
-                    e
-                ));
+            Err(err) => {
+                return Err(XbrlError::XmlParse {
+                    position: reader.buffer_position(),
+                    element: None,
+                    source: err,
+                });
             }
             _ => {}
         }
@@ -99,8 +102,12 @@ fn parse_context<R: std::io::BufRead>(
     reader: &mut Reader<R>,
     start_element: &quick_xml::events::BytesStart,
 ) -> Result<Context> {
-    let id = get_attribute(&start_element.attributes(), b"id")
-        .context("Context missing id attribute")?;
+    let id = get_attribute(&start_element.attributes(), b"id").ok_or_else(|| {
+        XbrlError::MissingAttribute {
+            element: "context".to_string(),
+            attribute: "id".to_string(),
+        }
+    })?;
 
     let mut entity_scheme = None;
     let mut entity_value = None;
@@ -172,7 +179,13 @@ fn parse_context<R: std::io::BufRead>(
                 }
             }
             Ok(Event::Eof) => break,
-            Err(e) => return Err(anyhow::anyhow!("Error parsing context: {}", e)),
+            Err(err) => {
+                return Err(XbrlError::XmlParse {
+                    position: reader.buffer_position(),
+                    element: Some("context".to_string()),
+                    source: err,
+                });
+            }
             _ => {}
         }
         buf.clear();
@@ -207,8 +220,12 @@ fn parse_unit<R: std::io::BufRead>(
     reader: &mut Reader<R>,
     start_element: &quick_xml::events::BytesStart,
 ) -> Result<Unit> {
-    let id =
-        get_attribute(&start_element.attributes(), b"id").context("Unit missing id attribute")?;
+    let id = get_attribute(&start_element.attributes(), b"id").ok_or_else(|| {
+        XbrlError::MissingAttribute {
+            element: "unit".to_string(),
+            attribute: "id".to_string(),
+        }
+    })?;
 
     let mut measure = String::new();
     let mut buf = Vec::new();
@@ -234,7 +251,13 @@ fn parse_unit<R: std::io::BufRead>(
                 }
             }
             Ok(Event::Eof) => break,
-            Err(e) => return Err(anyhow::anyhow!("Error parsing unit: {}", e)),
+            Err(err) => {
+                return Err(XbrlError::XmlParse {
+                    position: reader.buffer_position(),
+                    element: Some("unit".to_string()),
+                    source: err,
+                });
+            }
             _ => {}
         }
         buf.clear();

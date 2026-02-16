@@ -1,6 +1,6 @@
 //! XBRL instance XML writer (serialization).
 
-use crate::{Context, Fact, Period, XbrlInstance, instance::Unit};
+use crate::{Context, Fact, Period, XbrlInstance, error::Result, instance::Unit};
 use quick_xml::{
     Writer,
     events::{BytesDecl, BytesEnd, BytesStart, BytesText, Event},
@@ -11,7 +11,7 @@ use std::io;
 pub(crate) fn write_xml<W: io::Write>(
     writer: &mut Writer<W>,
     instance: &XbrlInstance,
-) -> Result<(), anyhow::Error> {
+) -> Result<()> {
     // XML declaration
     writer.write_event(Event::Decl(BytesDecl::new("1.0", Some("utf-8"), None)))?;
 
@@ -68,10 +68,7 @@ pub(crate) fn write_xml<W: io::Write>(
     Ok(())
 }
 
-fn write_context<W: std::io::Write>(
-    writer: &mut Writer<W>,
-    context: &Context,
-) -> Result<(), anyhow::Error> {
+fn write_context<W: std::io::Write>(writer: &mut Writer<W>, context: &Context) -> Result<()> {
     let mut elem = BytesStart::new("xbrli:context");
     elem.push_attribute(("id", context.id.as_str()));
     writer.write_event(Event::Start(elem))?;
@@ -128,7 +125,7 @@ fn write_context<W: std::io::Write>(
     Ok(())
 }
 
-fn write_unit<W: std::io::Write>(writer: &mut Writer<W>, unit: &Unit) -> Result<(), anyhow::Error> {
+fn write_unit<W: std::io::Write>(writer: &mut Writer<W>, unit: &Unit) -> Result<()> {
     let mut elem = BytesStart::new("xbrli:unit");
     elem.push_attribute(("id", unit.id.as_str()));
     writer.write_event(Event::Start(elem))?;
@@ -142,7 +139,7 @@ fn write_unit<W: std::io::Write>(writer: &mut Writer<W>, unit: &Unit) -> Result<
     Ok(())
 }
 
-fn write_fact<W: std::io::Write>(writer: &mut Writer<W>, fact: &Fact) -> Result<(), anyhow::Error> {
+fn write_fact<W: std::io::Write>(writer: &mut Writer<W>, fact: &Fact) -> Result<()> {
     let concept = fact.concept();
     let mut elem = BytesStart::new(concept);
     elem.push_attribute(("contextRef", fact.context_ref()));
