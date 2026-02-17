@@ -16,19 +16,15 @@ The main components of XBRL are:
 
 - taxonomy: the dictionary and rulebook that defines how financial and business
   information is labeled, structured, and related
-- instance document: a company's actual reported data, tagged using the taxonomy
+- instance document: a company's actual reported data, referencing the taxonomy
 - DTS (Discoverable Taxonomy Set): the full set of taxonomy files that define
   all concepts referenced in an instance
 
 ## Features
 
-- Instance Document: contexts (entity + period), units, facts, dimensions (explicit & typed)
-- Schema (XSD): concept definitions (items/tuples), data types, period type
-  (instant/duration), balance (debit/credit), abstract & nillable flags
-- Linkbases: presentation, calculation, definition, labels, references
-- DTS: import resolution, linkbase discovery/loading
-- Validation: validate XBRL instance against XBRL taxonomy, calculation checks,
-  dimensional validation
+- XBRL Instance: parse facts, contexts, units
+- XBRL Taxonomy: parse XSD schemas and linkbases (presentation, calculation, definition, labels, references)
+- XBRL Validation: validate XBRL instance against XBRL taxonomy
 
 ## Usage
 
@@ -69,5 +65,6 @@ Integration tests require the downloaded taxonomy files: `cargo run --bin downlo
 
 ## References
 
+- [XBRL International](https://www.xbrl.org)
 - [XBRL Specifications](https://specifications.xbrl.org/specifications.html)
-- [XBRL Deutschland e.V.](https://www.xbrl.de/)
+- [XBRL Deutschland e.V.](https://www.xbrl.de)
