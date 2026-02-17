@@ -65,7 +65,7 @@ cargo test --lib
 cargo test --test '*'
 ```
 
-Integration test require the downloaded taxonomy files: `cargo run --bin download_taxonomies`
+Integration tests require the downloaded taxonomy files: `cargo run --bin download_taxonomies --release`
 
 ## References
 
