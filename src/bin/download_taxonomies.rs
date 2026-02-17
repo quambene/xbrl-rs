@@ -1,7 +1,11 @@
+use env_logger::Env;
+use log::info;
 use xbrl_rs::TaxonomyLoader;
 
 fn main() -> Result<(), String> {
-    let destination_root = "test_data/taxonomies_downloaded";
+    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
+
+    let destination_root = "test_data/taxonomies";
     let entry_urls = [
         "http://www.xbrl.de/taxonomies/de-gcd-2020-04-01/de-gcd-2020-04-01-shell.xsd",
         "http://www.xbrl.de/taxonomies/de-gaap-ci-2020-04-01/de-gaap-ci-2020-04-01-shell-fiscal.xsd",
@@ -28,7 +32,7 @@ fn main() -> Result<(), String> {
         .download_all(entry_urls, destination_root)
         .map_err(|err| format!("Download failed: {err}"))?;
 
-    println!("Downloaded taxonomy files to {destination_root}");
+    info!("Downloaded taxonomy files to {destination_root}");
 
     Ok(())
 }

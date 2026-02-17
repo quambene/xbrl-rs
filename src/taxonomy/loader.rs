@@ -60,17 +60,6 @@ impl TaxonomyLoader {
                 ))
             })?;
 
-            let entry_local_path = destination_root.join(local_relative_path(&entry));
-
-            if taxonomy_folder_exists(destination_root, &entry) && entry_local_path.exists() {
-                warn!(
-                    "Skipping download of {} since local file {} already exists",
-                    entry,
-                    entry_local_path.display()
-                );
-                return Ok(());
-            }
-
             queue.push_back(entry);
         }
 
@@ -97,18 +86,23 @@ impl TaxonomyLoader {
 
             let content = if local_path.exists() {
                 match fs::read_to_string(&local_path) {
-                    Ok(existing) => existing,
+                    Ok(existing) => {
+                        warn!(
+                            "File {} already exists, skipping download",
+                            local_path.display(),
+                        );
+                        existing
+                    }
                     Err(err) => {
                         warn!(
-                            "Failed reading existing file {} for {}: {err}",
+                            "Failed reading existing file {}: {err}",
                             local_path.display(),
-                            url
                         );
                         continue;
                     }
                 }
             } else {
-                info!("Downloading {} -> {}", url, local_path.display());
+                info!("Downloading {}", url);
 
                 let fetched = match self.fetch_text(&url) {
                     Ok(body) => body,
@@ -189,18 +183,6 @@ impl TaxonomyLoader {
 
         response.text().map_err(io_other)
     }
-}
-
-fn taxonomy_folder_exists(destination_root: &Path, entry: &Url) -> bool {
-    let segments: Vec<&str> = entry
-        .path_segments()
-        .map_or_else(Vec::new, |parts| parts.collect());
-
-    if segments.len() < 2 || segments.first().copied() != Some("taxonomies") {
-        return false;
-    }
-
-    destination_root.join(segments[1]).exists()
 }
 
 fn enqueue_http_reference(base_url: &Url, reference: &str, queue: &mut VecDeque<Url>) {
