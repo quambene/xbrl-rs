@@ -82,21 +82,22 @@ impl TaxonomyLoader {
                 continue;
             }
 
-            let local_path = destination_root.join(local_relative_path(&url));
+            let relative_path = local_relative_path(&url);
+            let local_path = destination_root.join(&relative_path);
 
             let content = if local_path.exists() {
                 match fs::read_to_string(&local_path) {
                     Ok(existing) => {
                         warn!(
                             "File {} already exists, skipping download",
-                            local_path.display(),
+                            relative_path.display(),
                         );
                         existing
                     }
                     Err(err) => {
                         warn!(
                             "Failed reading existing file {}: {err}",
-                            local_path.display(),
+                            relative_path.display(),
                         );
                         continue;
                     }
