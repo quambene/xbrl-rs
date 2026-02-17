@@ -4,7 +4,7 @@
 //!     cargo run --example print_facts -- test_data/instances/ebilanz/v6.4/HandelsbilanzGastronom_PersG.xml
 
 use quick_xml::Reader;
-use std::{fs::File, io::BufReader};
+use std::{fs::File, io::BufReader, path::Path};
 use xbrl_rs::XbrlInstance;
 
 fn truncate(s: &str, max: usize) -> String {
@@ -16,11 +16,8 @@ fn truncate(s: &str, max: usize) -> String {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let path = std::env::args().nth(1).unwrap_or_else(|| {
-        "test_data/instances/ebilanz/v6.4/HandelsbilanzGastronom_PersG.xml".into()
-    });
-
-    let file = File::open(&path)?;
+    let path = Path::new("test_data/instances/balance_sheet_v64.xml");
+    let file = File::open(path)?;
     let mut reader = Reader::from_reader(BufReader::new(file));
     let instance = XbrlInstance::from_xml(&mut reader)?;
 

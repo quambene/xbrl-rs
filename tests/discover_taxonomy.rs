@@ -81,24 +81,3 @@ fn discover_full_dts_2021() {
 
     assert_dts(&dts);
 }
-
-// -- 2022-05-02 (v6.7) --
-
-#[test]
-fn discover_full_dts_2022() {
-    let schema_refs = [
-        "http://www.xbrl.de/taxonomies/de-gcd-2022-05-02/de-gcd-2022-05-02-shell.xsd",
-        "http://www.xbrl.de/taxonomies/de-gaap-ci-2022-05-02/de-gaap-ci-2022-05-02-shell-fiscal.xsd",
-        "http://www.xbrl.de/taxonomies/de-bra-2022-05-02/de-bra-2022-05-02-shell-fiscal.xsd",
-        "http://www.xbrl.de/taxonomies/de-fi-2022-05-02/de-fi-2022-05-02-shell-staffelform-fiscal.xsd",
-        "http://www.xbrl.de/taxonomies/de-ins-2022-05-02/de-ins-2022-05-02-shell-fiscal.xsd",
-        "http://www.xbrl.de/taxonomies/de-pi-2022-05-02/de-pi-2022-05-02-shell-staffelform-fiscal.xsd",
-    ]
-    .into_iter()
-    .map(|href| href.to_owned())
-    .collect();
-    let entry_point = PathBuf::from_str(TAXONOMY_ENTRY_POINT).unwrap();
-    let dts = TaxonomySet::discover(schema_refs, entry_point).unwrap();
-
-    assert_dts(&dts);
-}

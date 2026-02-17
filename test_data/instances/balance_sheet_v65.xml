@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xbrli:xbrl
+    xmlns:de-gcd="http://www.xbrl.de/taxonomies/de-gcd-2021-04-14"
+    xmlns:link="http://www.xbrl.org/2003/linkbase"
+    xmlns:de-gaap-ci="http://www.xbrl.de/taxonomies/de-gaap-ci-2021-04-14"
+    xmlns:hgbref="http://www.xbrl.de/2008/ref"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:xbrli="http://www.xbrl.org/2003/instance"
+    xmlns:xbrldi="http://xbrl.org/2006/xbrldi"
+    xmlns:xhtml="http://www.w3.org/1999/xhtml"
+    xmlns:iso4217="http://www.xbrl.org/2003/iso4217"
+    xmlns:ref="http://www.xbrl.org/2024/ref"
+    xmlns:xlink="http://www.w3.org/1999/xlink">
+    <link:schemaRef xlink:type="simple"
+        xlink:href="http://www.xbrl.de/taxonomies/de-gcd-2021-04-14/de-gcd-2021-04-14-shell.xsd" />
+    <link:schemaRef xlink:type="simple"
+        xlink:href="http://www.xbrl.de/taxonomies/de-gaap-ci-2021-04-14/de-gaap-ci-2021-04-14-shell-fiscal.xsd" />
+    <xbrli:context id="I-CURRENT-YEAR">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.rzf-nrw.de/Steuernummer">0000000000000</xbrli:identifier>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:instant>2021-12-31</xbrli:instant>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:unit id="EUR">
+        <xbrli:measure>iso4217:EUR</xbrli:measure>
+    </xbrli:unit>
+    <!-- base asset facts -->
+    <de-gaap-ci:bs.ass decimals="2" contextRef="I-CURRENT-YEAR" unitRef="EUR">150000.00</de-gaap-ci:bs.ass>
+    <de-gaap-ci:bs.ass.currAss decimals="2" contextRef="I-CURRENT-YEAR" unitRef="EUR">100000.00</de-gaap-ci:bs.ass.currAss>
+    <de-gaap-ci:bs.ass.fixAss decimals="2" contextRef="I-CURRENT-YEAR" unitRef="EUR">50000.00</de-gaap-ci:bs.ass.fixAss>
+    <!-- base equity/liability facts -->
+    <de-gaap-ci:bs.eqLiab decimals="2" contextRef="I-CURRENT-YEAR" unitRef="EUR">150000.00</de-gaap-ci:bs.eqLiab>
+    <de-gaap-ci:bs.eqLiab.equity decimals="2" contextRef="I-CURRENT-YEAR" unitRef="EUR">50000.00</de-gaap-ci:bs.eqLiab.equity>
+    <de-gaap-ci:bs.eqLiab.liab decimals="2" contextRef="I-CURRENT-YEAR" unitRef="EUR">100000.00</de-gaap-ci:bs.eqLiab.liab>
+</xbrli:xbrl>

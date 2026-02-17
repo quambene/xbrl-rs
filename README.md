@@ -32,7 +32,7 @@ The main components of XBRL are:
 
 ## Usage
 
-``` rust
+```rust
 // Parse XBRL instance document from XML file
 let xml_file = File::open("/path/to/financial_report.xml").unwrap();
 let mut reader = XmlReader::from_reader(BufReader::new(xml_file));
@@ -46,7 +46,12 @@ xbrl_instance.to_xml(&mut writer).unwrap();
 
 // Validate XBRL instance document against XBRL taxonomy
 let schema_refs = xbrl_instance.schema_refs();
-let taxonomy = TaxonomySet::discover(schema_refs.to_vec(), "/path/to/taxonomies").unwrap();
+let taxonomy_root = "/path/to/taxonomies";
+let loader = TaxonomyLoader::new().unwrap();
+loader
+    .download_all(schema_refs.iter().map(String::as_str), taxonomy_root)
+    .unwrap();
+let taxonomy = TaxonomySet::discover(schema_refs.to_vec(), taxonomy_root.into()).unwrap();
 let validation_result = xbrl_instance.validate(&taxonomy);
 ```
 
@@ -59,6 +64,8 @@ cargo test --lib
 # Run integration tests
 cargo test --test '*'
 ```
+
+Integration test require the downloaded taxonomy files: `cargo run --bin download_taxonomies`
 
 ## References
 

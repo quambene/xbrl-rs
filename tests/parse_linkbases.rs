@@ -6,11 +6,11 @@ const TAXONOMY_ENTRY_POINT: &str = "test_data/taxonomies";
 #[test]
 fn schema_by_namespace() {
     let entry_point = PathBuf::from_str(TAXONOMY_ENTRY_POINT).unwrap();
-    let gcd = "http://www.xbrl.de/taxonomies/de-gcd-2025-04-01/de-gcd-2025-04-01-shell.xsd";
+    let gcd = "http://www.xbrl.de/taxonomies/de-gcd-2020-04-01/de-gcd-2020-04-01-shell.xsd";
     let dts = TaxonomySet::discover(vec![gcd.to_owned()], entry_point).unwrap();
 
     let gcd = dts
-        .schema_by_namespace("http://www.xbrl.de/taxonomies/de-gcd-2025-04-01")
+        .schema_by_namespace("http://www.xbrl.de/taxonomies/de-gcd-2020-04-01")
         .expect("GCD schema not found by namespace");
     assert!(!gcd.elements.is_empty());
     assert!(gcd.elements.iter().any(|e| e.name == "genInfo"));
@@ -19,7 +19,7 @@ fn schema_by_namespace() {
 #[test]
 fn parse_labels_linkbase() {
     let entry_point = PathBuf::from_str(TAXONOMY_ENTRY_POINT).unwrap();
-    let gaap = "http://www.xbrl.de/taxonomies/de-gaap-ci-2025-04-01/de-gaap-ci-2025-04-01-shell-fiscal.xsd";
+    let gaap = "http://www.xbrl.de/taxonomies/de-gaap-ci-2020-04-01/de-gaap-ci-2020-04-01-shell-fiscal.xsd";
     let dts = TaxonomySet::discover(vec![gaap.to_owned()], entry_point).unwrap();
 
     assert!(
@@ -62,7 +62,7 @@ fn parse_labels_linkbase() {
 #[test]
 fn parse_labels_linkbase_multiple_roles() {
     let entry_point = PathBuf::from_str(TAXONOMY_ENTRY_POINT).unwrap();
-    let gcd = "http://www.xbrl.de/taxonomies/de-gcd-2025-04-01/de-gcd-2025-04-01-shell.xsd";
+    let gcd = "http://www.xbrl.de/taxonomies/de-gcd-2020-04-01/de-gcd-2020-04-01-shell.xsd";
     let dts = TaxonomySet::discover(vec![gcd.to_owned()], entry_point).unwrap();
 
     // Find a concept that has both a standard label and documentation
@@ -82,7 +82,7 @@ fn parse_labels_linkbase_multiple_roles() {
 #[test]
 fn parse_presentation_linkbase() {
     let entry_point = PathBuf::from_str(TAXONOMY_ENTRY_POINT).unwrap();
-    let gaap = "http://www.xbrl.de/taxonomies/de-gaap-ci-2025-04-01/de-gaap-ci-2025-04-01-shell-fiscal.xsd";
+    let gaap = "http://www.xbrl.de/taxonomies/de-gaap-ci-2020-04-01/de-gaap-ci-2020-04-01-shell-fiscal.xsd";
     let dts = TaxonomySet::discover(vec![gaap.to_owned()], entry_point).unwrap();
 
     assert!(
@@ -108,7 +108,7 @@ fn parse_presentation_linkbase() {
 #[test]
 fn parse_calculation_linkbase() {
     let entry_point = PathBuf::from_str(TAXONOMY_ENTRY_POINT).unwrap();
-    let gaap = "http://www.xbrl.de/taxonomies/de-gaap-ci-2025-04-01/de-gaap-ci-2025-04-01-shell-fiscal.xsd";
+    let gaap = "http://www.xbrl.de/taxonomies/de-gaap-ci-2020-04-01/de-gaap-ci-2020-04-01-shell-fiscal.xsd";
     let dts = TaxonomySet::discover(vec![gaap.to_owned()], entry_point).unwrap();
 
     assert!(
@@ -132,7 +132,7 @@ fn parse_calculation_linkbase() {
 #[test]
 fn parse_definition_linkbase() {
     let entry_point = PathBuf::from_str(TAXONOMY_ENTRY_POINT).unwrap();
-    let gaap = "http://www.xbrl.de/taxonomies/de-gaap-ci-2025-04-01/de-gaap-ci-2025-04-01-shell-fiscal.xsd";
+    let gaap = "http://www.xbrl.de/taxonomies/de-gaap-ci-2020-04-01/de-gaap-ci-2020-04-01-shell-fiscal.xsd";
     let dts = TaxonomySet::discover(vec![gaap.to_owned()], entry_point).unwrap();
 
     assert!(
@@ -154,7 +154,7 @@ fn parse_definition_linkbase() {
 #[test]
 fn parse_reference_linkbase() {
     let entry_point = PathBuf::from_str(TAXONOMY_ENTRY_POINT).unwrap();
-    let gaap = "http://www.xbrl.de/taxonomies/de-gaap-ci-2025-04-01/de-gaap-ci-2025-04-01-shell-fiscal.xsd";
+    let gaap = "http://www.xbrl.de/taxonomies/de-gaap-ci-2020-04-01/de-gaap-ci-2020-04-01-shell-fiscal.xsd";
     let dts = TaxonomySet::discover(vec![gaap.to_owned()], entry_point).unwrap();
 
     assert!(
@@ -176,12 +176,12 @@ fn parse_reference_linkbase() {
 #[test]
 fn linkbase_refs_have_roles() {
     let entry_point = PathBuf::from_str(TAXONOMY_ENTRY_POINT).unwrap();
-    let gcd = "http://www.xbrl.de/taxonomies/de-gcd-2025-04-01/de-gcd-2025-04-01-shell.xsd";
+    let gcd = "http://www.xbrl.de/taxonomies/de-gcd-2020-04-01/de-gcd-2020-04-01-shell.xsd";
     let dts = TaxonomySet::discover(vec![gcd.to_owned()], entry_point).unwrap();
 
     // The GCD main schema has label and reference linkbaseRefs
     let gcd = dts
-        .schema_by_namespace("http://www.xbrl.de/taxonomies/de-gcd-2025-04-01")
+        .schema_by_namespace("http://www.xbrl.de/taxonomies/de-gcd-2020-04-01")
         .unwrap();
 
     let label_refs: Vec<_> = gcd
@@ -203,7 +203,7 @@ fn linkbase_refs_have_roles() {
 #[test]
 fn find_element_by_id() {
     let entry_point = PathBuf::from_str(TAXONOMY_ENTRY_POINT).unwrap();
-    let gaap = "http://www.xbrl.de/taxonomies/de-gaap-ci-2025-04-01/de-gaap-ci-2025-04-01-shell-fiscal.xsd";
+    let gaap = "http://www.xbrl.de/taxonomies/de-gaap-ci-2020-04-01/de-gaap-ci-2020-04-01-shell-fiscal.xsd";
     let dts = TaxonomySet::discover(vec![gaap.to_owned()], entry_point).unwrap();
 
     let elem = dts
@@ -217,7 +217,7 @@ fn find_element_by_id() {
 #[test]
 fn qualified_name() {
     let entry_point = PathBuf::from_str(TAXONOMY_ENTRY_POINT).unwrap();
-    let gaap = "http://www.xbrl.de/taxonomies/de-gaap-ci-2025-04-01/de-gaap-ci-2025-04-01-shell-fiscal.xsd";
+    let gaap = "http://www.xbrl.de/taxonomies/de-gaap-ci-2020-04-01/de-gaap-ci-2020-04-01-shell-fiscal.xsd";
     let dts = TaxonomySet::discover(vec![gaap.to_owned()], entry_point).unwrap();
 
     assert_eq!(
