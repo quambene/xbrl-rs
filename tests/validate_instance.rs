@@ -29,6 +29,12 @@ fn validate_instance_balance_sheet_v64() {
     let result = instance.validate(&taxonomy);
 
     assert!(result.is_valid());
+    assert!(result.errors().is_empty(), "errors: {:#?}", result.errors());
+    assert!(
+        result.warnings().is_empty(),
+        "warnings: {:#?}",
+        result.warnings()
+    );
 }
 
 #[test]
@@ -41,4 +47,10 @@ fn validate_instance_balance_sheet_v65() {
     let result = instance.validate(&taxonomy);
 
     assert!(result.is_valid());
+    assert!(result.errors().is_empty(), "errors: {:#?}", result.errors());
+    assert!(
+        result.warnings().is_empty(),
+        "warnings: {:#?}",
+        result.warnings()
+    );
 }
