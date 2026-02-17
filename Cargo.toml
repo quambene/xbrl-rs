@@ -2,6 +2,15 @@
 name = "xbrl-rs"
 version = "0.1.0"
 edition = "2024"
+authors = ["quambene <contact.quambene@gmail.com>"]
+readme = "README.md"
+license = "Apache-2.0"
+homepage = "https://github.com/quambene/xbrl-rs"
+repository = "https://github.com/quambene/xbrl-rs"
+documentation = "https://docs.rs/xbrl-rs"
+description = "XBRL parser and validation"
+keywords = ["xbrl", "parser",  "taxes", "accounting", "finance"]
+categories = ["finance"]
 
 [dependencies]
 thiserror = "2.0"
