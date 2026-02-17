@@ -14,8 +14,8 @@ const TAXONOMY_ENTRY_POINT: &str = "test_data/taxonomies";
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
 
-    let gcd = "http://www.xbrl.de/taxonomies/de-gcd-2025-04-01/de-gcd-2025-04-01-shell.xsd";
-    let gaap = "http://www.xbrl.de/taxonomies/de-gaap-ci-2025-04-01/de-gaap-ci-2025-04-01-shell-fiscal.xsd";
+    let gcd = "http://www.xbrl.de/taxonomies/de-gcd-2020-04-01/de-gcd-2020-04-01-shell.xsd";
+    let gaap = "http://www.xbrl.de/taxonomies/de-gaap-ci-2020-04-01/de-gaap-ci-2020-04-01-shell-fiscal.xsd";
 
     let taxonomy = TaxonomySet::discover(
         vec![gcd.to_owned(), gaap.to_owned()],
@@ -43,15 +43,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "I".to_string(),
         entity.clone(),
         Period::Instant {
-            date: "2025-12-31".to_string(),
+            date: "2020-12-31".to_string(),
         },
     ));
     instance.add_context(Context::new(
         "D".to_string(),
         entity,
         Period::Duration {
-            start: "2025-01-01".to_string(),
-            end: "2025-12-31".to_string(),
+            start: "2020-01-01".to_string(),
+            end: "2020-12-31".to_string(),
         },
     ));
 
