@@ -172,7 +172,7 @@ impl TaxonomyLoader {
     }
 
     fn fetch_text(&self, url: &Url) -> std::io::Result<String> {
-        let response = self.client.get(url.clone()).send().map_err(io_other)?;
+        let response = self.client.get(to_https(url)).send().map_err(io_other)?;
 
         if !response.status().is_success() {
             return Err(std::io::Error::other(format!(
@@ -307,6 +307,18 @@ fn local_relative_path(url: &Url) -> PathBuf {
     }
 
     relative
+}
+
+/// Upgrade an `http` URL to `https`.
+fn to_https(url: &Url) -> Url {
+    if url.scheme() == "http" {
+        let mut upgraded = url.clone();
+        // set_scheme only fails for cannot-be-a-base URLs, which http/https are not
+        let _ = upgraded.set_scheme("https");
+        upgraded
+    } else {
+        url.clone()
+    }
 }
 
 fn io_other(err: impl std::error::Error + Send + Sync + 'static) -> std::io::Error {
