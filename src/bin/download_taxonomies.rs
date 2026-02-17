@@ -22,7 +22,7 @@ fn main() -> Result<(), String> {
     ];
     let loader = TaxonomyLoader::new().map_err(|err| format!("Failed to create loader: {err}"))?;
 
-    info!("Downloadeding taxonomy files to {destination_root}");
+    info!("Downloading taxonomy files to {destination_root}");
 
     loader
         .download_all(entry_urls, destination_root)
