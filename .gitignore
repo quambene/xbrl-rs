@@ -2,7 +2,6 @@
 /target
 
 # Test data
-**/test_data/instances
 **/test_data/taxonomies
 
 # Environment
