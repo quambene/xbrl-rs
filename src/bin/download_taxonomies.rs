@@ -19,12 +19,6 @@ fn main() -> Result<(), String> {
         "http://www.xbrl.de/taxonomies/de-fi-2021-04-14/de-fi-2021-04-14-shell-staffelform-fiscal.xsd",
         "http://www.xbrl.de/taxonomies/de-ins-2021-04-14/de-ins-2021-04-14-shell-fiscal.xsd",
         "http://www.xbrl.de/taxonomies/de-pi-2021-04-14/de-pi-2021-04-14-shell-staffelform-fiscal.xsd",
-        "http://www.xbrl.de/taxonomies/de-gcd-2022-05-02/de-gcd-2022-05-02-shell.xsd",
-        "http://www.xbrl.de/taxonomies/de-gaap-ci-2022-05-02/de-gaap-ci-2022-05-02-shell-fiscal.xsd",
-        "http://www.xbrl.de/taxonomies/de-bra-2022-05-02/de-bra-2022-05-02-shell-fiscal.xsd",
-        "http://www.xbrl.de/taxonomies/de-fi-2022-05-02/de-fi-2022-05-02-shell-staffelform-fiscal.xsd",
-        "http://www.xbrl.de/taxonomies/de-ins-2022-05-02/de-ins-2022-05-02-shell-fiscal.xsd",
-        "http://www.xbrl.de/taxonomies/de-pi-2022-05-02/de-pi-2022-05-02-shell-staffelform-fiscal.xsd",
     ];
     let loader = TaxonomyLoader::new().map_err(|err| format!("Failed to create loader: {err}"))?;
 
