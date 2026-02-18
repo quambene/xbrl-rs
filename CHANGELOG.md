@@ -9,4 +9,4 @@
 ## v0.1.0 (2026-02-18)
 
 - added
-  - Add `XbrlInstance`, `TaxonomySet`, and `TaxonomyLoader`
+  - Add `XbrlInstance`, `TaxonomySchema`, `TaxonomySet`, and `TaxonomyLoader`
