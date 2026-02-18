@@ -6,4 +6,7 @@
 - changed
 - removed
 
-## v0.1.0 (unreleased)
+## v0.1.0 (2026-02-18)
+
+- added
+  - Add `XbrlInstance`, `TaxonomySet`, and `TaxonomyLoader`
