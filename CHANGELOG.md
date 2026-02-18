@@ -6,12 +6,17 @@
 - changed
 - removed
 
-## v0.1.0 (2026-02-18)
+## v0.2.0 (unrelesed)
 
-- added
-  - Add `XbrlInstance`, `TaxonomySchema`, `TaxonomySet`, and `TaxonomyLoader`
+- changed
+  - Refactor `TaxonomySchema::parse` to `TaxonomySchema::from_xml`
 
 ## v0.1.1 (2026-02-18)
 
 - removed
   - Exclude `test_data` and `bin` folders from publishing
+
+## v0.1.0 (2026-02-18)
+
+- added
+  - Add `XbrlInstance`, `TaxonomySchema`, `TaxonomySet`, and `TaxonomyLoader`
