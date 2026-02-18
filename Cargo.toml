@@ -1,6 +1,6 @@
 [package]
 name = "xbrl-rs"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 authors = ["quambene <contact.quambene@gmail.com>"]
 readme = "README.md"
@@ -11,6 +11,15 @@ documentation = "https://docs.rs/xbrl-rs"
 description = "XBRL parser and validation"
 keywords = ["xbrl", "parser",  "taxes", "accounting", "finance"]
 categories = ["finance"]
+include = [
+  "src/**",
+  "!src/bin/**",
+  "tests/**",
+  "README.md",
+  "LICENSE",
+  "CHANGELOG.md",
+  "Cargo.toml"
+]
 
 [dependencies]
 thiserror = "2.0"
