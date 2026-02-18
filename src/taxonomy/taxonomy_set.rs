@@ -194,12 +194,14 @@ impl TaxonomySet {
         // Parse calculation linkbases
         let mut calculations: HashMap<String, Vec<CalculationArc>> = HashMap::new();
         for path in &calculation_paths {
-            let xml = std::fs::read_to_string(path).map_err(|err| XbrlError::FileRead {
+            let xml_file = fs::File::open(path).map_err(|err| XbrlError::FileRead {
                 path: path.clone(),
                 context: "calculation linkbase".to_string(),
                 source: err,
             })?;
-            let parsed = calculation::parse_calculation_linkbase(&xml)?;
+            let mut reader = Reader::from_reader(BufReader::new(xml_file));
+            let parsed = calculation::parse_calculation_linkbase(&mut reader)?;
+
             for (role, mut arcs) in parsed {
                 calculations.entry(role).or_default().append(&mut arcs);
             }
@@ -208,12 +210,14 @@ impl TaxonomySet {
         // Parse definition linkbases
         let mut definitions: HashMap<String, Vec<DefinitionArc>> = HashMap::new();
         for path in &definition_paths {
-            let xml = std::fs::read_to_string(path).map_err(|err| XbrlError::FileRead {
+            let xml_file = fs::File::open(path).map_err(|err| XbrlError::FileRead {
                 path: path.clone(),
                 context: "definition linkbase".to_string(),
                 source: err,
             })?;
-            let parsed = definition::parse_definition_linkbase(&xml)?;
+            let mut reader = Reader::from_reader(BufReader::new(xml_file));
+            let parsed = definition::parse_definition_linkbase(&mut reader)?;
+
             for (role, mut arcs) in parsed {
                 definitions.entry(role).or_default().append(&mut arcs);
             }
@@ -222,12 +226,14 @@ impl TaxonomySet {
         // Parse reference linkbases
         let mut references: HashMap<String, Vec<Reference>> = HashMap::new();
         for path in &reference_paths {
-            let xml = std::fs::read_to_string(path).map_err(|err| XbrlError::FileRead {
+            let xml_file = fs::File::open(path).map_err(|err| XbrlError::FileRead {
                 path: path.clone(),
                 context: "reference linkbase".to_string(),
                 source: err,
             })?;
-            let parsed = reference::parse_reference_linkbase(&xml)?;
+            let mut reader = Reader::from_reader(BufReader::new(xml_file));
+            let parsed = reference::parse_reference_linkbase(&mut reader)?;
+
             for (id, mut vals) in parsed {
                 references.entry(id).or_default().append(&mut vals);
             }

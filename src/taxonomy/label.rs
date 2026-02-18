@@ -1,6 +1,6 @@
 use crate::error::{LinkbaseType, Result, XbrlError};
 use quick_xml::{Reader, events::Event};
-use std::collections::HashMap;
+use std::{collections::HashMap, io};
 
 /// A human-readable label for a taxonomy concept.
 #[derive(Debug, Clone, PartialEq)]
@@ -35,8 +35,9 @@ struct LabelArc {
 /// 1. `<loc>` elements map a locator label to a concept element ID
 /// 2. `<labelArc>` elements connect locator labels to label resource labels
 /// 3. `<label>` resource elements contain the actual text, role, and language
-pub fn parse_label_linkbase(xml_content: &str) -> Result<HashMap<String, Vec<Label>>> {
-    let mut reader = Reader::from_str(xml_content);
+pub fn parse_label_linkbase(
+    reader: &mut Reader<impl io::BufRead>,
+) -> Result<HashMap<String, Vec<Label>>> {
     reader.config_mut().trim_text_start = true;
     reader.config_mut().trim_text_end = true;
 
