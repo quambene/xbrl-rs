@@ -62,9 +62,9 @@ pub struct ArcroleType {
 pub struct LinkbaseRef {
     /// The xlink:href value (relative path to the linkbase file).
     pub href: String,
-    /// The xlink:role (e.g., "http://www.xbrl.org/2003/role/labelLinkbaseRef").
+    /// The xlink:role (e.g., <http://www.xbrl.org/2003/role/labelLinkbaseRef>).
     pub role: Option<String>,
-    /// The xlink:arcrole (typically "http://www.w3.org/1999/xlink/properties/linkbase").
+    /// The xlink:arcrole (typically <http://www.w3.org/1999/xlink/properties/linkbase>).
     pub arcrole: Option<String>,
     /// The xlink:title.
     pub title: Option<String>,

@@ -1,7 +1,6 @@
 //! Parser for XBRL documents with support for:
 //! - XBRL instance documents
 //! - XBRL taxonomy schemas
-//! ```
 
 mod error;
 mod instance;
