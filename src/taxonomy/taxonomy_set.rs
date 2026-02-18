@@ -8,8 +8,11 @@ use super::{
 };
 use crate::error::{Result, XbrlError};
 use log::warn;
+use quick_xml::Reader;
 use std::{
     collections::{HashMap, HashSet, VecDeque},
+    fs,
+    io::BufReader,
     path::{Path, PathBuf},
 };
 
@@ -62,7 +65,7 @@ impl TaxonomySet {
         for schema_ref in &schema_refs {
             let schema_ref = strip_prefix(schema_ref);
 
-            let canonical = std::fs::canonicalize(&entry_point)
+            let canonical = fs::canonicalize(&entry_point)
                 .map_err(|err| XbrlError::FileRead {
                     path: entry_point.clone(),
                     context: "entry point".to_string(),
@@ -76,15 +79,13 @@ impl TaxonomySet {
         }
 
         while let Some(path) = queue.pop_front() {
-            let xml_content =
-                std::fs::read_to_string(&path).map_err(|err| XbrlError::FileRead {
-                    path: path.clone(),
-                    context: "schema".to_string(),
-                    source: err,
-                })?;
-
-            let schema = TaxonomySchema::parse(&path, &xml_content)?;
-
+            let xml_file = fs::File::open(&path).map_err(|err| XbrlError::FileRead {
+                path: path.clone(),
+                context: "schema".to_string(),
+                source: err,
+            })?;
+            let mut reader = Reader::from_reader(BufReader::new(xml_file));
+            let schema = TaxonomySchema::from_xml(&path, &mut reader)?;
             let schema_dir = path.parent().unwrap_or(Path::new("."));
 
             // Collect linkbase refs

@@ -136,7 +136,8 @@ impl TaxonomyLoader {
             };
 
             if is_schema_url(&url) {
-                let schema = match TaxonomySchema::parse(&local_path, &content) {
+                let mut reader = Reader::from_str(&content);
+                let schema = match TaxonomySchema::from_xml(&local_path, &mut reader) {
                     Ok(schema) => schema,
                     Err(err) => {
                         warn!(

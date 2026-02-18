@@ -5,6 +5,7 @@ use quick_xml::{
 };
 use std::{
     collections::HashMap,
+    io,
     path::{Path, PathBuf},
 };
 
@@ -107,9 +108,8 @@ pub struct TaxonomySchema {
 }
 
 impl TaxonomySchema {
-    /// Parse a taxonomy schema from XML content.
-    pub fn parse(path: &Path, xml_content: &str) -> Result<Self> {
-        let mut reader = Reader::from_str(xml_content);
+    /// Parse a taxonomy schema from an XML reader.
+    pub fn from_xml<R: io::BufRead>(path: &Path, reader: &mut Reader<R>) -> Result<Self> {
         reader.config_mut().trim_text_start = true;
         reader.config_mut().trim_text_end = true;
 
@@ -144,18 +144,18 @@ impl TaxonomySchema {
                         "roleType" if inside_appinfo => {
                             schema
                                 .role_types
-                                .push(parse_role_type(&mut reader, e.attributes())?);
+                                .push(parse_role_type(reader, e.attributes())?);
                         }
                         "arcroleType" if inside_appinfo => {
                             schema
                                 .arcrole_types
-                                .push(parse_arcrole_type(&mut reader, e.attributes())?);
+                                .push(parse_arcrole_type(reader, e.attributes())?);
                         }
                         "element" => {
                             if let Some(elem) = parse_element_def(e.attributes()) {
                                 schema.elements.push(elem);
                             }
-                            skip_to_end(&mut reader, &name)?;
+                            skip_to_end(reader, &name)?;
                         }
                         _ => {}
                     }
@@ -268,7 +268,7 @@ fn parse_linkbase_ref(attrs: Attributes) -> LinkbaseRef {
 }
 
 /// Parse a `link:roleType` element and its children.
-fn parse_role_type(reader: &mut Reader<&[u8]>, attrs: Attributes) -> Result<RoleType> {
+fn parse_role_type<R: io::BufRead>(reader: &mut Reader<R>, attrs: Attributes) -> Result<RoleType> {
     let mut id = String::new();
     let mut role_uri = String::new();
 
@@ -343,7 +343,10 @@ fn parse_role_type(reader: &mut Reader<&[u8]>, attrs: Attributes) -> Result<Role
 }
 
 /// Parse a `link:arcroleType` element and its children.
-fn parse_arcrole_type(reader: &mut Reader<&[u8]>, attrs: Attributes) -> Result<ArcroleType> {
+fn parse_arcrole_type<R: io::BufRead>(
+    reader: &mut Reader<R>,
+    attrs: Attributes,
+) -> Result<ArcroleType> {
     let mut id = String::new();
     let mut arcrole_uri = String::new();
     let mut cycles_allowed = None;
@@ -524,7 +527,7 @@ fn parse_element_def(attrs: Attributes) -> Option<ElementDefinition> {
 }
 
 /// Skip past the end tag of the current element.
-fn skip_to_end(reader: &mut Reader<&[u8]>, tag_name: &str) -> Result<()> {
+fn skip_to_end<R: io::BufRead>(reader: &mut Reader<R>, tag_name: &str) -> Result<()> {
     let mut buf = Vec::new();
     let mut depth = 1u32;
 
