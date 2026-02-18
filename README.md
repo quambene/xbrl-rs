@@ -1,6 +1,10 @@
 # xbrl-rs
 
-A Rust library for parsing and validating XBRL (eXtensible Business Reporting Language) documents.
+[![latest version](https://img.shields.io/crates/v/xbrl-rs.svg?label=crates.io)](https://crates.io/crates/xbrl-rs)
+[![documentation](https://img.shields.io/docsrs/xbrl-rs?label=docs.rs)](https://docs.rs/xbrl-rs)
+[![build status](https://github.com/quambene/xbrl-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/quambene/xbrl-rs/actions/workflows/ci.yml)
+
+A Rust library for parsing and validating XBRL documents.
 
 - [What is XBRL?](#what-is-xbrl)
 - [Features](#features)
@@ -17,7 +21,7 @@ The main components of XBRL are:
 - taxonomy: the dictionary and rulebook that defines how financial and business
   information is labeled, structured, and related
 - instance document: a company's actual reported data, referencing the taxonomy
-- DTS (Discoverable Taxonomy Set): the full set of taxonomy files that define
+- discoverable taxonomy set (DTS): the full set of taxonomy files that define
   all concepts referenced in an instance
 
 ## Features
