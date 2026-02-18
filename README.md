@@ -16,7 +16,7 @@ A Rust library for parsing and validating XBRL documents.
 
 XBRL (eXtensible Business Reporting Language) is a standard for financial reporting.
 
-The main components of XBRL are:
+The main concepts of XBRL are:
 
 - taxonomy: the dictionary and rulebook that defines how financial and business
   information is labeled, structured, and related
