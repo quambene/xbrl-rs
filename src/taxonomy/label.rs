@@ -80,7 +80,7 @@ pub fn parse_label_linkbase(
                         }
                     }
                     "label" => {
-                        parse_label_resource(&mut reader, e.attributes(), &mut resources);
+                        parse_label_resource(reader, e.attributes(), &mut resources);
                     }
                     _ => {}
                 }
@@ -182,7 +182,7 @@ fn parse_label_arc(attrs: quick_xml::events::attributes::Attributes) -> Option<L
 
 /// Parse a `<label>` resource element: extract attributes and read the text content.
 fn parse_label_resource(
-    reader: &mut Reader<&[u8]>,
+    reader: &mut Reader<impl io::BufRead>,
     attrs: quick_xml::events::attributes::Attributes,
     resources: &mut HashMap<String, LabelResource>,
 ) {

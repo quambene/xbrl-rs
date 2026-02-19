@@ -166,12 +166,13 @@ impl TaxonomySet {
         // Parse label linkbases
         let mut labels: HashMap<String, Vec<Label>> = HashMap::new();
         for path in &label_paths {
-            let xml = std::fs::read_to_string(path).map_err(|err| XbrlError::FileRead {
+            let xml_file = fs::File::open(path).map_err(|err| XbrlError::FileRead {
                 path: path.clone(),
                 context: "label linkbase".to_string(),
                 source: err,
             })?;
-            let parsed = label::parse_label_linkbase(&xml)?;
+            let mut reader = Reader::from_reader(BufReader::new(xml_file));
+            let parsed = label::parse_label_linkbase(&mut reader)?;
             for (id, mut vals) in parsed {
                 labels.entry(id).or_default().append(&mut vals);
             }
@@ -180,12 +181,13 @@ impl TaxonomySet {
         // Parse presentation linkbases
         let mut presentations: HashMap<String, Vec<PresentationArc>> = HashMap::new();
         for path in &presentation_paths {
-            let xml = std::fs::read_to_string(path).map_err(|err| XbrlError::FileRead {
+            let xml_file = fs::File::open(path).map_err(|err| XbrlError::FileRead {
                 path: path.clone(),
                 context: "presentation linkbase".to_string(),
                 source: err,
             })?;
-            let parsed = presentation::parse_presentation_linkbase(&xml)?;
+            let mut reader = Reader::from_reader(BufReader::new(xml_file));
+            let parsed = presentation::parse_presentation_linkbase(&mut reader)?;
             for (role, mut arcs) in parsed {
                 presentations.entry(role).or_default().append(&mut arcs);
             }

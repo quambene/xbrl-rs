@@ -8,7 +8,7 @@ use quick_xml::{
 use reqwest::{Url, blocking::Client};
 use std::{
     collections::{HashSet, VecDeque},
-    fs,
+    fs, io,
     path::{Path, PathBuf},
     time::Duration,
 };
@@ -85,23 +85,11 @@ impl TaxonomyLoader {
             let relative_path = local_relative_path(&url);
             let local_path = destination_root.join(&relative_path);
 
-            let content = if local_path.exists() {
-                match fs::read_to_string(&local_path) {
-                    Ok(existing) => {
-                        warn!(
-                            "File {} already exists, skipping download",
-                            relative_path.display(),
-                        );
-                        existing
-                    }
-                    Err(err) => {
-                        warn!(
-                            "Failed reading existing file {}: {err}",
-                            relative_path.display(),
-                        );
-                        continue;
-                    }
-                }
+            if local_path.exists() {
+                warn!(
+                    "File {} already exists, skipping download",
+                    relative_path.display(),
+                );
             } else {
                 info!("Downloading {}", url);
 
@@ -131,13 +119,18 @@ impl TaxonomyLoader {
                     );
                     continue;
                 }
-
-                fetched
-            };
+            }
 
             if is_schema_url(&url) {
-                let mut reader = Reader::from_str(&content);
-                let schema = match TaxonomySchema::from_xml(&local_path, &mut reader) {
+                let mut schema_reader = match open_xml_reader(&local_path) {
+                    Ok(reader) => reader,
+                    Err(err) => {
+                        warn!("Failed opening schema file {}: {err}", local_path.display());
+                        continue;
+                    }
+                };
+
+                let schema = match TaxonomySchema::from_xml(&local_path, &mut schema_reader) {
                     Ok(schema) => schema,
                     Err(err) => {
                         warn!(
@@ -163,9 +156,22 @@ impl TaxonomyLoader {
                     enqueue_http_reference(&url, &linkbase_ref.href, &mut queue);
                 }
 
-                enqueue_xml_schema_location_references(&url, &content, &mut queue);
+                for schema_location in &schema.schema_location_refs {
+                    enqueue_http_reference(&url, schema_location, &mut queue);
+                }
             } else {
-                enqueue_xml_schema_location_references(&url, &content, &mut queue);
+                let mut reader = match open_xml_reader(&local_path) {
+                    Ok(reader) => reader,
+                    Err(err) => {
+                        warn!(
+                            "Failed opening XML file {} for schemaLocation scan: {err}",
+                            local_path.display()
+                        );
+                        continue;
+                    }
+                };
+
+                enqueue_xml_schema_location_references(&url, &mut reader, &mut queue);
             }
         }
 
@@ -203,8 +209,11 @@ fn enqueue_http_reference(base_url: &Url, reference: &str, queue: &mut VecDeque<
 /// Parse XML content to find schema location references in `xsi:schemaLocation`
 /// and `xsi:noNamespaceSchemaLocation` attributes, and enqueue them for
 /// downloading.
-fn enqueue_xml_schema_location_references(base_url: &Url, xml: &str, queue: &mut VecDeque<Url>) {
-    let mut reader = Reader::from_str(xml);
+fn enqueue_xml_schema_location_references(
+    base_url: &Url,
+    reader: &mut Reader<impl io::BufRead>,
+    queue: &mut VecDeque<Url>,
+) {
     reader.config_mut().trim_text_start = true;
     reader.config_mut().trim_text_end = true;
 
@@ -263,6 +272,14 @@ fn parse_schema_location_value(value: &str) -> Vec<&str> {
     }
 
     tokens
+}
+
+fn open_xml_reader(path: &Path) -> io::Result<Reader<io::BufReader<fs::File>>> {
+    let file = fs::File::open(path)?;
+    let mut reader = Reader::from_reader(io::BufReader::new(file));
+    reader.config_mut().trim_text_start = true;
+    reader.config_mut().trim_text_end = true;
+    Ok(reader)
 }
 
 fn xml_local_name(name: &str) -> &str {

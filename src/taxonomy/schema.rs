@@ -99,6 +99,9 @@ pub struct TaxonomySchema {
     pub includes: Vec<SchemaInclude>,
     /// `link:linkbaseRef` entries.
     pub linkbase_refs: Vec<LinkbaseRef>,
+    /// Locations referenced by `xsi:schemaLocation` and
+    /// `xsi:noNamespaceSchemaLocation` attributes.
+    pub schema_location_refs: Vec<String>,
     /// `link:roleType` definitions.
     pub role_types: Vec<RoleType>,
     /// `link:arcroleType` definitions.
@@ -120,6 +123,7 @@ impl TaxonomySchema {
             imports: Vec::new(),
             includes: Vec::new(),
             linkbase_refs: Vec::new(),
+            schema_location_refs: Vec::new(),
             role_types: Vec::new(),
             arcrole_types: Vec::new(),
             elements: Vec::new(),
@@ -131,6 +135,8 @@ impl TaxonomySchema {
         loop {
             match reader.read_event_into(&mut buf) {
                 Ok(Event::Start(ref e)) => {
+                    collect_schema_location_refs(e.attributes(), &mut schema.schema_location_refs);
+
                     let name = String::from_utf8_lossy(e.name().as_ref()).to_string();
                     let local = local_name(&name);
 
@@ -161,6 +167,8 @@ impl TaxonomySchema {
                     }
                 }
                 Ok(Event::Empty(ref e)) => {
+                    collect_schema_location_refs(e.attributes(), &mut schema.schema_location_refs);
+
                     let name = String::from_utf8_lossy(e.name().as_ref()).to_string();
                     let local = local_name(&name);
 
@@ -524,6 +532,43 @@ fn parse_element_def(attrs: Attributes) -> Option<ElementDefinition> {
         period_type,
         balance,
     })
+}
+
+fn collect_schema_location_refs(attrs: Attributes, out: &mut Vec<String>) {
+    for attr in attrs.flatten() {
+        let key = String::from_utf8_lossy(attr.key.as_ref());
+        let attr_local = local_name(&key);
+
+        if attr_local != "schemaLocation" && attr_local != "noNamespaceSchemaLocation" {
+            continue;
+        }
+
+        let value = String::from_utf8_lossy(attr.value.as_ref());
+        for location in parse_schema_location_value(&value) {
+            let trimmed = location.trim();
+            if !trimmed.is_empty() && !out.iter().any(|existing| existing == trimmed) {
+                out.push(trimmed.to_string());
+            }
+        }
+    }
+}
+
+fn parse_schema_location_value(value: &str) -> Vec<&str> {
+    let tokens: Vec<&str> = value.split_whitespace().collect();
+
+    if tokens.is_empty() {
+        return Vec::new();
+    }
+
+    if tokens.len() == 1 {
+        return tokens;
+    }
+
+    if tokens.len().is_multiple_of(2) {
+        return tokens.into_iter().skip(1).step_by(2).collect();
+    }
+
+    tokens
 }
 
 /// Skip past the end tag of the current element.
