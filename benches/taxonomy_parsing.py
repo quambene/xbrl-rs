@@ -8,8 +8,8 @@
 """
 Benchmark for XBRL taxonomy discovery using Arelle.
 
-Measures the time to load the full DTS for the 2020-04-01 and 2021-04-14
-German taxonomy suites, for comparison with the Rust xbrl-rs benchmarks.
+Measures the time to load the full DTS for the 2020-04-01 German taxonomy
+suites, for comparison with the Rust xbrl-rs benchmarks.
 
 Usage:
     uv run benches/taxonomy_parsing.py
