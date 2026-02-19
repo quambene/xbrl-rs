@@ -25,8 +25,8 @@ pub struct TaxonomySet {
     /// The directory of the taxonomy files, used to resolve relative
     /// references.
     entry_point: PathBuf,
-    /// The public URLs of the entry point schemas.
-    schema_refs: Vec<String>,
+    /// Entry point schema URLs mapped to their resolved local paths.
+    schema_refs: HashMap<String, PathBuf>,
     /// All schemas in the DTS, keyed by their canonical absolute path.
     schemas: HashMap<PathBuf, TaxonomySchema>,
     /// All linkbase file paths discovered (canonical absolute paths).
@@ -61,18 +61,17 @@ impl TaxonomySet {
         let mut schemas: HashMap<PathBuf, TaxonomySchema> = HashMap::new();
         let mut linkbase_set: HashSet<PathBuf> = HashSet::new();
 
-        // Seed the queue with entry points
-        for schema_ref in &schema_refs {
-            let schema_ref = strip_prefix(schema_ref);
+        let canonical_entry_point =
+            fs::canonicalize(&entry_point).map_err(|err| XbrlError::FileRead {
+                path: entry_point.clone(),
+                context: "entry point".to_string(),
+                source: err,
+            })?;
 
-            let canonical = fs::canonicalize(&entry_point)
-                .map_err(|err| XbrlError::FileRead {
-                    path: entry_point.clone(),
-                    context: "entry point".to_string(),
-                    source: err,
-                })?
-                .join(schema_ref);
-
+        let mut schema_refs_map: HashMap<String, PathBuf> = HashMap::new();
+        for url in &schema_refs {
+            let canonical = canonical_entry_point.join(strip_prefix(url));
+            schema_refs_map.insert(url.clone(), canonical.clone());
             if visited.insert(canonical.clone()) {
                 queue.push_back(canonical);
             }
@@ -243,7 +242,7 @@ impl TaxonomySet {
 
         Ok(TaxonomySet {
             entry_point,
-            schema_refs,
+            schema_refs: schema_refs_map,
             schemas,
             linkbase_paths,
             labels,
@@ -259,8 +258,8 @@ impl TaxonomySet {
         &self.entry_point
     }
 
-    /// Get the public URLs of the entry point schemas.
-    pub fn schema_refs(&self) -> &[String] {
+    /// Get the entry point schema URLs and their resolved local paths.
+    pub fn schema_refs(&self) -> &HashMap<String, PathBuf> {
         &self.schema_refs
     }
 

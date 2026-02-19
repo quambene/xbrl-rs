@@ -16,16 +16,16 @@ pub use unit::Unit;
 /// Represents a complete XBRL instance document
 #[derive(Debug, Default)]
 pub struct XbrlInstance {
-    /// Schema references (xlink:href values from link:schemaRef elements).
+    /// Schema references (xlink:href values from link:schemaRef elements)
     schema_refs: Vec<String>,
-    /// All contexts in the instance.
+    /// All contexts in the instance
     contexts: HashMap<String, Context>,
-    /// All units in the instance.
+    /// All units in the instance
     units: HashMap<String, Unit>,
-    /// All facts in the instance.
+    /// All facts in the instance
     facts: Vec<Fact>,
     /// Namespace prefixes used in the document (e.g. "xbrli" ->
-    /// "http://www.xbrl.org/2003/instance").
+    /// "http://www.xbrl.org/2003/instance")
     namespaces: HashMap<String, String>,
 }
 
