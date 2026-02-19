@@ -2,7 +2,7 @@
 # /// script
 # requires-python = ">=3.11"
 # dependencies = [
-#   "arelle-release==2.38.13",
+#   "arelle-release~=2.38.13",
 # ]
 # ///
 """
