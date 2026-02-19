@@ -24,7 +24,8 @@ pub struct XbrlInstance {
     units: HashMap<String, Unit>,
     /// All facts in the instance
     facts: Vec<Fact>,
-    /// Namespace prefixes used in the document
+    /// Namespace prefixes used in the document (e.g. "xbrli" ->
+    /// "http://www.xbrl.org/2003/instance")
     namespaces: HashMap<String, String>,
 }
 
