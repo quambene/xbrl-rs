@@ -23,6 +23,7 @@ import time
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TAXONOMY_DIR = os.path.join(REPO_ROOT, "test_data", "taxonomies")
 
+# All 6 entry points as used in a real HGB instance document.
 SCHEMA_REFS_2020 = [
     os.path.join(TAXONOMY_DIR, "de-gcd-2020-04-01",
                  "de-gcd-2020-04-01-shell.xsd"),
@@ -44,6 +45,12 @@ SCHEMA_REFS_2020 = [
     ),
 ]
 
+# Single entry point benchmark.
+SCHEMA_REFS_SINGLE_2020 = [
+    os.path.join(TAXONOMY_DIR, "de-bra-2020-04-01",
+                 "de-bra-2020-04-01-shell-fiscal.xsd"),
+]
+
 ITERATIONS = 5
 
 
@@ -58,11 +65,11 @@ def make_controller():
 def load_taxonomy_set(cntlr, schema_paths: list[str]) -> float:
     """Load all schemas sequentially, returning total elapsed seconds.
 
-    Each shell XSD is loaded independently via Arelle's modelManager.load(), which
-    triggers full DTS discovery (following xs:import, xs:include, and linkbase refs)
-    for that entry point — equivalent to what TaxonomySet::discover() does for a single
-    schema ref. The six individual times are summed to match the Rust benchmark, which
-    discovers all six shell XSDs in one call.
+    Arelle builds a fully independent model per load() call with no cross-call
+    deduplication, so each schema is timed and closed individually. This differs
+    from TaxonomySet::discover(), which merges all entry points into one DTS and
+    parses each file exactly once — making the Rust benchmark inherently faster for
+    entry point sets that share schemas (de-bra and de-ins both import de-gaap-ci).
     """
     total = 0.0
     for path in schema_paths:
@@ -113,6 +120,7 @@ def main() -> int:
     print(f"Iterations         : {ITERATIONS}")
 
     run_benchmark("full_dts_2020", SCHEMA_REFS_2020, ITERATIONS)
+    run_benchmark("single_dts_2020", SCHEMA_REFS_SINGLE_2020, ITERATIONS)
     print()
     return 0
 
