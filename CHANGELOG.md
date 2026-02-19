@@ -9,7 +9,7 @@
 ## v0.2.0 (unrelesed)
 
 - changed
-  - Refactor `TaxonomySchema::parse` to `TaxonomySchema::from_xml`
+  - Rename `TaxonomySchema::parse` to `TaxonomySchema::from_xml`
   - Use `BufReader` for parsing schemas and linkbases
 
 ## v0.1.1 (2026-02-18)
