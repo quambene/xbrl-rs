@@ -67,6 +67,23 @@ cargo test --test '*'
 
 Integration tests require the downloaded taxonomy files: `cargo run --bin download_taxonomies --release`
 
+## Benchmarks
+
+``` bash
+# Rust (HTML report → target/criterion/taxonomy_discovery/report/index.html)
+cargo bench
+
+# Python (uv creates venv in ~/.cache/uv and installs arelle-release)
+uv run benches/taxonomy_parsing.py
+```
+
+Benchmark: full DTS discovery across 6 German HGB taxonomy entry points (2020-04-01, ~50 MB of XSD/XML files).
+
+| Library                                                      | Mean time   | Speedup |
+| ------------------------------------------------------------ | ----------- | ------- |
+| [arelle](https://pypi.org/project/arelle-release) (v2.38.13) | 3,851.48 ms | 1x      |
+| [xbrl-rs](https://crates.io/crates/xbrl-rs) (v0.1.1)         | 157.26 ms   | 24.5x   |
+
 ## References
 
 - [XBRL International](https://www.xbrl.org)
