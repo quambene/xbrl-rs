@@ -7,15 +7,15 @@
 pub struct Fact {
     /// The concept name (e.g. "de-gaap-ci:bs.ass.fixAss")
     concept: String,
-    /// Reference to the context ID.
+    /// Reference to the context ID
     context_ref: String,
-    /// Optional reference to the unit ID.
+    /// Optional reference to the unit ID
     unit_ref: Option<String>,
     /// The value of the fact
     value: String,
-    /// Whether the fact is nil (xsi:nil="true").
+    /// Whether the fact is nil (xsi:nil="true")
     is_nil: bool,
-    /// Decimals attribute for numeric facts.
+    /// Decimals attribute for numeric facts
     decimals: Option<String>,
 }
 
