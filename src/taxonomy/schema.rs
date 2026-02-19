@@ -5,6 +5,7 @@ use quick_xml::{
 };
 use std::{
     collections::HashMap,
+    io,
     path::{Path, PathBuf},
 };
 
@@ -98,6 +99,9 @@ pub struct TaxonomySchema {
     pub includes: Vec<SchemaInclude>,
     /// `link:linkbaseRef` entries.
     pub linkbase_refs: Vec<LinkbaseRef>,
+    /// Locations referenced by `xsi:schemaLocation` and
+    /// `xsi:noNamespaceSchemaLocation` attributes.
+    pub schema_location_refs: Vec<String>,
     /// `link:roleType` definitions.
     pub role_types: Vec<RoleType>,
     /// `link:arcroleType` definitions.
@@ -107,9 +111,8 @@ pub struct TaxonomySchema {
 }
 
 impl TaxonomySchema {
-    /// Parse a taxonomy schema from XML content.
-    pub fn parse(path: &Path, xml_content: &str) -> Result<Self> {
-        let mut reader = Reader::from_str(xml_content);
+    /// Parse a taxonomy schema from an XML reader.
+    pub fn from_xml<R: io::BufRead>(path: &Path, reader: &mut Reader<R>) -> Result<Self> {
         reader.config_mut().trim_text_start = true;
         reader.config_mut().trim_text_end = true;
 
@@ -120,6 +123,7 @@ impl TaxonomySchema {
             imports: Vec::new(),
             includes: Vec::new(),
             linkbase_refs: Vec::new(),
+            schema_location_refs: Vec::new(),
             role_types: Vec::new(),
             arcrole_types: Vec::new(),
             elements: Vec::new(),
@@ -131,6 +135,8 @@ impl TaxonomySchema {
         loop {
             match reader.read_event_into(&mut buf) {
                 Ok(Event::Start(ref e)) => {
+                    collect_schema_location_refs(e.attributes(), &mut schema.schema_location_refs);
+
                     let name = String::from_utf8_lossy(e.name().as_ref()).to_string();
                     let local = local_name(&name);
 
@@ -144,23 +150,25 @@ impl TaxonomySchema {
                         "roleType" if inside_appinfo => {
                             schema
                                 .role_types
-                                .push(parse_role_type(&mut reader, e.attributes())?);
+                                .push(parse_role_type(reader, e.attributes())?);
                         }
                         "arcroleType" if inside_appinfo => {
                             schema
                                 .arcrole_types
-                                .push(parse_arcrole_type(&mut reader, e.attributes())?);
+                                .push(parse_arcrole_type(reader, e.attributes())?);
                         }
                         "element" => {
                             if let Some(elem) = parse_element_def(e.attributes()) {
                                 schema.elements.push(elem);
                             }
-                            skip_to_end(&mut reader, &name)?;
+                            skip_to_end(reader, &name)?;
                         }
                         _ => {}
                     }
                 }
                 Ok(Event::Empty(ref e)) => {
+                    collect_schema_location_refs(e.attributes(), &mut schema.schema_location_refs);
+
                     let name = String::from_utf8_lossy(e.name().as_ref()).to_string();
                     let local = local_name(&name);
 
@@ -268,7 +276,7 @@ fn parse_linkbase_ref(attrs: Attributes) -> LinkbaseRef {
 }
 
 /// Parse a `link:roleType` element and its children.
-fn parse_role_type(reader: &mut Reader<&[u8]>, attrs: Attributes) -> Result<RoleType> {
+fn parse_role_type<R: io::BufRead>(reader: &mut Reader<R>, attrs: Attributes) -> Result<RoleType> {
     let mut id = String::new();
     let mut role_uri = String::new();
 
@@ -343,7 +351,10 @@ fn parse_role_type(reader: &mut Reader<&[u8]>, attrs: Attributes) -> Result<Role
 }
 
 /// Parse a `link:arcroleType` element and its children.
-fn parse_arcrole_type(reader: &mut Reader<&[u8]>, attrs: Attributes) -> Result<ArcroleType> {
+fn parse_arcrole_type<R: io::BufRead>(
+    reader: &mut Reader<R>,
+    attrs: Attributes,
+) -> Result<ArcroleType> {
     let mut id = String::new();
     let mut arcrole_uri = String::new();
     let mut cycles_allowed = None;
@@ -523,8 +534,45 @@ fn parse_element_def(attrs: Attributes) -> Option<ElementDefinition> {
     })
 }
 
+fn collect_schema_location_refs(attrs: Attributes, out: &mut Vec<String>) {
+    for attr in attrs.flatten() {
+        let key = String::from_utf8_lossy(attr.key.as_ref());
+        let attr_local = local_name(&key);
+
+        if attr_local != "schemaLocation" && attr_local != "noNamespaceSchemaLocation" {
+            continue;
+        }
+
+        let value = String::from_utf8_lossy(attr.value.as_ref());
+        for location in parse_schema_location_value(&value) {
+            let trimmed = location.trim();
+            if !trimmed.is_empty() && !out.iter().any(|existing| existing == trimmed) {
+                out.push(trimmed.to_string());
+            }
+        }
+    }
+}
+
+fn parse_schema_location_value(value: &str) -> Vec<&str> {
+    let tokens: Vec<&str> = value.split_whitespace().collect();
+
+    if tokens.is_empty() {
+        return Vec::new();
+    }
+
+    if tokens.len() == 1 {
+        return tokens;
+    }
+
+    if tokens.len().is_multiple_of(2) {
+        return tokens.into_iter().skip(1).step_by(2).collect();
+    }
+
+    tokens
+}
+
 /// Skip past the end tag of the current element.
-fn skip_to_end(reader: &mut Reader<&[u8]>, tag_name: &str) -> Result<()> {
+fn skip_to_end<R: io::BufRead>(reader: &mut Reader<R>, tag_name: &str) -> Result<()> {
     let mut buf = Vec::new();
     let mut depth = 1u32;
 

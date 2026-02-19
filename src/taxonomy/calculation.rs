@@ -3,7 +3,7 @@ use quick_xml::{
     Reader,
     events::{Event, attributes::Attributes},
 };
-use std::collections::HashMap;
+use std::{collections::HashMap, io};
 
 /// A summation-item relationship from a calculation linkbase.
 #[derive(Debug, Clone, PartialEq)]
@@ -23,9 +23,8 @@ pub struct CalculationArc {
 /// Returns a map from role URI (the `xlink:role` on `<calculationLink>`)
 /// to a list of [`CalculationArc`]s.
 pub fn parse_calculation_linkbase(
-    xml_content: &str,
+    reader: &mut Reader<impl io::BufRead>,
 ) -> Result<HashMap<String, Vec<CalculationArc>>> {
-    let mut reader = Reader::from_str(xml_content);
     reader.config_mut().trim_text_start = true;
     reader.config_mut().trim_text_end = true;
 

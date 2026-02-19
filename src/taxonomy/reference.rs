@@ -3,7 +3,7 @@ use quick_xml::{
     Reader,
     events::{Event, attributes::Attributes},
 };
-use std::collections::HashMap;
+use std::{collections::HashMap, io};
 
 /// A regulatory/legal reference for a taxonomy concept.
 #[derive(Debug, Clone, PartialEq)]
@@ -27,8 +27,9 @@ pub struct ReferencePart {
 ///
 /// Returns a map from concept element ID to a list of [`Reference`]s.
 /// Follows the same loc → arc → resource pattern as label linkbases.
-pub fn parse_reference_linkbase(xml_content: &str) -> Result<HashMap<String, Vec<Reference>>> {
-    let mut reader = Reader::from_str(xml_content);
+pub fn parse_reference_linkbase(
+    reader: &mut Reader<impl io::BufRead>,
+) -> Result<HashMap<String, Vec<Reference>>> {
     reader.config_mut().trim_text_start = true;
     reader.config_mut().trim_text_end = true;
 
@@ -49,7 +50,7 @@ pub fn parse_reference_linkbase(xml_content: &str) -> Result<HashMap<String, Vec
                         parse_loc(e.attributes(), &mut locators);
                     }
                     "reference" => {
-                        parse_reference_resource(&mut reader, e.attributes(), &mut resources);
+                        parse_reference_resource(reader, e.attributes(), &mut resources);
                     }
                     _ => {}
                 }
@@ -171,7 +172,7 @@ fn parse_arc(attrs: Attributes) -> Option<RawRefArc> {
 
 /// Parse a `<reference>` resource element: extract attributes and read child parts.
 fn parse_reference_resource(
-    reader: &mut Reader<&[u8]>,
+    reader: &mut Reader<impl io::BufRead>,
     attrs: Attributes,
     resources: &mut HashMap<String, RawReference>,
 ) {

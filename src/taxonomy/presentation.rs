@@ -3,7 +3,7 @@ use quick_xml::{
     Reader,
     events::{Event, attributes::Attributes},
 };
-use std::collections::HashMap;
+use std::{collections::HashMap, io};
 
 /// A parent-child relationship from a presentation linkbase.
 #[derive(Debug, Clone, PartialEq)]
@@ -21,9 +21,8 @@ pub struct PresentationArc {
 /// Returns a map from role URI (the `xlink:role` on `<presentationLink>`)
 /// to a list of [`PresentationArc`]s.
 pub fn parse_presentation_linkbase(
-    xml_content: &str,
+    reader: &mut Reader<impl io::BufRead>,
 ) -> Result<HashMap<String, Vec<PresentationArc>>> {
-    let mut reader = Reader::from_str(xml_content);
     reader.config_mut().trim_text_start = true;
     reader.config_mut().trim_text_end = true;
 

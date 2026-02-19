@@ -3,7 +3,7 @@ use quick_xml::{
     Reader,
     events::{Event, attributes::Attributes},
 };
-use std::collections::HashMap;
+use std::{collections::HashMap, io};
 
 /// A dimensional relationship from a definition linkbase.
 #[derive(Debug, Clone, PartialEq)]
@@ -22,8 +22,9 @@ pub struct DefinitionArc {
 ///
 /// Returns a map from role URI (the `xlink:role` on `<definitionLink>`)
 /// to a list of [`DefinitionArc`]s.
-pub fn parse_definition_linkbase(xml_content: &str) -> Result<HashMap<String, Vec<DefinitionArc>>> {
-    let mut reader = Reader::from_str(xml_content);
+pub fn parse_definition_linkbase(
+    reader: &mut Reader<impl io::BufRead>,
+) -> Result<HashMap<String, Vec<DefinitionArc>>> {
     reader.config_mut().trim_text_start = true;
     reader.config_mut().trim_text_end = true;
 
