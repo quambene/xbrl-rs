@@ -63,18 +63,18 @@ impl TaxonomySet {
     pub fn discover(schema_refs: Vec<String>, entry_point: PathBuf) -> Result<Self> {
         let version = schema_refs.first().and_then(|url| extract_version(url));
 
-        if schema_refs.len() > 1 {
-            if let Some(ref expected) = version {
-                for url in schema_refs.iter().skip(1) {
-                    if let Some(found) = extract_version(url) {
-                        if &found != expected {
-                            return Err(XbrlError::VersionMismatch {
-                                expected: expected.clone(),
-                                found,
-                                schema_ref: url.clone(),
-                            });
-                        }
-                    }
+        if schema_refs.len() > 1
+            && let Some(ref expected) = version
+        {
+            for url in schema_refs.iter().skip(1) {
+                if let Some(found) = extract_version(url)
+                    && &found != expected
+                {
+                    return Err(XbrlError::VersionMismatch {
+                        expected: expected.clone(),
+                        found,
+                        schema_ref: url.clone(),
+                    });
                 }
             }
         }
