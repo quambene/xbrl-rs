@@ -12,7 +12,7 @@ use quick_xml::{Reader, events::Event};
 use std::{
     collections::HashMap,
     fs::File,
-    io::BufReader,
+    io::{BufReader, Write},
     path::{Path, PathBuf},
 };
 use xbrl_rs::{TaxonomySet, XbrlInstance};
@@ -506,6 +506,26 @@ fn conformance_suite() {
         for line in &failures {
             println!("{line}");
         }
+    }
+
+    // Write summary CSV.
+    let csv_path = Path::new("test_data/conformance_results.csv");
+
+    if let Ok(mut csv) = File::create(csv_path) {
+        writeln!(csv, "category,passed,failed,skipped,total").unwrap();
+        for category in &categories {
+            let p = *cat_pass.get(*category).unwrap_or(&0);
+            let f = *cat_fail.get(*category).unwrap_or(&0);
+            let s = *cat_skip.get(*category).unwrap_or(&0);
+            let total = p + f + s;
+            writeln!(csv, "{category},{p},{f},{s},{total}").unwrap();
+        }
+        writeln!(
+            csv,
+            "TOTAL,{total_pass},{total_fail},{total_skip},{grand_total}"
+        )
+        .unwrap();
+        println!("Results written to {}", csv_path.display());
     }
 
     println!();
