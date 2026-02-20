@@ -22,7 +22,7 @@ The main concepts of XBRL are:
 
 - **taxonomy**: the dictionary and rulebook that defines how financial and business
   information is labeled, structured, and related
-- **instance document**: a company's actual reported data, referencing the taxonomy
+- **instance document**: a company's actual reported data
 - **discoverable taxonomy set (DTS)**: the full set of taxonomy files that define
   all concepts referenced in an instance
 
