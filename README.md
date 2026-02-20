@@ -59,6 +59,8 @@ let validation_result = xbrl_instance.validate(&taxonomy);
 
 ## Testing
 
+Integration tests require the downloaded taxonomy files: `cargo run --bin download_taxonomies --release`
+
 ```bash
 # Run unit tests
 cargo test --lib
@@ -66,8 +68,6 @@ cargo test --lib
 # Run integration tests
 cargo test --test '*'
 ```
-
-Integration tests require the downloaded taxonomy files: `cargo run --bin download_taxonomies --release`
 
 ## Conformance
 
@@ -92,6 +92,8 @@ cargo test conformance_suite -- --ignored --nocapture
 | **TOTAL**                 | **249** | **334** |  **23** | **606** |   **41%** |
 
 ## Benchmarks
+
+The package manager `uv` is required to run the Python benchmarks.
 
 ``` bash
 # Rust (HTML report is generated in target/criterion/report/index.html)
