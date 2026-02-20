@@ -417,9 +417,9 @@ fn conformance_suite() {
         .filter_map(|uri| {
             let path = suite_root.join(uri);
             match parse_testcase(&path) {
-                Ok(tc) => Some(tc),
-                Err(e) => {
-                    eprintln!("WARNING: could not parse testcase {uri}: {e}");
+                Ok(testcase) => Some(testcase),
+                Err(err) => {
+                    eprintln!("WARNING: could not parse testcase {uri}: {err}");
                     None
                 }
             }
@@ -433,30 +433,30 @@ fn conformance_suite() {
 
     let mut failures: Vec<String> = Vec::new();
 
-    for tc in &testcases {
-        let cat = category(tc);
-        let base_dir = tc.path.parent().unwrap_or(Path::new("."));
+    for testcase in &testcases {
+        let category = category(testcase);
+        let base_dir = testcase.path.parent().unwrap_or(Path::new("."));
 
-        for var in &tc.variations {
-            let outcome = run_variation(var, base_dir);
+        for variation in &testcase.variations {
+            let outcome = run_variation(variation, base_dir);
 
-            let expected_outcome = match var.expected {
+            let expected_outcome = match variation.expected {
                 Expected::Valid => Outcome::Valid,
                 Expected::Invalid => Outcome::Invalid,
             };
 
             match outcome {
                 Outcome::Skipped => {
-                    *cat_skip.entry(cat.clone()).or_default() += 1;
+                    *cat_skip.entry(category.clone()).or_default() += 1;
                 }
-                ref o if *o == expected_outcome => {
-                    *cat_pass.entry(cat.clone()).or_default() += 1;
+                ref outcome if *outcome == expected_outcome => {
+                    *cat_pass.entry(category.clone()).or_default() += 1;
                 }
                 _ => {
-                    *cat_fail.entry(cat.clone()).or_default() += 1;
+                    *cat_fail.entry(category.clone()).or_default() += 1;
                     failures.push(format!(
-                        "  [{cat} / {} / {} {}] expected={:?}, got={:?}",
-                        tc.name, var.id, var.name, var.expected, outcome
+                        "  [{category} / {} / {} {}] expected={:?}, got={:?}",
+                        testcase.name, variation.id, variation.name, variation.expected, outcome
                     ));
                 }
             }
@@ -480,12 +480,14 @@ fn conformance_suite() {
     let mut total_fail = 0usize;
     let mut total_skip = 0usize;
 
-    for cat in &categories {
-        let p = *cat_pass.get(*cat).unwrap_or(&0);
-        let f = *cat_fail.get(*cat).unwrap_or(&0);
-        let s = *cat_skip.get(*cat).unwrap_or(&0);
+    for category in &categories {
+        let p = *cat_pass.get(*category).unwrap_or(&0);
+        let f = *cat_fail.get(*category).unwrap_or(&0);
+        let s = *cat_skip.get(*category).unwrap_or(&0);
         let total = p + f + s;
-        println!("  {cat:<20}: {p:>4} passed, {f:>4} failed, {s:>4} skipped / {total:>4} total");
+        println!(
+            "  {category:<20}: {p:>4} passed, {f:>4} failed, {s:>4} skipped / {total:>4} total"
+        );
         total_pass += p;
         total_fail += f;
         total_skip += s;
