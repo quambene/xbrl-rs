@@ -8,12 +8,13 @@
 //! cargo test conformance_suite -- --ignored --nocapture
 //! ```
 
-use quick_xml::events::Event;
-use quick_xml::Reader;
-use std::collections::HashMap;
-use std::fs::File;
-use std::io::BufReader;
-use std::path::{Path, PathBuf};
+use quick_xml::{Reader, events::Event};
+use std::{
+    collections::HashMap,
+    fs::File,
+    io::BufReader,
+    path::{Path, PathBuf},
+};
 use xbrl_rs::{TaxonomySet, XbrlInstance};
 
 // ---------------------------------------------------------------------------
@@ -181,8 +182,7 @@ fn parse_testcase(path: &Path) -> Result<TestCase, String> {
                 }
             }
             Ok(Event::Text(e)) => {
-                if let (Some(kind), Some(var)) = (current_file_kind.take(), &mut current_var)
-                {
+                if let (Some(kind), Some(var)) = (current_file_kind.take(), &mut current_var) {
                     if in_data {
                         let text = String::from_utf8_lossy(e.as_ref()).trim().to_string();
                         if !text.is_empty() {
@@ -231,9 +231,7 @@ fn parse_testcase(path: &Path) -> Result<TestCase, String> {
 }
 
 /// Collect XML attributes into a `HashMap<String, String>`.
-fn collect_attrs(
-    attrs: quick_xml::events::attributes::Attributes<'_>,
-) -> HashMap<String, String> {
+fn collect_attrs(attrs: quick_xml::events::attributes::Attributes<'_>) -> HashMap<String, String> {
     attrs
         .flatten()
         .map(|a| {
@@ -259,10 +257,7 @@ enum Outcome {
 /// skipped (unsupported variation type).
 fn run_variation(variation: &Variation, base_dir: &Path) -> Outcome {
     // Classify by the primary (readMeFirst=true) file kind.
-    let primary = variation
-        .data_files
-        .iter()
-        .find(|f| f.read_me_first);
+    let primary = variation.data_files.iter().find(|f| f.read_me_first);
 
     match primary.map(|f| &f.kind) {
         Some(FileKind::Instance) => run_instance_variation(variation, base_dir),
@@ -490,17 +485,17 @@ fn conformance_suite() {
         let f = *cat_fail.get(*cat).unwrap_or(&0);
         let s = *cat_skip.get(*cat).unwrap_or(&0);
         let total = p + f + s;
-        println!(
-            "  {cat:<20}: {p:>4} passed, {f:>4} failed, {s:>4} skipped / {total:>4} total"
-        );
+        println!("  {cat:<20}: {p:>4} passed, {f:>4} failed, {s:>4} skipped / {total:>4} total");
         total_pass += p;
         total_fail += f;
         total_skip += s;
     }
 
     let grand_total = total_pass + total_fail + total_skip;
-    println!("  {:<20}  {:>4} passed, {:>4} failed, {:>4} skipped / {:>4} total",
-        "TOTAL", total_pass, total_fail, total_skip, grand_total);
+    println!(
+        "  {:<20}  {:>4} passed, {:>4} failed, {:>4} skipped / {:>4} total",
+        "TOTAL", total_pass, total_fail, total_skip, grand_total
+    );
 
     if !failures.is_empty() {
         println!("\nFAILURES ({}):", failures.len());
