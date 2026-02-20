@@ -43,8 +43,10 @@ pub struct TaxonomySet {
     /// Concept references parsed from reference linkbase files.
     /// Keyed by concept element ID.
     references: HashMap<String, Vec<Reference>>,
-    /// Taxonomy version extracted from the schema ref URLs (e.g. `"2020-04-01"`).
-    /// `None` if the URLs do not follow the `name-YYYY-MM-DD` convention.
+    /// Taxonomy version extracted from the schema ref URLs.
+    /// German-style taxonomies yield a date (e.g. `"2020-04-01"`); US GAAP
+    /// taxonomies yield a year (e.g. `"2023"`). `None` if neither pattern
+    /// matches.
     version: Option<String>,
 }
 
@@ -280,7 +282,10 @@ impl TaxonomySet {
         &self.entry_point
     }
 
-    /// Get the taxonomy version (e.g. `"2020-04-01"`), if present.
+    /// Get the taxonomy version, if present.
+    ///
+    /// Returns a date string for German-style taxonomies (e.g. `"2020-04-01"`)
+    /// or a year string for US GAAP (e.g. `"2023"`).
     pub fn version(&self) -> Option<&str> {
         self.version.as_deref()
     }
@@ -417,25 +422,40 @@ fn resolve_local_path(base_dir: &Path, reference: &str) -> Option<PathBuf> {
     Some(base_dir.join(reference))
 }
 
-/// Extracts the taxonomy version (`YYYY-MM-DD`) from a schema ref URL.
+/// Extracts the taxonomy version from a schema ref URL.
 ///
-/// Expects the first path segment after the scheme and host to end with a
-/// date, e.g. `de-gcd-2020-04-01` → `"2020-04-01"`.  Returns `None` if
-/// the segment does not match the expected pattern.
+/// Two patterns are recognized:
+/// - German style: the first path segment ends with `YYYY-MM-DD`
+///   (e.g. `de-gcd-2020-04-01` → `"2020-04-01"`)
+/// - US GAAP style: a standalone 4-digit year appears as a path segment
+///   (e.g. `us-gaap/2023/elts/…` → `"2023"`)
+///
+/// Returns `None` if neither pattern matches.
 fn extract_version(url: &str) -> Option<String> {
     let stripped = strip_prefix(url);
-    let segment = stripped.split('/').next()?;
-    let parts: Vec<&str> = segment.split('-').collect();
-    if parts.len() >= 3 {
-        let tail = &parts[parts.len() - 3..];
-        if tail[0].len() == 4
-            && tail[1].len() == 2
-            && tail[2].len() == 2
-            && tail.iter().all(|p| p.chars().all(|c| c.is_ascii_digit()))
-        {
-            return Some(tail.join("-"));
+
+    // German style: first segment ends with YYYY-MM-DD (e.g. de-gcd-2020-04-01).
+    if let Some(segment) = stripped.split('/').next() {
+        let parts: Vec<&str> = segment.split('-').collect();
+        if parts.len() >= 3 {
+            let tail = &parts[parts.len() - 3..];
+            if tail[0].len() == 4
+                && tail[1].len() == 2
+                && tail[2].len() == 2
+                && tail.iter().all(|p| p.chars().all(|c| c.is_ascii_digit()))
+            {
+                return Some(tail.join("-"));
+            }
         }
     }
+
+    // US GAAP style: standalone 4-digit year segment (e.g. us-gaap/2023/elts/…).
+    for segment in stripped.split('/') {
+        if segment.len() == 4 && segment.chars().all(|c| c.is_ascii_digit()) {
+            return Some(segment.to_string());
+        }
+    }
+
     None
 }
 
