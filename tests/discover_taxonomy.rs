@@ -40,6 +40,20 @@ fn assert_dts(dts: &TaxonomySet) {
     );
 }
 
+// -- Version mismatch --
+
+#[test]
+fn discover_version_mismatch_returns_error() {
+    let schema_refs = vec![
+        "http://www.xbrl.de/taxonomies/de-gcd-2020-04-01/de-gcd-2020-04-01-shell.xsd".to_owned(),
+        "http://www.xbrl.de/taxonomies/de-gaap-ci-2021-04-14/de-gaap-ci-2021-04-14-shell-fiscal.xsd"
+            .to_owned(),
+    ];
+    let entry_point = PathBuf::from_str(TAXONOMY_ENTRY_POINT).unwrap();
+    let result = TaxonomySet::discover(schema_refs, entry_point);
+    assert!(result.is_err());
+}
+
 // -- 2020-04-01 (v6.4) --
 
 #[test]

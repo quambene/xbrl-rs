@@ -74,6 +74,17 @@ pub enum XbrlError {
         source: Box<XbrlError>,
     },
 
+    /// Schema refs belong to different taxonomy versions
+    #[error(
+        "Schema refs have mismatched versions: expected '{expected}', \
+         found '{found}' in '{schema_ref}'"
+    )]
+    VersionMismatch {
+        expected: String,
+        found: String,
+        schema_ref: String,
+    },
+
     /// IO error
     #[error(transparent)]
     Io(#[from] std::io::Error),

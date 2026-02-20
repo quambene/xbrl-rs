@@ -10,6 +10,7 @@
 
 - added
   - Add benchmarks in `/benches`
+  - Check version compatibility of schemas
 - changed
   - Rename `TaxonomySchema::parse` to `TaxonomySchema::from_xml`
   - Use `BufReader` for parsing schemas and linkbases

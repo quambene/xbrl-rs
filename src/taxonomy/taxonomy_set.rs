@@ -43,6 +43,9 @@ pub struct TaxonomySet {
     /// Concept references parsed from reference linkbase files.
     /// Keyed by concept element ID.
     references: HashMap<String, Vec<Reference>>,
+    /// Taxonomy version extracted from the schema ref URLs (e.g. `"2020-04-01"`).
+    /// `None` if the URLs do not follow the `name-YYYY-MM-DD` convention.
+    version: Option<String>,
 }
 
 impl TaxonomySet {
@@ -56,6 +59,24 @@ impl TaxonomySet {
     /// Automatic download of taxonomy files is not supported. All referenced
     /// files must be present locally.
     pub fn discover(schema_refs: Vec<String>, entry_point: PathBuf) -> Result<Self> {
+        let version = schema_refs.first().and_then(|url| extract_version(url));
+
+        if schema_refs.len() > 1 {
+            if let Some(ref expected) = version {
+                for url in schema_refs.iter().skip(1) {
+                    if let Some(found) = extract_version(url) {
+                        if &found != expected {
+                            return Err(XbrlError::VersionMismatch {
+                                expected: expected.clone(),
+                                found,
+                                schema_ref: url.clone(),
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
         let mut visited: HashSet<PathBuf> = HashSet::new();
         let mut queue: VecDeque<PathBuf> = VecDeque::new();
         let mut schemas: HashMap<PathBuf, TaxonomySchema> = HashMap::new();
@@ -250,12 +271,18 @@ impl TaxonomySet {
             calculations,
             definitions,
             references,
+            version,
         })
     }
 
     /// Get the entry point directory of taxonomy files.
     pub fn entry_point(&self) -> &Path {
         &self.entry_point
+    }
+
+    /// Get the taxonomy version (e.g. `"2020-04-01"`), if present.
+    pub fn version(&self) -> Option<&str> {
+        self.version.as_deref()
     }
 
     /// Get the entry point schema URLs and their resolved local paths.
@@ -388,6 +415,28 @@ fn resolve_local_path(base_dir: &Path, reference: &str) -> Option<PathBuf> {
         return None;
     }
     Some(base_dir.join(reference))
+}
+
+/// Extracts the taxonomy version (`YYYY-MM-DD`) from a schema ref URL.
+///
+/// Expects the first path segment after the scheme and host to end with a
+/// date, e.g. `de-gcd-2020-04-01` → `"2020-04-01"`.  Returns `None` if
+/// the segment does not match the expected pattern.
+fn extract_version(url: &str) -> Option<String> {
+    let stripped = strip_prefix(url);
+    let segment = stripped.split('/').next()?;
+    let parts: Vec<&str> = segment.split('-').collect();
+    if parts.len() >= 3 {
+        let tail = &parts[parts.len() - 3..];
+        if tail[0].len() == 4
+            && tail[1].len() == 2
+            && tail[2].len() == 2
+            && tail.iter().all(|p| p.chars().all(|c| c.is_ascii_digit()))
+        {
+            return Some(tail.join("-"));
+        }
+    }
+    None
 }
 
 /// Strips the URL scheme, host, and leading `/taxonomies/` segment to
