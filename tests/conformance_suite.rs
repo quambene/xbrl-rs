@@ -483,16 +483,16 @@ fn conformance_suite() {
     let mut total_skip = 0usize;
 
     for category in &categories {
-        let p = *cat_pass.get(*category).unwrap_or(&0);
-        let f = *cat_fail.get(*category).unwrap_or(&0);
-        let s = *cat_skip.get(*category).unwrap_or(&0);
-        let total = p + f + s;
+        let passed = *cat_pass.get(*category).unwrap_or(&0);
+        let failed = *cat_fail.get(*category).unwrap_or(&0);
+        let skipped = *cat_skip.get(*category).unwrap_or(&0);
+        let total = passed + failed + skipped;
         println!(
-            "  {category:<20}: {p:>4} passed, {f:>4} failed, {s:>4} skipped / {total:>4} total"
+            "  {category:<20}: {passed:>4} passed, {failed:>4} failed, {skipped:>4} skipped / {total:>4} total"
         );
-        total_pass += p;
-        total_fail += f;
-        total_skip += s;
+        total_pass += passed;
+        total_fail += failed;
+        total_skip += skipped;
     }
 
     let grand_total = total_pass + total_fail + total_skip;
