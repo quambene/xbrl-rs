@@ -10,6 +10,8 @@ A Rust library for parsing and validating XBRL documents.
 - [Features](#features)
 - [Usage](#usage)
 - [Testing](#testing)
+- [Conformance testing](#conformance-testing)
+- [Benchmarks](#benchmarks)
 - [References](#references)
 
 ## What is XBRL?
@@ -66,6 +68,25 @@ cargo test --test '*'
 ```
 
 Integration tests require the downloaded taxonomy files: `cargo run --bin download_taxonomies --release`
+
+## Conformance testing
+
+Conformance tests are based on the [XBRL International Conformance Suite](https://specifications.xbrl.org/release-history-base-spec-conformance-suite.html).
+
+``` bash
+# Run conformance tests
+cargo test conformance_suite -- --ignored --nocapture
+```
+
+| Category                  |  Passed |  Failed | Skipped |   Total | Pass Rate |
+| ------------------------- | ------: | ------: | ------: | ------: | --------: |
+| 100-schema                |      34 |      42 |       0 |      76 |       45% |
+| 200-linkbase              |      92 |      94 |      18 |     204 |       45% |
+| 300-instance              |     117 |     188 |       0 |     305 |       38% |
+| 400-misc                  |       2 |       7 |       2 |      11 |       18% |
+| arc-duplication           |       0 |       1 |       3 |       4 |        0% |
+| uniqueParticleAttribution |       4 |       2 |       0 |       6 |       67% |
+| **TOTAL**                 | **249** | **334** |  **23** | **606** |   **41%** |
 
 ## Benchmarks
 
