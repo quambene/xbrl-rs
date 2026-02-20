@@ -94,7 +94,7 @@ cargo test conformance_suite -- --ignored --nocapture
 ## Benchmarks
 
 ``` bash
-# Rust (HTML report → target/criterion/taxonomy_discovery/report/index.html)
+# Rust (HTML report is in target/criterion/report/index.html)
 cargo bench
 
 # Python (uv creates venv in ~/.cache/uv and installs arelle-release)
