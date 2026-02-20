@@ -514,11 +514,11 @@ fn conformance_suite() {
     if let Ok(mut csv) = File::create(csv_path) {
         writeln!(csv, "category,passed,failed,skipped,total").unwrap();
         for category in &categories {
-            let p = *cat_pass.get(*category).unwrap_or(&0);
-            let f = *cat_fail.get(*category).unwrap_or(&0);
-            let s = *cat_skip.get(*category).unwrap_or(&0);
-            let total = p + f + s;
-            writeln!(csv, "{category},{p},{f},{s},{total}").unwrap();
+            let passed = *cat_pass.get(*category).unwrap_or(&0);
+            let failed = *cat_fail.get(*category).unwrap_or(&0);
+            let skipped = *cat_skip.get(*category).unwrap_or(&0);
+            let total = passed + failed + skipped;
+            writeln!(csv, "{category},{passed},{failed},{skipped},{total}").unwrap();
         }
         writeln!(
             csv,
