@@ -8,7 +8,7 @@
 //! cargo test conformance_suite -- --ignored --nocapture
 //! ```
 
-use quick_xml::{Reader, events::Event};
+use quick_xml::{Reader, events::Event, name};
 use std::{
     collections::HashMap,
     fs::File,
@@ -40,6 +40,7 @@ struct DataFile {
     kind: FileKind,
     /// Filename relative to the testcase directory.
     path: String,
+    /// Whether this file is marked `readMeFirst=true` in the testcase XML.
     read_me_first: bool,
 }
 
@@ -257,9 +258,9 @@ enum Outcome {
 /// skipped (unsupported variation type).
 fn run_variation(variation: &Variation, base_dir: &Path) -> Outcome {
     // Classify by the primary (readMeFirst=true) file kind.
-    let primary = variation.data_files.iter().find(|f| f.read_me_first);
+    let primary = variation.data_files.iter().find(|file| file.read_me_first);
 
-    match primary.map(|f| &f.kind) {
+    match primary.map(|file| &file.kind) {
         Some(FileKind::Instance) => run_instance_variation(variation, base_dir),
         Some(FileKind::Xsd) => run_schema_variation(variation, base_dir),
         Some(FileKind::Linkbase) => Outcome::Skipped, // not yet supported
@@ -270,12 +271,12 @@ fn run_variation(variation: &Variation, base_dir: &Path) -> Outcome {
             let xsds: Vec<_> = variation
                 .data_files
                 .iter()
-                .filter(|f| f.kind == FileKind::Xsd)
+                .filter(|file| file.kind == FileKind::Xsd)
                 .collect();
             let instances: Vec<_> = variation
                 .data_files
                 .iter()
-                .filter(|f| f.kind == FileKind::Instance)
+                .filter(|file| file.kind == FileKind::Instance)
                 .collect();
 
             if !instances.is_empty() {
@@ -392,11 +393,12 @@ fn run_schema_variation(variation: &Variation, base_dir: &Path) -> Outcome {
 
 /// Extract the category name from a testcase path, e.g.
 /// `Common/300-instance/301-idScope.xml` → `"300-instance"`.
-fn category(tc: &TestCase) -> String {
-    tc.path
+fn category(testcase: &TestCase) -> String {
+    testcase
+        .path
         .parent()
-        .and_then(|p| p.file_name())
-        .map(|n| n.to_string_lossy().to_string())
+        .and_then(|path| path.file_name())
+        .map(|name| name.to_string_lossy().to_string())
         .unwrap_or_else(|| "unknown".to_string())
 }
 
