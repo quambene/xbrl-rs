@@ -71,7 +71,10 @@ Integration tests require the downloaded taxonomy files: `cargo run --bin downlo
 
 ## Conformance
 
-Conformance tests are based on the [XBRL International Conformance Suite](https://specifications.xbrl.org/release-history-base-spec-conformance-suite.html).
+Conformance tests are based on the [XBRL International Conformance
+Suite](https://specifications.xbrl.org/release-history-base-spec-conformance-suite.html)
+(2025-07-16). The downloaded test suite is required in
+`test_data/conformance` to run the conformance tests.
 
 ``` bash
 # Run conformance tests
