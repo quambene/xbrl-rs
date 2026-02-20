@@ -8,7 +8,7 @@
 //! cargo test conformance_suite -- --ignored --nocapture
 //! ```
 
-use quick_xml::{Reader, events::Event, name};
+use quick_xml::{Reader, events::Event};
 use std::{
     collections::HashMap,
     fs::File,
