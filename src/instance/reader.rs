@@ -534,11 +534,21 @@ fn parse_unit<R: std::io::BufRead>(
 }
 
 /// Parse a fact element.
-fn parse_fact<R: std::io::BufRead>(
+fn parse_fact<R: io::BufRead>(
     reader: &mut Reader<R>,
     start_element: &quick_xml::events::BytesStart,
     concept: &str,
 ) -> Result<Option<Fact>> {
+    for attr in start_element.attributes().flatten() {
+        let key = String::from_utf8_lossy(attr.key.as_ref());
+        if key.rsplit(':').next() == Some("periodType") {
+            return Err(XbrlError::Io(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("fact '{concept}' contains forbidden attribute '{key}'"),
+            )));
+        }
+    }
+
     let context_ref = get_attribute(&start_element.attributes(), b"contextRef");
     let id = get_attribute(&start_element.attributes(), b"id");
     let unit_ref = get_attribute(&start_element.attributes(), b"unitRef");
