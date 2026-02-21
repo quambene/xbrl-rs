@@ -29,6 +29,10 @@ pub(super) fn validate_schema(
     }
 }
 
+/// Validate uniqueness of instance-level `roleRef` and `arcroleRef` declarations.
+///
+/// Adds an error when the same role URI or arcrole URI is declared more than
+/// once in the instance document.
 fn validate_instance_refs(instance: &XbrlInstance, result: &mut ValidationResult) {
     let mut role_uris = HashSet::new();
     for role_uri in instance.role_refs() {
@@ -57,6 +61,11 @@ fn validate_instance_refs(instance: &XbrlInstance, result: &mut ValidationResult
     }
 }
 
+/// Validate essence-alias relationships by comparing units of matched facts.
+///
+/// For each definition arc with arcrole `essence-alias`, this checks facts in
+/// the same context and reports an error when non-nil source/target facts use
+/// semantically different units.
 fn validate_essence_alias_units(
     instance: &XbrlInstance,
     taxonomy: &TaxonomySet,
@@ -185,6 +194,10 @@ fn units_semantically_equal(left: &crate::instance::Unit, right: &crate::instanc
     left_num == right_num && left_den == right_den
 }
 
+/// Validate footnote link structure and cross-reference integrity.
+///
+/// Enforces role constraints, locator/resource requirements, `href` target
+/// resolution, and `fact-footnote` arc endpoint correctness.
 fn validate_footnotes(instance: &XbrlInstance, result: &mut ValidationResult) {
     if instance.footnote_links().is_empty() {
         return;
@@ -553,6 +566,11 @@ fn validate_fact(
     }
 }
 
+/// Validate context structure and period consistency.
+///
+/// Checks for prohibited XBRL-instance descendants in segment/scenario,
+/// disallowed XBRL substitution-group elements inside context content, and
+/// invalid duration period ordering (`startDate < endDate`).
 fn validate_contexts(
     instance: &XbrlInstance,
     taxonomy: &TaxonomySet,
