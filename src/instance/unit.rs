@@ -5,9 +5,13 @@
 /// A parsed unit measure QName with namespace resolution.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UnitMeasure {
+    /// Original QName text as found in XML (for example `iso4217:EUR`).
     pub qname: String,
+    /// QName prefix, if present (for example `iso4217`).
     pub prefix: Option<String>,
+    /// QName local name (for example `EUR`).
     pub local_name: String,
+    /// Resolved namespace URI for `prefix` or default namespace.
     pub namespace_uri: Option<String>,
 }
 
