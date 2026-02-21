@@ -12,9 +12,11 @@ pub(crate) mod validation;
 pub use error::{LinkbaseType, Result, XbrlError};
 pub use instance::{Context, EntityIdentifier, Fact, Period, Unit, XbrlInstance};
 pub use quick_xml::{Reader as XmlReader, Writer as XmlWriter};
+#[cfg(feature = "download")]
+pub use taxonomy::TaxonomyLoader;
 pub use taxonomy::{
     ArcroleType, CalculationArc, DefinitionArc, ElementDefinition, Label, LinkbaseLocator,
     LinkbaseRef, PresentationArc, Reference, ReferencePart, RoleType, SchemaImport, SchemaInclude,
-    TaxonomyLoader, TaxonomySchema, TaxonomySet,
+    TaxonomySchema, TaxonomySet,
 };
 pub use validation::{Severity, ValidationMessage, ValidationResult};

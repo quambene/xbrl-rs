@@ -2,6 +2,7 @@ mod calculation;
 mod definition;
 mod label;
 mod linkbase;
+#[cfg(feature = "download")]
 mod loader;
 mod presentation;
 mod reference;
@@ -12,6 +13,7 @@ pub use calculation::CalculationArc;
 pub use definition::DefinitionArc;
 pub use label::Label;
 pub use linkbase::LinkbaseLocator;
+#[cfg(feature = "download")]
 pub use loader::TaxonomyLoader;
 pub use presentation::PresentationArc;
 pub use reference::{Reference, ReferencePart};

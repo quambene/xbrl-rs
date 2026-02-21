@@ -22,6 +22,7 @@
 - changed
   - Rename `TaxonomySchema::parse` to `TaxonomySchema::from_xml`
   - Use `BufReader` for parsing schemas and linkbases
+  - Put `TaxonomyLoader` behind feature flag
 
 ## v0.1.1 (2026-02-18)
 
