@@ -13,6 +13,37 @@ use quick_xml::{Reader, Writer};
 use std::{collections::HashMap, io};
 pub use unit::Unit;
 
+#[derive(Debug, Clone, Default)]
+pub struct FootnoteLink {
+    pub role: Option<String>,
+    pub xml_lang: Option<String>,
+    pub locators: Vec<FootnoteLocator>,
+    pub footnotes: Vec<FootnoteResource>,
+    pub arcs: Vec<FootnoteArc>,
+}
+
+#[derive(Debug, Clone)]
+pub struct FootnoteLocator {
+    pub element_local_name: String,
+    pub label: Option<String>,
+    pub href: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct FootnoteResource {
+    pub label: Option<String>,
+    pub id: Option<String>,
+    pub role: Option<String>,
+    pub xml_lang: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct FootnoteArc {
+    pub from: Option<String>,
+    pub to: Option<String>,
+    pub arcrole: Option<String>,
+}
+
 /// Represents a complete XBRL instance document
 #[derive(Debug, Default)]
 pub struct XbrlInstance {
@@ -27,6 +58,12 @@ pub struct XbrlInstance {
     /// Namespace prefixes used in the document (e.g. "xbrli" ->
     /// "http://www.xbrl.org/2003/instance")
     namespaces: HashMap<String, String>,
+    /// xml:lang value declared on the root xbrl element, if present.
+    root_xml_lang: Option<String>,
+    /// Source document file name used for scope-sensitive checks.
+    document_name: Option<String>,
+    /// Footnote links found in the instance.
+    footnote_links: Vec<FootnoteLink>,
 }
 
 impl XbrlInstance {
@@ -36,6 +73,9 @@ impl XbrlInstance {
         units: HashMap<String, Unit>,
         facts: Vec<Fact>,
         namespaces: HashMap<String, String>,
+        root_xml_lang: Option<String>,
+        document_name: Option<String>,
+        footnote_links: Vec<FootnoteLink>,
     ) -> Self {
         Self {
             schema_refs,
@@ -43,6 +83,9 @@ impl XbrlInstance {
             units,
             facts,
             namespaces,
+            root_xml_lang,
+            document_name,
+            footnote_links,
         }
     }
 
@@ -154,6 +197,30 @@ impl XbrlInstance {
     /// Get all namespace prefix mappings
     pub fn namespaces(&self) -> &HashMap<String, String> {
         &self.namespaces
+    }
+
+    pub fn set_root_xml_lang(&mut self, xml_lang: Option<String>) {
+        self.root_xml_lang = xml_lang;
+    }
+
+    pub fn root_xml_lang(&self) -> Option<&str> {
+        self.root_xml_lang.as_deref()
+    }
+
+    pub fn set_document_name(&mut self, document_name: Option<String>) {
+        self.document_name = document_name;
+    }
+
+    pub fn document_name(&self) -> Option<&str> {
+        self.document_name.as_deref()
+    }
+
+    pub fn add_footnote_link(&mut self, footnote_link: FootnoteLink) {
+        self.footnote_links.push(footnote_link);
+    }
+
+    pub fn footnote_links(&self) -> &[FootnoteLink] {
+        &self.footnote_links
     }
 
     /// Get all contexts

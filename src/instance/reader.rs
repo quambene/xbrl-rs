@@ -3,7 +3,9 @@
 use crate::{
     Context, EntityIdentifier, Fact, Period, XbrlInstance,
     error::{Result, XbrlError},
-    instance::{Unit, unit::UnitMeasure},
+    instance::{
+        FootnoteArc, FootnoteLink, FootnoteLocator, FootnoteResource, Unit, unit::UnitMeasure,
+    },
 };
 use quick_xml::{
     Reader,
@@ -46,6 +48,10 @@ where
                 if name_matches(&name_str, "xbrl") {
                     inside_xbrl = true;
                     extract_namespaces(&e.attributes(), &mut instance);
+                    instance.set_root_xml_lang(
+                        get_attribute(&e.attributes(), b"xml:lang")
+                            .or_else(|| get_attribute_local(&e.attributes(), "lang")),
+                    );
                 }
 
                 if !inside_xbrl {
@@ -68,6 +74,9 @@ where
                     let namespaces = instance.namespaces().clone();
                     let unit = parse_unit(reader, &e, &namespaces)?;
                     instance.add_unit(unit);
+                } else if name_matches(&name_str, "footnoteLink") {
+                    let footnote_link = parse_footnote_link(reader, &e)?;
+                    instance.add_footnote_link(footnote_link);
                 } else if inside_xbrl
                     && is_fact_element(&name_str)
                     && let Some(fact) = parse_fact(reader, &e, &name_str)?
@@ -296,6 +305,112 @@ fn parse_context<R: std::io::BufRead>(
     Ok(context)
 }
 
+fn parse_footnote_link<R: std::io::BufRead>(
+    reader: &mut Reader<R>,
+    start_element: &quick_xml::events::BytesStart,
+) -> Result<FootnoteLink> {
+    let mut link = FootnoteLink {
+        role: get_attribute(&start_element.attributes(), b"xlink:role")
+            .or_else(|| get_attribute_local(&start_element.attributes(), "role")),
+        xml_lang: get_attribute(&start_element.attributes(), b"xml:lang")
+            .or_else(|| get_attribute_local(&start_element.attributes(), "lang")),
+        ..FootnoteLink::default()
+    };
+
+    let mut depth = 1;
+    let mut buf = Vec::new();
+
+    loop {
+        match reader.read_event_into(&mut buf) {
+            Ok(Event::Start(e)) => {
+                depth += 1;
+                let name = String::from_utf8_lossy(e.name().as_ref()).to_string();
+                let local = local_name(&name).to_string();
+
+                if local == "loc" || is_locator_like(&e.attributes()) {
+                    link.locators.push(FootnoteLocator {
+                        element_local_name: local,
+                        label: get_attribute(&e.attributes(), b"xlink:label")
+                            .or_else(|| get_attribute_local(&e.attributes(), "label")),
+                        href: get_attribute(&e.attributes(), b"xlink:href")
+                            .or_else(|| get_attribute_local(&e.attributes(), "href")),
+                    });
+                } else if local == "footnote" {
+                    link.footnotes.push(FootnoteResource {
+                        label: get_attribute(&e.attributes(), b"xlink:label")
+                            .or_else(|| get_attribute_local(&e.attributes(), "label")),
+                        id: get_attribute(&e.attributes(), b"id"),
+                        role: get_attribute(&e.attributes(), b"xlink:role")
+                            .or_else(|| get_attribute_local(&e.attributes(), "role")),
+                        xml_lang: get_attribute(&e.attributes(), b"xml:lang")
+                            .or_else(|| get_attribute_local(&e.attributes(), "lang")),
+                    });
+                } else if local.ends_with("Arc") || is_arc_like(&e.attributes()) {
+                    link.arcs.push(FootnoteArc {
+                        from: get_attribute(&e.attributes(), b"xlink:from")
+                            .or_else(|| get_attribute_local(&e.attributes(), "from")),
+                        to: get_attribute(&e.attributes(), b"xlink:to")
+                            .or_else(|| get_attribute_local(&e.attributes(), "to")),
+                        arcrole: get_attribute(&e.attributes(), b"xlink:arcrole")
+                            .or_else(|| get_attribute_local(&e.attributes(), "arcrole")),
+                    });
+                }
+            }
+            Ok(Event::Empty(e)) => {
+                let name = String::from_utf8_lossy(e.name().as_ref()).to_string();
+                let local = local_name(&name).to_string();
+
+                if local == "loc" || is_locator_like(&e.attributes()) {
+                    link.locators.push(FootnoteLocator {
+                        element_local_name: local,
+                        label: get_attribute(&e.attributes(), b"xlink:label")
+                            .or_else(|| get_attribute_local(&e.attributes(), "label")),
+                        href: get_attribute(&e.attributes(), b"xlink:href")
+                            .or_else(|| get_attribute_local(&e.attributes(), "href")),
+                    });
+                } else if local == "footnote" {
+                    link.footnotes.push(FootnoteResource {
+                        label: get_attribute(&e.attributes(), b"xlink:label")
+                            .or_else(|| get_attribute_local(&e.attributes(), "label")),
+                        id: get_attribute(&e.attributes(), b"id"),
+                        role: get_attribute(&e.attributes(), b"xlink:role")
+                            .or_else(|| get_attribute_local(&e.attributes(), "role")),
+                        xml_lang: get_attribute(&e.attributes(), b"xml:lang")
+                            .or_else(|| get_attribute_local(&e.attributes(), "lang")),
+                    });
+                } else if local.ends_with("Arc") || is_arc_like(&e.attributes()) {
+                    link.arcs.push(FootnoteArc {
+                        from: get_attribute(&e.attributes(), b"xlink:from")
+                            .or_else(|| get_attribute_local(&e.attributes(), "from")),
+                        to: get_attribute(&e.attributes(), b"xlink:to")
+                            .or_else(|| get_attribute_local(&e.attributes(), "to")),
+                        arcrole: get_attribute(&e.attributes(), b"xlink:arcrole")
+                            .or_else(|| get_attribute_local(&e.attributes(), "arcrole")),
+                    });
+                }
+            }
+            Ok(Event::End(_)) => {
+                depth -= 1;
+                if depth == 0 {
+                    break;
+                }
+            }
+            Ok(Event::Eof) => break,
+            Err(err) => {
+                return Err(XbrlError::XmlParse {
+                    position: reader.buffer_position(),
+                    element: Some("footnoteLink".to_string()),
+                    source: err,
+                });
+            }
+            _ => {}
+        }
+        buf.clear();
+    }
+
+    Ok(link)
+}
+
 /// Parse a unit element.
 fn parse_unit<R: std::io::BufRead>(
     reader: &mut Reader<R>,
@@ -392,6 +507,7 @@ fn parse_fact<R: std::io::BufRead>(
     concept: &str,
 ) -> Result<Option<Fact>> {
     let context_ref = get_attribute(&start_element.attributes(), b"contextRef");
+    let id = get_attribute(&start_element.attributes(), b"id");
     let unit_ref = get_attribute(&start_element.attributes(), b"unitRef");
     let is_nil = get_attribute(&start_element.attributes(), b"xsi:nil")
         .map(|v| v == "true")
@@ -421,6 +537,9 @@ fn parse_fact<R: std::io::BufRead>(
     }
 
     let mut fact = Fact::new(concept.to_string(), context_ref, unit_ref, value);
+    if let Some(id) = id {
+        fact.set_id(id);
+    }
     fact.set_nil(is_nil);
     if let Some(dec) = decimals {
         fact.set_decimals(dec);
@@ -451,6 +570,24 @@ fn is_fact_element(name: &str) -> bool {
         && local != "scenario"
         && local != "explicitMember"
         && local != "measure"
+        && local != "footnoteLink"
+        && local != "footnote"
+        && local != "loc"
+        && !local.ends_with("Arc")
+}
+
+fn is_locator_like(attributes: &Attributes) -> bool {
+    get_attribute(attributes, b"xlink:type")
+        .or_else(|| get_attribute_local(attributes, "type"))
+        .as_deref()
+        == Some("locator")
+}
+
+fn is_arc_like(attributes: &Attributes) -> bool {
+    get_attribute(attributes, b"xlink:type")
+        .or_else(|| get_attribute_local(attributes, "type"))
+        .as_deref()
+        == Some("arc")
 }
 
 /// Extract an attribute value from attributes.

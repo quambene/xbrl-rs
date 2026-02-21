@@ -3,9 +3,14 @@
 
 use super::{Severity, ValidationResult};
 use crate::{Fact, Period, TaxonomySet, XbrlInstance, taxonomy::ElementDefinition};
+use std::collections::{HashMap, HashSet};
 
 const NS_XBRLI: &str = "http://www.xbrl.org/2003/instance";
 const NS_ISO4217: &str = "http://www.xbrl.org/2003/iso4217";
+const ROLE_LINK: &str = "http://www.xbrl.org/2003/role/link";
+const ROLE_FOOTNOTE: &str = "http://www.xbrl.org/2003/role/footnote";
+const ROLE_LABEL: &str = "http://www.xbrl.org/2003/role/label";
+const ARCROLE_FACT_FOOTNOTE: &str = "http://www.xbrl.org/2003/arcrole/fact-footnote";
 
 /// Run all schema-level validation checks.
 pub(super) fn validate_schema(
@@ -14,10 +19,229 @@ pub(super) fn validate_schema(
     result: &mut ValidationResult,
 ) {
     validate_contexts(instance, taxonomy, result);
+    validate_footnotes(instance, result);
 
     for fact in instance.facts() {
         validate_fact(fact, instance, taxonomy, result);
     }
+}
+
+fn validate_footnotes(instance: &XbrlInstance, result: &mut ValidationResult) {
+    if instance.footnote_links().is_empty() {
+        return;
+    }
+
+    let context_ids: HashSet<&str> = instance.contexts().keys().map(String::as_str).collect();
+    let unit_ids: HashSet<&str> = instance.units().keys().map(String::as_str).collect();
+    let fact_ids: HashSet<&str> = instance.facts().iter().filter_map(Fact::id).collect();
+
+    for footnote_link in instance.footnote_links() {
+        if footnote_link.role.as_deref() == Some(ROLE_FOOTNOTE) {
+            result.add(
+                Severity::Error,
+                "spec.invalid_footnote_link_role",
+                "footnoteLink cannot use standard footnote role".to_string(),
+                None,
+                None,
+            );
+        }
+
+        let mut loc_by_label: HashMap<&str, &str> = HashMap::new();
+        let mut res_by_label: HashMap<&str, &crate::instance::FootnoteResource> = HashMap::new();
+
+        for loc in &footnote_link.locators {
+            if loc.element_local_name != "loc" {
+                result.add(
+                    Severity::Error,
+                    "spec.invalid_custom_locator",
+                    "footnoteLink contains custom locator element".to_string(),
+                    None,
+                    None,
+                );
+            }
+
+            if let (Some(label), Some(href)) = (loc.label.as_deref(), loc.href.as_deref()) {
+                loc_by_label.insert(label, href);
+                if let Some((file_part, target)) = href_target_id(href) {
+                    if let (Some(file_part), Some(document_name)) = (
+                        file_part.filter(|s| !s.is_empty()),
+                        instance.document_name(),
+                    ) && file_part != document_name
+                    {
+                        result.add(
+                            Severity::Error,
+                            "spec.footnote_href_out_of_scope",
+                            format!(
+                                "Footnote locator href '{}' points to another document '{}'; expected '{}'",
+                                href, file_part, document_name
+                            ),
+                            None,
+                            None,
+                        );
+                    }
+
+                    if context_ids.contains(target) || unit_ids.contains(target) {
+                        result.add(
+                            Severity::Error,
+                            "spec.invalid_footnote_href_target",
+                            format!("Footnote locator href '{}' points to context/unit", href),
+                            None,
+                            None,
+                        );
+                    }
+                    if !fact_ids.contains(target) {
+                        result.add(
+                            Severity::Error,
+                            "spec.footnote_href_not_fact",
+                            format!("Footnote locator href '{}' must resolve to a fact id", href),
+                            None,
+                            None,
+                        );
+                    }
+                } else {
+                    result.add(
+                        Severity::Error,
+                        "spec.invalid_footnote_href",
+                        format!("Invalid footnote locator href '{}': missing fragment", href),
+                        None,
+                        None,
+                    );
+                }
+            }
+        }
+
+        for resource in &footnote_link.footnotes {
+            if let Some(label) = resource.label.as_deref() {
+                res_by_label.insert(label, resource);
+            }
+
+            if resource.xml_lang.is_none()
+                && footnote_link.xml_lang.is_none()
+                && instance.root_xml_lang().is_none()
+            {
+                result.add(
+                    Severity::Error,
+                    "spec.footnote_missing_lang",
+                    "Footnote resource is missing xml:lang (and no link-level xml:lang provided)"
+                        .to_string(),
+                    None,
+                    None,
+                );
+            }
+
+            if let Some(role) = resource.role.as_deref()
+                && (role == ROLE_LINK || role == ROLE_LABEL)
+            {
+                result.add(
+                    Severity::Error,
+                    "spec.invalid_footnote_role",
+                    format!("Footnote resource uses invalid standard role '{}'", role),
+                    None,
+                    None,
+                );
+            }
+        }
+
+        for arc in &footnote_link.arcs {
+            if arc.arcrole.as_deref() == Some(ARCROLE_FACT_FOOTNOTE) {
+                let Some(from) = arc.from.as_deref() else {
+                    result.add(
+                        Severity::Error,
+                        "spec.missing_footnote_arc_from",
+                        "fact-footnote arc is missing xlink:from".to_string(),
+                        None,
+                        None,
+                    );
+                    continue;
+                };
+                let Some(to) = arc.to.as_deref() else {
+                    result.add(
+                        Severity::Error,
+                        "spec.missing_footnote_arc_to",
+                        "fact-footnote arc is missing xlink:to".to_string(),
+                        None,
+                        None,
+                    );
+                    continue;
+                };
+
+                let Some(from_href) = loc_by_label.get(from).copied() else {
+                    result.add(
+                        Severity::Error,
+                        "spec.arc_from_out_of_scope",
+                        format!(
+                            "fact-footnote arc from='{}' does not resolve to a locator",
+                            from
+                        ),
+                        None,
+                        None,
+                    );
+                    continue;
+                };
+
+                let Some((_, from_target)) = href_target_id(from_href) else {
+                    result.add(
+                        Severity::Error,
+                        "spec.arc_from_invalid_href",
+                        format!("Locator '{}' has invalid href '{}'", from, from_href),
+                        None,
+                        None,
+                    );
+                    continue;
+                };
+
+                if !fact_ids.contains(from_target) {
+                    result.add(
+                        Severity::Error,
+                        "spec.arc_from_not_fact",
+                        format!("fact-footnote arc from='{}' does not point to a fact", from),
+                        None,
+                        None,
+                    );
+                }
+
+                let Some(to_resource) = res_by_label.get(to).copied() else {
+                    result.add(
+                        Severity::Error,
+                        "spec.arc_to_out_of_scope",
+                        format!(
+                            "fact-footnote arc to='{}' does not resolve to footnote resource",
+                            to
+                        ),
+                        None,
+                        None,
+                    );
+                    continue;
+                };
+
+                if let Some(role) = to_resource.role.as_deref()
+                    && role != ROLE_FOOTNOTE
+                {
+                    result.add(
+                        Severity::Error,
+                        "spec.invalid_referenced_footnote_role",
+                        format!(
+                            "Referenced footnote resource must have role '{}' when role is provided",
+                            ROLE_FOOTNOTE
+                        ),
+                        None,
+                        None,
+                    );
+                }
+            }
+        }
+    }
+}
+
+fn href_target_id(href: &str) -> Option<(Option<&str>, &str)> {
+    if let Some(rest) = href.strip_prefix('#') {
+        return (!rest.is_empty()).then_some((None, rest));
+    }
+    let (file_part, fragment) = href.split_once('#')?;
+    if file_part.is_empty() || fragment.is_empty() {
+        return None;
+    }
+    Some((Some(file_part), fragment))
 }
 
 fn validate_fact(
@@ -77,7 +301,7 @@ fn validate_fact(
     }
 
     // 5. Numeric facts: unit reference and decimals/precision constraints
-    if is_numeric_type(element) {
+    if is_numeric_type(element, taxonomy) {
         if fact.unit_ref().is_none() {
             result.add(
                 Severity::Error,
@@ -161,7 +385,7 @@ fn validate_fact(
     if let Some(unit_ref) = fact.unit_ref()
         && let Some(unit) = instance.get_unit(unit_ref)
     {
-        validate_unit_constraints(fact, element, unit, result);
+        validate_unit_constraints(fact, element, unit, taxonomy, result);
     }
 }
 
@@ -239,10 +463,46 @@ fn validate_unit_constraints(
     fact: &Fact,
     element: &ElementDefinition,
     unit: &crate::instance::Unit,
+    taxonomy: &TaxonomySet,
     result: &mut ValidationResult,
 ) {
     let concept = fact.concept();
     let ctx_ref = fact.context_ref();
+
+    if !unit.denominator_measures.is_empty() {
+        let mut numerator_counts: HashMap<(Option<&str>, &str), usize> = HashMap::new();
+        for measure in &unit.numerator_measures {
+            let key = (
+                measure.namespace_uri.as_deref(),
+                measure.local_name.as_str(),
+            );
+            *numerator_counts.entry(key).or_default() += 1;
+        }
+
+        for measure in &unit.denominator_measures {
+            let key = (
+                measure.namespace_uri.as_deref(),
+                measure.local_name.as_str(),
+            );
+            if let Some(count) = numerator_counts.get(&key)
+                && *count > 0
+            {
+                result.add(
+                    Severity::Error,
+                    "spec.unit_not_simplest_form",
+                    format!(
+                        "Fact '{}' uses unit '{}' that is not in simplest form (canceling measure '{}')",
+                        fact.local_name(),
+                        unit.id,
+                        measure.qname
+                    ),
+                    Some(concept),
+                    Some(ctx_ref),
+                );
+                break;
+            }
+        }
+    }
 
     for measure in unit
         .numerator_measures
@@ -268,9 +528,16 @@ fn validate_unit_constraints(
         }
     }
 
-    let type_name = element.type_name.as_deref().unwrap_or("").to_lowercase();
+    let is_monetary = element
+        .type_name
+        .as_deref()
+        .is_some_and(|t| taxonomy.is_type_derived_from(t, "monetaryItemType"));
+    let is_shares = element
+        .type_name
+        .as_deref()
+        .is_some_and(|t| taxonomy.is_type_derived_from(t, "sharesItemType"));
 
-    if type_name.contains("monetary") {
+    if is_monetary {
         if !unit.has_single_measure_no_divide() {
             result.add(
                 Severity::Error,
@@ -305,7 +572,7 @@ fn validate_unit_constraints(
         }
     }
 
-    if type_name.contains("shares") {
+    if is_shares {
         if !unit.has_single_measure_no_divide() {
             result.add(
                 Severity::Error,
@@ -346,10 +613,26 @@ fn period_order_is_valid(start: &str, end: &str) -> bool {
 }
 
 /// Determine whether an element definition is numeric based on its XSD type name.
-fn is_numeric_type(element: &ElementDefinition) -> bool {
+fn is_numeric_type(element: &ElementDefinition, taxonomy: &TaxonomySet) -> bool {
     let Some(ref type_name) = element.type_name else {
         return false;
     };
+
+    for base in [
+        "monetaryItemType",
+        "decimalItemType",
+        "floatItemType",
+        "doubleItemType",
+        "integerItemType",
+        "sharesItemType",
+        "pureItemType",
+        "fractionItemType",
+    ] {
+        if taxonomy.is_type_derived_from(type_name, base) {
+            return true;
+        }
+    }
+
     let t = type_name.to_lowercase();
     t.contains("monetary")
         || t.contains("decimal")

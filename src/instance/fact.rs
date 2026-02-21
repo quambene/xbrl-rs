@@ -5,6 +5,8 @@
 /// Represents a single fact (data point) in an XBRL instance
 #[derive(Debug, Clone)]
 pub struct Fact {
+    /// Optional XML id attribute
+    id: Option<String>,
     /// The concept name (e.g. "de-gaap-ci:bs.ass.fixAss")
     concept: String,
     /// Reference to the context ID
@@ -29,6 +31,7 @@ impl Fact {
         value: String,
     ) -> Self {
         Self {
+            id: None,
             concept,
             context_ref,
             unit_ref,
@@ -41,6 +44,14 @@ impl Fact {
 
     pub fn concept(&self) -> &str {
         &self.concept
+    }
+
+    pub fn id(&self) -> Option<&str> {
+        self.id.as_deref()
+    }
+
+    pub fn set_id(&mut self, id: String) {
+        self.id = Some(id);
     }
 
     pub fn context_ref(&self) -> &str {

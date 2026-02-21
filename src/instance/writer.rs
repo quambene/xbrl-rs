@@ -145,6 +145,9 @@ fn write_unit<W: std::io::Write>(writer: &mut Writer<W>, unit: &Unit) -> Result<
 fn write_fact<W: std::io::Write>(writer: &mut Writer<W>, fact: &Fact) -> Result<()> {
     let concept = fact.concept();
     let mut elem = BytesStart::new(concept);
+    if let Some(id) = fact.id() {
+        elem.push_attribute(("id", id));
+    }
     elem.push_attribute(("contextRef", fact.context_ref()));
     if let Some(unit_ref) = fact.unit_ref() {
         elem.push_attribute(("unitRef", unit_ref));

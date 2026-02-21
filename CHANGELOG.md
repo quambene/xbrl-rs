@@ -12,8 +12,11 @@
   - Add benchmarks in `/benches`
   - Check version compatibility of schemas
   - Add `LinkbaseLocator`
-  - Add precision to `Fact`
+  - Add `precision` to `Fact`
   - Validate `Context`
+  - Parse and validate `FootnoteLink`
+  - Add `root_xml_lang` to `XbrlInstance`
+  - Add `type_bases` to `TaxonomySchema`
 - changed
   - Rename `TaxonomySchema::parse` to `TaxonomySchema::from_xml`
   - Use `BufReader` for parsing schemas and linkbases

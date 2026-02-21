@@ -108,6 +108,8 @@ pub struct TaxonomySchema {
     pub arcrole_types: Vec<ArcroleType>,
     /// `xs:element` definitions.
     pub elements: Vec<ElementDefinition>,
+    /// Named simple/complex type derivations: type name -> base QName.
+    pub type_bases: HashMap<String, String>,
 }
 
 impl TaxonomySchema {
@@ -127,6 +129,7 @@ impl TaxonomySchema {
             role_types: Vec::new(),
             arcrole_types: Vec::new(),
             elements: Vec::new(),
+            type_bases: HashMap::new(),
         };
 
         let mut buf = Vec::new();
@@ -162,6 +165,13 @@ impl TaxonomySchema {
                                 schema.elements.push(elem);
                             }
                             skip_to_end(reader, &name)?;
+                        }
+                        "complexType" | "simpleType" => {
+                            if let Some((type_name, base)) =
+                                parse_named_type_base(reader, e.attributes(), &name)?
+                            {
+                                schema.type_bases.insert(type_name, base);
+                            }
                         }
                         _ => {}
                     }
@@ -217,6 +227,80 @@ impl TaxonomySchema {
 
         Ok(schema)
     }
+}
+
+fn parse_named_type_base<R: io::BufRead>(
+    reader: &mut Reader<R>,
+    attrs: Attributes,
+    type_tag_name: &str,
+) -> Result<Option<(String, String)>> {
+    let mut type_name = None;
+    for attr in attrs.flatten() {
+        let key = String::from_utf8_lossy(attr.key.as_ref());
+        if local_name(&key) == "name" {
+            type_name = attr.unescape_value().ok().map(|v| v.to_string());
+            break;
+        }
+    }
+
+    let Some(type_name) = type_name else {
+        skip_to_end(reader, type_tag_name)?;
+        return Ok(None);
+    };
+
+    let mut base: Option<String> = None;
+    let mut depth = 1u32;
+    let mut buf = Vec::new();
+
+    loop {
+        match reader.read_event_into(&mut buf) {
+            Ok(Event::Start(e)) => {
+                depth += 1;
+                let name = String::from_utf8_lossy(e.name().as_ref()).to_string();
+                let local = local_name(&name);
+                if local == "restriction" || local == "extension" {
+                    for attr in e.attributes().flatten() {
+                        let key = String::from_utf8_lossy(attr.key.as_ref());
+                        if local_name(&key) == "base" {
+                            base = attr.unescape_value().ok().map(|v| v.to_string());
+                            break;
+                        }
+                    }
+                }
+            }
+            Ok(Event::Empty(e)) => {
+                let name = String::from_utf8_lossy(e.name().as_ref()).to_string();
+                let local = local_name(&name);
+                if local == "restriction" || local == "extension" {
+                    for attr in e.attributes().flatten() {
+                        let key = String::from_utf8_lossy(attr.key.as_ref());
+                        if local_name(&key) == "base" {
+                            base = attr.unescape_value().ok().map(|v| v.to_string());
+                            break;
+                        }
+                    }
+                }
+            }
+            Ok(Event::End(_)) => {
+                depth -= 1;
+                if depth == 0 {
+                    break;
+                }
+            }
+            Ok(Event::Eof) => break,
+            Err(err) => {
+                return Err(XbrlError::XmlParse {
+                    position: reader.buffer_position(),
+                    element: Some(type_tag_name.to_string()),
+                    source: err,
+                });
+            }
+            _ => {}
+        }
+        buf.clear();
+    }
+
+    Ok(base.map(|b| (type_name, b)))
 }
 
 /// Extract the local name from a possibly prefixed XML name.
