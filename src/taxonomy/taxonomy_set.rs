@@ -10,11 +10,162 @@ use crate::error::{Result, XbrlError};
 use log::warn;
 use quick_xml::Reader;
 use std::{
+    borrow::Borrow,
     collections::{HashMap, HashSet, VecDeque},
-    fs,
+    fmt, fs,
     io::BufReader,
+    ops::Deref,
     path::{Path, PathBuf},
 };
+
+/// Strongly-typed key used by [`TaxonomySet`] maps previously keyed by
+/// plain strings.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct SchemaRefUrl(String);
+
+impl SchemaRefUrl {
+    /// Returns the key as a string slice.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl From<String> for SchemaRefUrl {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+
+impl From<&str> for SchemaRefUrl {
+    fn from(value: &str) -> Self {
+        Self(value.to_owned())
+    }
+}
+
+impl Deref for SchemaRefUrl {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        self.as_str()
+    }
+}
+
+impl AsRef<str> for SchemaRefUrl {
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl Borrow<str> for SchemaRefUrl {
+    fn borrow(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl fmt::Display for SchemaRefUrl {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+/// Concept element identifier used in label/reference maps
+/// (e.g. `de-gaap-ci_bs.ass`).
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct ConceptId(String);
+
+impl ConceptId {
+    /// Returns the concept identifier as a string slice.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl From<String> for ConceptId {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+
+impl From<&str> for ConceptId {
+    fn from(value: &str) -> Self {
+        Self(value.to_owned())
+    }
+}
+
+impl Deref for ConceptId {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        self.as_str()
+    }
+}
+
+impl AsRef<str> for ConceptId {
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl Borrow<str> for ConceptId {
+    fn borrow(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl fmt::Display for ConceptId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+/// Extended link role URI used in presentation/calculation/definition maps.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct RoleUri(String);
+
+impl RoleUri {
+    /// Returns the role URI as a string slice.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl From<String> for RoleUri {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+
+impl From<&str> for RoleUri {
+    fn from(value: &str) -> Self {
+        Self(value.to_owned())
+    }
+}
+
+impl Deref for RoleUri {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        self.as_str()
+    }
+}
+
+impl AsRef<str> for RoleUri {
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl Borrow<str> for RoleUri {
+    fn borrow(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl fmt::Display for RoleUri {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
 
 /// The complete Discoverable Taxonomy Set (DTS).
 ///
@@ -26,23 +177,23 @@ pub struct TaxonomySet {
     /// references.
     entry_point: PathBuf,
     /// Entry point schema URLs mapped to their resolved local paths.
-    schema_refs: HashMap<String, PathBuf>,
+    schema_refs: HashMap<SchemaRefUrl, PathBuf>,
     /// All schemas in the DTS, keyed by their canonical absolute path.
     schemas: HashMap<PathBuf, TaxonomySchema>,
     /// All linkbase file paths discovered (canonical absolute paths).
     linkbase_paths: Vec<PathBuf>,
     /// Concept labels parsed from label linkbase files.
     /// Keyed by concept element ID (e.g., "de-gaap-ci_bs.ass").
-    labels: HashMap<String, Vec<Label>>,
+    labels: HashMap<ConceptId, Vec<Label>>,
     /// Presentation arcs grouped by role URI.
-    presentations: HashMap<String, Vec<PresentationArc>>,
+    presentations: HashMap<RoleUri, Vec<PresentationArc>>,
     /// Calculation arcs grouped by role URI.
-    calculations: HashMap<String, Vec<CalculationArc>>,
+    calculations: HashMap<RoleUri, Vec<CalculationArc>>,
     /// Definition arcs grouped by role URI.
-    definitions: HashMap<String, Vec<DefinitionArc>>,
+    definitions: HashMap<RoleUri, Vec<DefinitionArc>>,
     /// Concept references parsed from reference linkbase files.
     /// Keyed by concept element ID.
-    references: HashMap<String, Vec<Reference>>,
+    references: HashMap<ConceptId, Vec<Reference>>,
     /// Taxonomy version extracted from the schema ref URLs.
     /// German-style taxonomies yield a date (e.g. `"2020-04-01"`); US GAAP
     /// taxonomies yield a year (e.g. `"2023"`). `None` if neither pattern
@@ -91,10 +242,10 @@ impl TaxonomySet {
                 source: err,
             })?;
 
-        let mut schema_refs_map: HashMap<String, PathBuf> = HashMap::new();
+        let mut schema_refs_map: HashMap<SchemaRefUrl, PathBuf> = HashMap::new();
         for url in &schema_refs {
             let canonical = canonical_entry_point.join(strip_prefix(url));
-            schema_refs_map.insert(url.clone(), canonical.clone());
+            schema_refs_map.insert(url.clone().into(), canonical.clone());
             if visited.insert(canonical.clone()) {
                 queue.push_back(canonical);
             }
@@ -186,7 +337,7 @@ impl TaxonomySet {
         }
 
         // Parse label linkbases
-        let mut labels: HashMap<String, Vec<Label>> = HashMap::new();
+        let mut labels: HashMap<ConceptId, Vec<Label>> = HashMap::new();
         for path in &label_paths {
             let xml_file = fs::File::open(path).map_err(|err| XbrlError::FileRead {
                 path: path.clone(),
@@ -196,12 +347,12 @@ impl TaxonomySet {
             let mut reader = Reader::from_reader(BufReader::new(xml_file));
             let parsed = label::parse_label_linkbase(&mut reader)?;
             for (id, mut vals) in parsed {
-                labels.entry(id).or_default().append(&mut vals);
+                labels.entry(id.into()).or_default().append(&mut vals);
             }
         }
 
         // Parse presentation linkbases
-        let mut presentations: HashMap<String, Vec<PresentationArc>> = HashMap::new();
+        let mut presentations: HashMap<RoleUri, Vec<PresentationArc>> = HashMap::new();
         for path in &presentation_paths {
             let xml_file = fs::File::open(path).map_err(|err| XbrlError::FileRead {
                 path: path.clone(),
@@ -211,12 +362,15 @@ impl TaxonomySet {
             let mut reader = Reader::from_reader(BufReader::new(xml_file));
             let parsed = presentation::parse_presentation_linkbase(&mut reader)?;
             for (role, mut arcs) in parsed {
-                presentations.entry(role).or_default().append(&mut arcs);
+                presentations
+                    .entry(role.into())
+                    .or_default()
+                    .append(&mut arcs);
             }
         }
 
         // Parse calculation linkbases
-        let mut calculations: HashMap<String, Vec<CalculationArc>> = HashMap::new();
+        let mut calculations: HashMap<RoleUri, Vec<CalculationArc>> = HashMap::new();
         for path in &calculation_paths {
             let xml_file = fs::File::open(path).map_err(|err| XbrlError::FileRead {
                 path: path.clone(),
@@ -227,12 +381,15 @@ impl TaxonomySet {
             let parsed = calculation::parse_calculation_linkbase(&mut reader)?;
 
             for (role, mut arcs) in parsed {
-                calculations.entry(role).or_default().append(&mut arcs);
+                calculations
+                    .entry(role.into())
+                    .or_default()
+                    .append(&mut arcs);
             }
         }
 
         // Parse definition linkbases
-        let mut definitions: HashMap<String, Vec<DefinitionArc>> = HashMap::new();
+        let mut definitions: HashMap<RoleUri, Vec<DefinitionArc>> = HashMap::new();
         for path in &definition_paths {
             let xml_file = fs::File::open(path).map_err(|err| XbrlError::FileRead {
                 path: path.clone(),
@@ -243,12 +400,15 @@ impl TaxonomySet {
             let parsed = definition::parse_definition_linkbase(&mut reader)?;
 
             for (role, mut arcs) in parsed {
-                definitions.entry(role).or_default().append(&mut arcs);
+                definitions
+                    .entry(role.into())
+                    .or_default()
+                    .append(&mut arcs);
             }
         }
 
         // Parse reference linkbases
-        let mut references: HashMap<String, Vec<Reference>> = HashMap::new();
+        let mut references: HashMap<ConceptId, Vec<Reference>> = HashMap::new();
         for path in &reference_paths {
             let xml_file = fs::File::open(path).map_err(|err| XbrlError::FileRead {
                 path: path.clone(),
@@ -259,7 +419,7 @@ impl TaxonomySet {
             let parsed = reference::parse_reference_linkbase(&mut reader)?;
 
             for (id, mut vals) in parsed {
-                references.entry(id).or_default().append(&mut vals);
+                references.entry(id.into()).or_default().append(&mut vals);
             }
         }
 
@@ -291,7 +451,7 @@ impl TaxonomySet {
     }
 
     /// Get the entry point schema URLs and their resolved local paths.
-    pub fn schema_refs(&self) -> &HashMap<String, PathBuf> {
+    pub fn schema_refs(&self) -> &HashMap<SchemaRefUrl, PathBuf> {
         &self.schema_refs
     }
 
@@ -417,7 +577,7 @@ impl TaxonomySet {
     }
 
     /// Get all concept labels.
-    pub fn labels(&self) -> &HashMap<String, Vec<Label>> {
+    pub fn labels(&self) -> &HashMap<ConceptId, Vec<Label>> {
         &self.labels
     }
 
@@ -427,7 +587,7 @@ impl TaxonomySet {
     }
 
     /// Get all presentation arcs grouped by role URI.
-    pub fn presentations(&self) -> &HashMap<String, Vec<PresentationArc>> {
+    pub fn presentations(&self) -> &HashMap<RoleUri, Vec<PresentationArc>> {
         &self.presentations
     }
 
@@ -437,7 +597,7 @@ impl TaxonomySet {
     }
 
     /// Get all calculation arcs grouped by role URI.
-    pub fn calculations(&self) -> &HashMap<String, Vec<CalculationArc>> {
+    pub fn calculations(&self) -> &HashMap<RoleUri, Vec<CalculationArc>> {
         &self.calculations
     }
 
@@ -447,7 +607,7 @@ impl TaxonomySet {
     }
 
     /// Get all definition arcs grouped by role URI.
-    pub fn definitions(&self) -> &HashMap<String, Vec<DefinitionArc>> {
+    pub fn definitions(&self) -> &HashMap<RoleUri, Vec<DefinitionArc>> {
         &self.definitions
     }
 
@@ -457,7 +617,7 @@ impl TaxonomySet {
     }
 
     /// Get all concept references.
-    pub fn references(&self) -> &HashMap<String, Vec<Reference>> {
+    pub fn references(&self) -> &HashMap<ConceptId, Vec<Reference>> {
         &self.references
     }
 

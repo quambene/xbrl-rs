@@ -15,7 +15,7 @@ fn write_empty_instance() {
     let mut instance = XbrlInstance::default();
 
     for url in taxonomy.schema_refs().keys() {
-        instance.add_schema_ref(url.clone());
+        instance.add_schema_ref(url.to_string());
     }
 
     for schema in taxonomy.schemas().values() {

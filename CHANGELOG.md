@@ -19,6 +19,7 @@
   - Add `type_bases` and `type_declared_accuracy` to `TaxonomySchema`
   - Add `Period::Forever`
   - Validate schema, context, instance refs, and essence alias units
+  - Add newtypes for `SchemaRefUrl`, `ConceptId`, and `RoleUri`
 - changed
   - Rename `TaxonomySchema::parse` to `TaxonomySchema::from_xml`
   - Use `BufReader` for parsing schemas and linkbases
