@@ -14,5 +14,9 @@
 **/*.pem
 **/*.pfx
 
+# AI assistant
+.claude
+.github/copilot-instructions.md
+
 # VS Code
 .vscode
