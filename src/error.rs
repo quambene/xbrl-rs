@@ -85,6 +85,10 @@ pub enum XbrlError {
         schema_ref: String,
     },
 
+    /// Invalid XLink href in a linkbase (e.g. illegal pointer scheme).
+    #[error("Invalid XLink href '{href}': {reason}")]
+    InvalidHref { href: String, reason: String },
+
     /// IO error
     #[error(transparent)]
     Io(#[from] std::io::Error),

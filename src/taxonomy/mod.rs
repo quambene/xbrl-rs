@@ -1,6 +1,7 @@
 mod calculation;
 mod definition;
 mod label;
+mod linkbase;
 mod loader;
 mod presentation;
 mod reference;
@@ -10,6 +11,7 @@ mod taxonomy_set;
 pub use calculation::CalculationArc;
 pub use definition::DefinitionArc;
 pub use label::Label;
+pub use linkbase::LinkbaseLocator;
 pub use loader::TaxonomyLoader;
 pub use presentation::PresentationArc;
 pub use reference::{Reference, ReferencePart};

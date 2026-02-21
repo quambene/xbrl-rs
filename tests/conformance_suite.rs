@@ -15,7 +15,7 @@ use std::{
     io::{BufReader, Write},
     path::{Path, PathBuf},
 };
-use xbrl_rs::{TaxonomySet, XbrlInstance};
+use xbrl_rs::{LinkbaseLocator, TaxonomySet, XbrlInstance};
 
 // ---------------------------------------------------------------------------
 // Data model
@@ -263,7 +263,7 @@ fn run_variation(variation: &Variation, base_dir: &Path) -> Outcome {
     match primary.map(|file| &file.kind) {
         Some(FileKind::Instance) => run_instance_variation(variation, base_dir),
         Some(FileKind::Xsd) => run_schema_variation(variation, base_dir),
-        Some(FileKind::Linkbase) => Outcome::Skipped, // not yet supported
+        Some(FileKind::Linkbase) => run_linkbase_variation(variation, base_dir),
         Some(FileKind::TaxonomyPackage) => Outcome::Skipped,
         None => {
             // No readMeFirst=true — if there is exactly one XSD, treat it as
@@ -364,6 +364,55 @@ fn run_instance_variation(variation: &Variation, base_dir: &Path) -> Outcome {
         Outcome::Valid
     } else {
         Outcome::Invalid
+    }
+}
+
+/// Run a linkbase-primary variation.
+///
+/// 1. Parses the primary linkbase file and validates all locator hrefs for
+///    illegal pointer syntax (xpointer(), xmlns() schemes, empty href in
+///    standard links).  Any illegal syntax → Invalid.
+/// 2. If a companion XSD is present, delegates to [`run_schema_variation`]
+///    for the full taxonomy-discovery check (the XSD's `linkbaseRef` causes
+///    the linkbase to be loaded transitively).
+fn run_linkbase_variation(variation: &Variation, base_dir: &Path) -> Outcome {
+    let lb_file = variation
+        .data_files
+        .iter()
+        .find(|f| f.kind == FileKind::Linkbase && f.read_me_first);
+
+    let Some(lb_file) = lb_file else {
+        return Outcome::Skipped;
+    };
+
+    let lb_path = base_dir.join(&lb_file.path);
+
+    // Open and parse the linkbase, then validate every locator href.
+    let locators = match File::open(&lb_path) {
+        Ok(f) => {
+            let mut reader = Reader::from_reader(BufReader::new(f));
+            match LinkbaseLocator::parse(&mut reader) {
+                Ok(locs) => locs,
+                Err(_) => return Outcome::Invalid,
+            }
+        }
+        Err(_) => return Outcome::Invalid,
+    };
+    for loc in &locators {
+        if loc.validate().is_err() {
+            return Outcome::Invalid;
+        }
+    }
+
+    // If there is a companion XSD, verify that the full DTS can be discovered.
+    // (The XSD typically carries a linkbaseRef that points back to the primary
+    // linkbase, so this also exercises loading the linkbase through the normal
+    // taxonomy-discovery path.)
+    let has_xsd = variation.data_files.iter().any(|f| f.kind == FileKind::Xsd);
+    if has_xsd {
+        run_schema_variation(variation, base_dir)
+    } else {
+        Outcome::Valid
     }
 }
 
