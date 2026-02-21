@@ -13,11 +13,65 @@ use quick_xml::{Reader, Writer};
 use std::{collections::HashMap, io};
 pub use unit::Unit;
 
+/// A single `link:footnoteLink` extended link in an XBRL instance.
+#[derive(Debug, Clone, Default)]
+pub struct FootnoteLink {
+    /// Optional `xlink:role` on the footnote link.
+    pub role: Option<String>,
+    /// Optional `xml:lang` inherited by contained footnote resources.
+    pub xml_lang: Option<String>,
+    /// Locator resources (`link:loc` or custom locator-like elements).
+    pub locators: Vec<FootnoteLocator>,
+    /// Footnote resources (`link:footnote`).
+    pub footnotes: Vec<FootnoteResource>,
+    /// Arcs connecting locators and footnote resources.
+    pub arcs: Vec<FootnoteArc>,
+}
+
+/// A locator within a footnote link, usually a `link:loc` element.
+#[derive(Debug, Clone)]
+pub struct FootnoteLocator {
+    /// Local name of the locator element (e.g. `loc` or a custom element).
+    pub element_local_name: String,
+    /// Optional `xlink:label` used for arc endpoints.
+    pub label: Option<String>,
+    /// Optional `xlink:href` target, typically a same-document fragment.
+    pub href: Option<String>,
+}
+
+/// A footnote resource within a footnote link (`link:footnote`).
+#[derive(Debug, Clone)]
+pub struct FootnoteResource {
+    /// Optional `xlink:label` used for arc endpoints.
+    pub label: Option<String>,
+    /// Optional XML `id` of the footnote resource.
+    pub id: Option<String>,
+    /// Optional `xlink:role` of the resource.
+    pub role: Option<String>,
+    /// Optional `xml:lang` for the footnote text content.
+    pub xml_lang: Option<String>,
+}
+
+/// An arc in a footnote link (for example `link:footnoteArc`).
+#[derive(Debug, Clone)]
+pub struct FootnoteArc {
+    /// Optional `xlink:from` label.
+    pub from: Option<String>,
+    /// Optional `xlink:to` label.
+    pub to: Option<String>,
+    /// Optional `xlink:arcrole` of the relationship.
+    pub arcrole: Option<String>,
+}
+
 /// Represents a complete XBRL instance document
 #[derive(Debug, Default)]
 pub struct XbrlInstance {
     /// Schema references (xlink:href values from link:schemaRef elements)
     schema_refs: Vec<String>,
+    /// roleURI values from roleRef elements in the instance.
+    role_refs: Vec<String>,
+    /// arcroleURI values from arcroleRef elements in the instance.
+    arcrole_refs: Vec<String>,
     /// All contexts in the instance
     contexts: HashMap<String, Context>,
     /// All units in the instance
@@ -27,22 +81,37 @@ pub struct XbrlInstance {
     /// Namespace prefixes used in the document (e.g. "xbrli" ->
     /// "http://www.xbrl.org/2003/instance")
     namespaces: HashMap<String, String>,
+    /// xml:lang value declared on the root xbrl element, if present.
+    root_xml_lang: Option<String>,
+    /// Source document file name used for scope-sensitive checks.
+    document_name: Option<String>,
+    /// Footnote links found in the instance.
+    footnote_links: Vec<FootnoteLink>,
 }
 
 impl XbrlInstance {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         schema_refs: Vec<String>,
         contexts: HashMap<String, Context>,
         units: HashMap<String, Unit>,
         facts: Vec<Fact>,
         namespaces: HashMap<String, String>,
+        root_xml_lang: Option<String>,
+        document_name: Option<String>,
+        footnote_links: Vec<FootnoteLink>,
     ) -> Self {
         Self {
             schema_refs,
+            role_refs: Vec::new(),
+            arcrole_refs: Vec::new(),
             contexts,
             units,
             facts,
             namespaces,
+            root_xml_lang,
+            document_name,
+            footnote_links,
         }
     }
 
@@ -78,6 +147,26 @@ impl XbrlInstance {
     /// Get all schema references declared in the instance document.
     pub fn schema_refs(&self) -> &[String] {
         &self.schema_refs
+    }
+
+    /// Add a role reference URI from a roleRef element.
+    pub fn add_role_ref(&mut self, role_uri: String) {
+        self.role_refs.push(role_uri);
+    }
+
+    /// Get all role reference URIs declared in the instance document.
+    pub fn role_refs(&self) -> &[String] {
+        &self.role_refs
+    }
+
+    /// Add an arcrole reference URI from an arcroleRef element.
+    pub fn add_arcrole_ref(&mut self, arcrole_uri: String) {
+        self.arcrole_refs.push(arcrole_uri);
+    }
+
+    /// Get all arcrole reference URIs declared in the instance document.
+    pub fn arcrole_refs(&self) -> &[String] {
+        &self.arcrole_refs
     }
 
     /// Extract relative path suffixes from schema reference URLs.
@@ -154,6 +243,30 @@ impl XbrlInstance {
     /// Get all namespace prefix mappings
     pub fn namespaces(&self) -> &HashMap<String, String> {
         &self.namespaces
+    }
+
+    pub fn set_root_xml_lang(&mut self, xml_lang: Option<String>) {
+        self.root_xml_lang = xml_lang;
+    }
+
+    pub fn root_xml_lang(&self) -> Option<&str> {
+        self.root_xml_lang.as_deref()
+    }
+
+    pub fn set_document_name(&mut self, document_name: Option<String>) {
+        self.document_name = document_name;
+    }
+
+    pub fn document_name(&self) -> Option<&str> {
+        self.document_name.as_deref()
+    }
+
+    pub fn add_footnote_link(&mut self, footnote_link: FootnoteLink) {
+        self.footnote_links.push(footnote_link);
+    }
+
+    pub fn footnote_links(&self) -> &[FootnoteLink] {
+        &self.footnote_links
     }
 
     /// Get all contexts

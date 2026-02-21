@@ -89,6 +89,10 @@ pub enum XbrlError {
     #[error("Invalid XLink href '{href}': {reason}")]
     InvalidHref { href: String, reason: String },
 
+    /// Invalid schema document used where an XML Schema is required.
+    #[error("Invalid schema document '{}': {reason}", path.display())]
+    InvalidSchemaDocument { path: PathBuf, reason: String },
+
     /// IO error
     #[error(transparent)]
     Io(#[from] std::io::Error),

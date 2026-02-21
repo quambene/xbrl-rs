@@ -5,6 +5,8 @@
 /// Represents a single fact (data point) in an XBRL instance
 #[derive(Debug, Clone)]
 pub struct Fact {
+    /// Optional XML id attribute
+    id: Option<String>,
     /// The concept name (e.g. "de-gaap-ci:bs.ass.fixAss")
     concept: String,
     /// Reference to the context ID
@@ -17,6 +19,8 @@ pub struct Fact {
     is_nil: bool,
     /// Decimals attribute for numeric facts
     decimals: Option<String>,
+    /// Precision attribute for numeric facts
+    precision: Option<String>,
 }
 
 impl Fact {
@@ -27,17 +31,27 @@ impl Fact {
         value: String,
     ) -> Self {
         Self {
+            id: None,
             concept,
             context_ref,
             unit_ref,
             value,
             is_nil: false,
             decimals: None,
+            precision: None,
         }
     }
 
     pub fn concept(&self) -> &str {
         &self.concept
+    }
+
+    pub fn id(&self) -> Option<&str> {
+        self.id.as_deref()
+    }
+
+    pub fn set_id(&mut self, id: String) {
+        self.id = Some(id);
     }
 
     pub fn context_ref(&self) -> &str {
@@ -70,6 +84,14 @@ impl Fact {
 
     pub fn set_decimals(&mut self, decimals: String) {
         self.decimals = Some(decimals);
+    }
+
+    pub fn precision(&self) -> Option<&str> {
+        self.precision.as_deref()
+    }
+
+    pub fn set_precision(&mut self, precision: String) {
+        self.precision = Some(precision);
     }
 
     /// Extract the namespace prefix from the concept

@@ -83,13 +83,13 @@ cargo test conformance_suite -- --ignored --nocapture
 
 | Category                  |  Passed |  Failed | Skipped |   Total | Pass Rate |
 | ------------------------- | ------: | ------: | ------: | ------: | --------: |
-| 100-schema                |      34 |      42 |       0 |      76 |       45% |
-| 200-linkbase              |      92 |      94 |      18 |     204 |       45% |
-| 300-instance              |     117 |     188 |       0 |     305 |       38% |
-| 400-misc                  |       2 |       7 |       2 |      11 |       18% |
-| arc-duplication           |       0 |       1 |       3 |       4 |        0% |
+| 100-schema                |      76 |       0 |       0 |      76 |      100% |
+| 200-linkbase              |     127 |      77 |       0 |     204 |       62% |
+| 300-instance              |     251 |      54 |       0 |     305 |       82% |
+| 400-misc                  |       4 |       7 |       0 |      11 |       36% |
+| arc-duplication           |       1 |       3 |       0 |       4 |       25% |
 | uniqueParticleAttribution |       4 |       2 |       0 |       6 |       67% |
-| **TOTAL**                 | **249** | **334** |  **23** | **606** |   **41%** |
+| **TOTAL**                 | **463** | **143** |   **0** | **606** |   **76%** |
 
 ## Benchmarks
 
@@ -115,14 +115,14 @@ Benchmark `single_dts_2020`: 1 entry point
 | Library |  Mean time | Speedup |
 | ------- | ---------: | ------: |
 | Arelle  | 1003.46 ms |      1x |
-| xbrl-rs |   99.28 ms |     10x |
+| xbrl-rs |  106.40 ms |      9x |
 
 Benchmark `full_dts_2020`: 6 entry points combined into one DTS
 
 | Library |  Mean time | Speedup |
 | ------- | ---------: | ------: |
 | Arelle  | 3851.48 ms |      1x |
-| xbrl-rs |  157.26 ms |   24.5x |
+| xbrl-rs |  174.32 ms |     22x |
 
 ## References
 

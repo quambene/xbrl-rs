@@ -98,6 +98,9 @@ fn write_context<W: std::io::Write>(writer: &mut Writer<W>, context: &Context) -
             writer.write_event(Event::Text(BytesText::new(end)))?;
             writer.write_event(Event::End(BytesEnd::new("xbrli:endDate")))?;
         }
+        Period::Forever => {
+            writer.write_event(Event::Empty(BytesStart::new("xbrli:forever")))?;
+        }
     }
     writer.write_event(Event::End(BytesEnd::new("xbrli:period")))?;
 
@@ -142,12 +145,18 @@ fn write_unit<W: std::io::Write>(writer: &mut Writer<W>, unit: &Unit) -> Result<
 fn write_fact<W: std::io::Write>(writer: &mut Writer<W>, fact: &Fact) -> Result<()> {
     let concept = fact.concept();
     let mut elem = BytesStart::new(concept);
+    if let Some(id) = fact.id() {
+        elem.push_attribute(("id", id));
+    }
     elem.push_attribute(("contextRef", fact.context_ref()));
     if let Some(unit_ref) = fact.unit_ref() {
         elem.push_attribute(("unitRef", unit_ref));
     }
     if let Some(decimals) = fact.decimals() {
         elem.push_attribute(("decimals", decimals));
+    }
+    if let Some(precision) = fact.precision() {
+        elem.push_attribute(("precision", precision));
     }
     if fact.is_nil() {
         elem.push_attribute(("xsi:nil", "true"));
