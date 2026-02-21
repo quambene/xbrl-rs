@@ -71,6 +71,7 @@ pub struct XbrlInstance {
 }
 
 impl XbrlInstance {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         schema_refs: Vec<String>,
         contexts: HashMap<String, Context>,

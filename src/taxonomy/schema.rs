@@ -85,6 +85,13 @@ pub struct SchemaInclude {
     pub schema_location: String,
 }
 
+struct NamedTypeBase {
+    type_name: String,
+    base: String,
+    declared_decimals: Option<String>,
+    declared_precision: Option<String>,
+}
+
 /// A parsed taxonomy schema (.xsd) file.
 #[derive(Debug)]
 pub struct TaxonomySchema {
@@ -173,8 +180,12 @@ impl TaxonomySchema {
                             skip_to_end(reader, &name)?;
                         }
                         "complexType" | "simpleType" => {
-                            if let Some((type_name, base, declared_decimals, declared_precision)) =
-                                parse_named_type_base(reader, e.attributes(), &name)?
+                            if let Some(NamedTypeBase {
+                                type_name,
+                                base,
+                                declared_decimals,
+                                declared_precision,
+                            }) = parse_named_type_base(reader, e.attributes(), &name)?
                             {
                                 schema.type_bases.insert(type_name.clone(), base);
                                 schema
@@ -687,7 +698,7 @@ impl TaxonomySchema {
 
                     if local == "element"
                         && let Some((Some(type_name), _type_depth)) =
-                            named_complex_type_stack.iter().rev().next()
+                            named_complex_type_stack.iter().next_back()
                         && attr_by_local_name(e.attributes(), "name").is_some()
                     {
                         complex_types_with_local_elements.insert(type_name.clone());
@@ -919,7 +930,7 @@ fn parse_named_type_base<R: io::BufRead>(
     reader: &mut Reader<R>,
     attrs: Attributes,
     type_tag_name: &str,
-) -> Result<Option<(String, String, Option<String>, Option<String>)>> {
+) -> Result<Option<NamedTypeBase>> {
     let mut type_name = None;
     for attr in attrs.flatten() {
         let key = String::from_utf8_lossy(attr.key.as_ref());
@@ -1042,7 +1053,12 @@ fn parse_named_type_base<R: io::BufRead>(
         buf.clear();
     }
 
-    Ok(base.map(|b| (type_name, b, declared_decimals, declared_precision)))
+    Ok(base.map(|base| NamedTypeBase {
+        type_name,
+        base,
+        declared_decimals,
+        declared_precision,
+    }))
 }
 
 /// Extract the local name from a possibly prefixed XML name.
