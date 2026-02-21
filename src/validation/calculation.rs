@@ -5,7 +5,7 @@
 //! rounding tolerance derived from the `decimals` attribute.
 
 use super::{Severity, ValidationResult};
-use crate::{Fact, TaxonomySet, XbrlInstance};
+use crate::{Context, Fact, Period, TaxonomySet, Unit, XbrlInstance};
 use std::collections::HashMap;
 
 /// Run calculation consistency checks for all roles.
@@ -62,7 +62,7 @@ pub(super) fn validate_calculations(
 
                 if diff > tolerance {
                     result.add(
-                        Severity::Warning,
+                        Severity::Error,
                         "calc.summation_inconsistency",
                         format!(
                             "Calculation inconsistency in role '{role}': '{parent_id}' \
@@ -79,7 +79,30 @@ pub(super) fn validate_calculations(
 }
 
 /// Key for grouping facts: (context_ref, unit_ref or "").
-type CtxUnitKey = (String, String);
+type CtxUnitKey = (ContextKey, UnitKey);
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct ContextKey {
+    entity_scheme: String,
+    entity_value: String,
+    period: PeriodKey,
+    dimensions: Vec<(String, String)>,
+    segment_elements: Vec<String>,
+    scenario_elements: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+enum PeriodKey {
+    Instant(String),
+    Duration(String, String),
+    Forever,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct UnitKey {
+    numerator: Vec<(Option<String>, String)>,
+    denominator: Vec<(Option<String>, String)>,
+}
 
 /// Build an index: element_id -> { (ctx, unit) -> &Fact }.
 ///
@@ -97,16 +120,93 @@ fn build_fact_index<'a>(
         let local_name = fact.local_name();
         if let Some(element) = taxonomy.find_element(local_name)
             && let Some(ref id) = element.id
+            && let Some(context) = instance.get_context(fact.context_ref())
         {
-            let key = (
-                fact.context_ref().to_string(),
-                fact.unit_ref().unwrap_or("").to_string(),
-            );
+            let Some(key) = fact_semantic_key(instance, fact, context) else {
+                continue;
+            };
             index.entry(id.clone()).or_default().insert(key, fact);
         }
     }
 
     index
+}
+
+fn fact_semantic_key(
+    instance: &XbrlInstance,
+    fact: &Fact,
+    context: &Context,
+) -> Option<CtxUnitKey> {
+    let context_key = context_key(context);
+
+    let unit_key = if let Some(unit_ref) = fact.unit_ref() {
+        let unit = instance.get_unit(unit_ref)?;
+        unit_key(unit)
+    } else {
+        UnitKey {
+            numerator: Vec::new(),
+            denominator: Vec::new(),
+        }
+    };
+
+    Some((context_key, unit_key))
+}
+
+fn context_key(context: &Context) -> ContextKey {
+    let period = match &context.period {
+        Period::Instant { date } => PeriodKey::Instant(date.trim().to_string()),
+        Period::Duration { start, end } => {
+            PeriodKey::Duration(start.trim().to_string(), end.trim().to_string())
+        }
+        Period::Forever => PeriodKey::Forever,
+    };
+
+    let mut dimensions: Vec<(String, String)> = context
+        .dimensions
+        .iter()
+        .map(|(dimension, member)| (dimension.clone(), member.clone()))
+        .collect();
+    dimensions.sort();
+
+    ContextKey {
+        entity_scheme: context.entity.scheme.trim().to_string(),
+        entity_value: context.entity.value.trim().to_string(),
+        period,
+        dimensions,
+        segment_elements: context.segment_elements.clone(),
+        scenario_elements: context.scenario_elements.clone(),
+    }
+}
+
+fn unit_key(unit: &Unit) -> UnitKey {
+    let mut numerator: Vec<(Option<String>, String)> = unit
+        .numerator_measures
+        .iter()
+        .map(|measure| {
+            (
+                measure.namespace_uri.clone(),
+                measure.local_name.to_ascii_lowercase(),
+            )
+        })
+        .collect();
+    numerator.sort();
+
+    let mut denominator: Vec<(Option<String>, String)> = unit
+        .denominator_measures
+        .iter()
+        .map(|measure| {
+            (
+                measure.namespace_uri.clone(),
+                measure.local_name.to_ascii_lowercase(),
+            )
+        })
+        .collect();
+    denominator.sort();
+
+    UnitKey {
+        numerator,
+        denominator,
+    }
 }
 
 /// Parse a string as f64, returning None for empty or non-numeric values.
