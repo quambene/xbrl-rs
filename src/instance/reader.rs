@@ -12,8 +12,7 @@ use quick_xml::{
     escape::unescape,
     events::{Event, attributes::Attributes},
 };
-use std::collections::HashMap;
-use std::io;
+use std::{collections::HashMap, io};
 
 fn local_name(name: &str) -> &str {
     name.rsplit(':').next().unwrap_or(name)
