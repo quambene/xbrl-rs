@@ -21,10 +21,39 @@ pub(super) fn validate_schema(
 ) {
     validate_contexts(instance, taxonomy, result);
     validate_footnotes(instance, result);
+    validate_instance_refs(instance, result);
     validate_essence_alias_units(instance, taxonomy, result);
 
     for fact in instance.facts() {
         validate_fact(fact, instance, taxonomy, result);
+    }
+}
+
+fn validate_instance_refs(instance: &XbrlInstance, result: &mut ValidationResult) {
+    let mut role_uris = HashSet::new();
+    for role_uri in instance.role_refs() {
+        if !role_uris.insert(role_uri.as_str()) {
+            result.add(
+                Severity::Error,
+                "spec.duplicate_role_ref",
+                format!("Duplicate roleRef for roleURI '{}'", role_uri),
+                None,
+                None,
+            );
+        }
+    }
+
+    let mut arcrole_uris = HashSet::new();
+    for arcrole_uri in instance.arcrole_refs() {
+        if !arcrole_uris.insert(arcrole_uri.as_str()) {
+            result.add(
+                Severity::Error,
+                "spec.duplicate_arcrole_ref",
+                format!("Duplicate arcroleRef for arcroleURI '{}'", arcrole_uri),
+                None,
+                None,
+            );
+        }
     }
 }
 
@@ -42,7 +71,10 @@ fn validate_essence_alias_units(
         if let Some(element) = taxonomy.find_element(fact.local_name())
             && let Some(id) = element.id.as_ref()
         {
-            facts_by_element_id.entry(id.clone()).or_default().push(fact);
+            facts_by_element_id
+                .entry(id.clone())
+                .or_default()
+                .push(fact);
         }
     }
 
@@ -107,12 +139,22 @@ fn units_semantically_equal(left: &crate::instance::Unit, right: &crate::instanc
     let mut left_num: Vec<(Option<&str>, &str)> = left
         .numerator_measures
         .iter()
-        .map(|measure| (measure.namespace_uri.as_deref(), measure.local_name.as_str()))
+        .map(|measure| {
+            (
+                measure.namespace_uri.as_deref(),
+                measure.local_name.as_str(),
+            )
+        })
         .collect();
     let mut right_num: Vec<(Option<&str>, &str)> = right
         .numerator_measures
         .iter()
-        .map(|measure| (measure.namespace_uri.as_deref(), measure.local_name.as_str()))
+        .map(|measure| {
+            (
+                measure.namespace_uri.as_deref(),
+                measure.local_name.as_str(),
+            )
+        })
         .collect();
     left_num.sort();
     right_num.sort();
@@ -120,12 +162,22 @@ fn units_semantically_equal(left: &crate::instance::Unit, right: &crate::instanc
     let mut left_den: Vec<(Option<&str>, &str)> = left
         .denominator_measures
         .iter()
-        .map(|measure| (measure.namespace_uri.as_deref(), measure.local_name.as_str()))
+        .map(|measure| {
+            (
+                measure.namespace_uri.as_deref(),
+                measure.local_name.as_str(),
+            )
+        })
         .collect();
     let mut right_den: Vec<(Option<&str>, &str)> = right
         .denominator_measures
         .iter()
-        .map(|measure| (measure.namespace_uri.as_deref(), measure.local_name.as_str()))
+        .map(|measure| {
+            (
+                measure.namespace_uri.as_deref(),
+                measure.local_name.as_str(),
+            )
+        })
         .collect();
     left_den.sort();
     right_den.sort();
@@ -421,6 +473,11 @@ fn validate_fact(
 
         let has_decimals = fact.decimals().is_some();
         let has_precision = fact.precision().is_some();
+        let has_declared_accuracy = element.type_name.as_deref().is_some_and(|type_name| {
+            let (declared_decimals, declared_precision) =
+                taxonomy.type_declared_accuracy(type_name);
+            declared_decimals.is_some() || declared_precision.is_some()
+        });
 
         if has_decimals && has_precision {
             result.add(
@@ -430,7 +487,7 @@ fn validate_fact(
                 Some(concept),
                 Some(ctx_ref),
             );
-        } else if !fact.is_nil() && !has_decimals && !has_precision {
+        } else if !fact.is_nil() && !has_decimals && !has_precision && !has_declared_accuracy {
             result.add(
                 Severity::Error,
                 "spec.numeric_missing_accuracy",
@@ -440,7 +497,7 @@ fn validate_fact(
             );
         }
 
-        if fact.is_nil() && (has_decimals || has_precision) {
+        if fact.is_nil() && (has_decimals || has_precision || has_declared_accuracy) {
             result.add(
                 Severity::Error,
                 "spec.nil_fact_has_accuracy",

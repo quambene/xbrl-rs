@@ -49,6 +49,10 @@ pub struct FootnoteArc {
 pub struct XbrlInstance {
     /// Schema references (xlink:href values from link:schemaRef elements)
     schema_refs: Vec<String>,
+    /// roleURI values from roleRef elements in the instance.
+    role_refs: Vec<String>,
+    /// arcroleURI values from arcroleRef elements in the instance.
+    arcrole_refs: Vec<String>,
     /// All contexts in the instance
     contexts: HashMap<String, Context>,
     /// All units in the instance
@@ -79,6 +83,8 @@ impl XbrlInstance {
     ) -> Self {
         Self {
             schema_refs,
+            role_refs: Vec::new(),
+            arcrole_refs: Vec::new(),
             contexts,
             units,
             facts,
@@ -121,6 +127,26 @@ impl XbrlInstance {
     /// Get all schema references declared in the instance document.
     pub fn schema_refs(&self) -> &[String] {
         &self.schema_refs
+    }
+
+    /// Add a role reference URI from a roleRef element.
+    pub fn add_role_ref(&mut self, role_uri: String) {
+        self.role_refs.push(role_uri);
+    }
+
+    /// Get all role reference URIs declared in the instance document.
+    pub fn role_refs(&self) -> &[String] {
+        &self.role_refs
+    }
+
+    /// Add an arcrole reference URI from an arcroleRef element.
+    pub fn add_arcrole_ref(&mut self, arcrole_uri: String) {
+        self.arcrole_refs.push(arcrole_uri);
+    }
+
+    /// Get all arcrole reference URIs declared in the instance document.
+    pub fn arcrole_refs(&self) -> &[String] {
+        &self.arcrole_refs
     }
 
     /// Extract relative path suffixes from schema reference URLs.

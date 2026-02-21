@@ -31,43 +31,75 @@ pub(super) fn validate_calculations(
                 continue;
             };
 
-            for (ctx_unit_key, parent_fact) in parent_facts {
+            for (ctx_unit_key, parent_fact_entry) in parent_facts {
+                if parent_fact_entry.is_duplicate {
+                    continue;
+                }
+
+                let parent_fact = parent_fact_entry.fact;
                 let Some(parent_value) = parse_numeric(parent_fact.value()) else {
                     continue;
                 };
 
+                let (parent_decimals, parent_precision) = effective_accuracy(parent_fact, taxonomy);
+                let parent_effective_value = apply_effective_accuracy(
+                    parent_fact.value(),
+                    parent_value,
+                    parent_decimals.as_deref(),
+                    parent_precision.as_deref(),
+                );
+
                 let mut weighted_sum = 0.0;
                 let mut any_child_found = false;
+                let mut duplicate_child_found = false;
 
                 for (child_id, weight) in children {
                     if let Some(child_facts) = fact_index.get(*child_id)
-                        && let Some(child_fact) = child_facts.get(ctx_unit_key)
-                        && let Some(child_value) = parse_numeric(child_fact.value())
+                        && let Some(child_fact_entry) = child_facts.get(ctx_unit_key)
                     {
-                        weighted_sum += weight * child_value;
+                        if child_fact_entry.is_duplicate {
+                            duplicate_child_found = true;
+                            break;
+                        }
+
+                        let child_fact = child_fact_entry.fact;
+                        let Some(child_value) = parse_numeric(child_fact.value()) else {
+                            continue;
+                        };
+
+                        let (child_decimals, child_precision) =
+                            effective_accuracy(child_fact, taxonomy);
+                        let child_effective_value = apply_effective_accuracy(
+                            child_fact.value(),
+                            child_value,
+                            child_decimals.as_deref(),
+                            child_precision.as_deref(),
+                        );
+
+                        weighted_sum += weight * child_effective_value;
                         any_child_found = true;
                     }
                 }
 
-                if !any_child_found {
+                if duplicate_child_found || !any_child_found {
                     continue;
                 }
 
-                let tolerance = rounding_tolerance(
-                    parent_fact.value(),
-                    parent_fact.decimals(),
-                    parent_fact.precision(),
+                let weighted_sum_effective = apply_effective_accuracy(
+                    &weighted_sum.to_string(),
+                    weighted_sum,
+                    parent_decimals.as_deref(),
+                    parent_precision.as_deref(),
                 );
-                let diff = (parent_value - weighted_sum).abs();
+                let diff = (parent_effective_value - weighted_sum_effective).abs();
 
-                if diff > tolerance {
+                if diff > 1e-9 {
                     result.add(
                         Severity::Error,
                         "calc.summation_inconsistency",
                         format!(
                             "Calculation inconsistency in role '{role}': '{parent_id}' \
-                             reported {parent_value} but children sum to {weighted_sum} \
-                             (diff={diff:.2}, tolerance={tolerance:.2})",
+                             reported effective value {parent_effective_value} but children sum to {weighted_sum_effective}",
                         ),
                         Some(parent_fact.concept()),
                         Some(parent_fact.context_ref()),
@@ -78,8 +110,31 @@ pub(super) fn validate_calculations(
     }
 }
 
+fn effective_accuracy(fact: &Fact, taxonomy: &TaxonomySet) -> (Option<String>, Option<String>) {
+    let decimals = fact.decimals().map(str::to_string);
+    let precision = fact.precision().map(str::to_string);
+    if decimals.is_some() || precision.is_some() {
+        return (decimals, precision);
+    }
+
+    let Some(element) = taxonomy.find_element(fact.local_name()) else {
+        return (None, None);
+    };
+    let Some(type_name) = element.type_name.as_deref() else {
+        return (None, None);
+    };
+
+    taxonomy.type_declared_accuracy(type_name)
+}
+
 /// Key for grouping facts: (context_ref, unit_ref or "").
 type CtxUnitKey = (ContextKey, UnitKey);
+
+#[derive(Debug, Clone, Copy)]
+struct IndexedFact<'a> {
+    fact: &'a Fact,
+    is_duplicate: bool,
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct ContextKey {
@@ -110,8 +165,8 @@ struct UnitKey {
 fn build_fact_index<'a>(
     instance: &'a XbrlInstance,
     taxonomy: &TaxonomySet,
-) -> HashMap<String, HashMap<CtxUnitKey, &'a Fact>> {
-    let mut index: HashMap<String, HashMap<CtxUnitKey, &'a Fact>> = HashMap::new();
+) -> HashMap<String, HashMap<CtxUnitKey, IndexedFact<'a>>> {
+    let mut index: HashMap<String, HashMap<CtxUnitKey, IndexedFact<'a>>> = HashMap::new();
 
     for fact in instance.facts() {
         if fact.is_nil() {
@@ -125,7 +180,18 @@ fn build_fact_index<'a>(
             let Some(key) = fact_semantic_key(instance, fact, context) else {
                 continue;
             };
-            index.entry(id.clone()).or_default().insert(key, fact);
+            let element_index = index.entry(id.clone()).or_default();
+            if let Some(existing) = element_index.get_mut(&key) {
+                existing.is_duplicate = true;
+            } else {
+                element_index.insert(
+                    key,
+                    IndexedFact {
+                        fact,
+                        is_duplicate: false,
+                    },
+                );
+            }
         }
     }
 
@@ -224,31 +290,52 @@ fn parse_numeric(value: &str) -> Option<f64> {
 /// - `decimals="0"` → tolerance 0.5
 /// - `decimals="-3"` → tolerance 500
 /// - `decimals="INF"` → tolerance 0 (exact)
-fn rounding_tolerance(value: &str, decimals: Option<&str>, precision: Option<&str>) -> f64 {
+fn apply_effective_accuracy(
+    raw_value: &str,
+    parsed_value: f64,
+    decimals: Option<&str>,
+    precision: Option<&str>,
+) -> f64 {
     if let Some(dec_str) = decimals {
-        if dec_str == "INF" {
-            return 0.0;
+        if dec_str.eq_ignore_ascii_case("INF") {
+            return parsed_value;
         }
-        return match dec_str.parse::<i32>() {
-            Ok(d) => 0.5 * 10.0_f64.powi(-d),
-            Err(_) => 1.0,
-        };
+        if let Ok(decimals_value) = dec_str.parse::<i32>() {
+            return round_to_decimals_ties_even(parsed_value, decimals_value);
+        }
+        return parsed_value;
     }
 
     if let Some(prec_str) = precision {
-        if prec_str == "INF" {
-            return 0.0;
+        if prec_str.eq_ignore_ascii_case("INF") {
+            return parsed_value;
         }
 
-        if let (Ok(p), Some(v)) = (prec_str.parse::<i32>(), parse_numeric(value)) {
-            if v == 0.0 {
-                return 0.0;
-            }
-            let magnitude = v.abs().log10().floor() as i32;
-            let inferred_decimals = p - magnitude - 1;
-            return 0.5 * 10.0_f64.powi(-inferred_decimals);
+        if let Ok(precision_value) = prec_str.parse::<i32>() {
+            let inferred_decimals = infer_decimals_from_precision(parsed_value, precision_value);
+            return round_to_decimals_ties_even(parsed_value, inferred_decimals);
         }
+
+        return parsed_value;
     }
 
-    1.0
+    if let Some(parsed_again) = parse_numeric(raw_value) {
+        return parsed_again;
+    }
+
+    parsed_value
+}
+
+fn infer_decimals_from_precision(value: f64, precision: i32) -> i32 {
+    if value == 0.0 {
+        precision - 1
+    } else {
+        let magnitude = value.abs().log10().floor() as i32;
+        precision - magnitude - 1
+    }
+}
+
+fn round_to_decimals_ties_even(value: f64, decimals: i32) -> f64 {
+    let factor = 10.0_f64.powi(decimals);
+    (value * factor).round_ties_even() / factor
 }

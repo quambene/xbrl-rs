@@ -64,7 +64,23 @@ where
                     if let Some(href) = get_attribute(&e.attributes(), b"xlink:href")
                         .or_else(|| get_attribute_local(&e.attributes(), "href"))
                     {
-                        instance.add_schema_ref(href);
+                        let resolved_href = get_attribute(&e.attributes(), b"xml:base")
+                            .or_else(|| get_attribute_local(&e.attributes(), "base"))
+                            .map(|xml_base| resolve_xml_base_href(&xml_base, &href))
+                            .unwrap_or(href);
+                        instance.add_schema_ref(resolved_href);
+                    }
+                } else if name_matches(&name_str, "roleRef") {
+                    if let Some(role_uri) = get_attribute(&e.attributes(), b"roleURI")
+                        .or_else(|| get_attribute_local(&e.attributes(), "roleURI"))
+                    {
+                        instance.add_role_ref(role_uri);
+                    }
+                } else if name_matches(&name_str, "arcroleRef") {
+                    if let Some(arcrole_uri) = get_attribute(&e.attributes(), b"arcroleURI")
+                        .or_else(|| get_attribute_local(&e.attributes(), "arcroleURI"))
+                    {
+                        instance.add_arcrole_ref(arcrole_uri);
                     }
                 } else if name_matches(&name_str, "context") {
                     let namespaces = instance.namespaces().clone();
@@ -105,6 +121,23 @@ where
     }
 
     Ok(instance)
+}
+
+fn resolve_xml_base_href(xml_base: &str, href: &str) -> String {
+    if href.contains("://") || href.starts_with('/') {
+        return href.to_string();
+    }
+
+    let base = xml_base.trim();
+    if base.is_empty() {
+        return href.to_string();
+    }
+
+    if base.ends_with('/') {
+        format!("{base}{href}")
+    } else {
+        format!("{base}/{href}")
+    }
 }
 
 /// Extract namespace declarations from the xbrl element.

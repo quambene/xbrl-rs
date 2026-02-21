@@ -110,6 +110,8 @@ pub struct TaxonomySchema {
     pub elements: Vec<ElementDefinition>,
     /// Named simple/complex type derivations: type name -> base QName.
     pub type_bases: HashMap<String, String>,
+    /// Named types with declared decimals/precision attributes (fixed/default) on restrictions.
+    pub type_declared_accuracy: HashMap<String, (Option<String>, Option<String>)>,
 }
 
 impl TaxonomySchema {
@@ -130,10 +132,12 @@ impl TaxonomySchema {
             arcrole_types: Vec::new(),
             elements: Vec::new(),
             type_bases: HashMap::new(),
+            type_declared_accuracy: HashMap::new(),
         };
 
         let mut buf = Vec::new();
         let mut inside_appinfo = false;
+        let mut has_schema_root = false;
 
         loop {
             match reader.read_event_into(&mut buf) {
@@ -145,6 +149,7 @@ impl TaxonomySchema {
 
                     match local {
                         "schema" => {
+                            has_schema_root = true;
                             extract_schema_attrs(e.attributes(), &mut schema);
                         }
                         "appinfo" => {
@@ -167,10 +172,13 @@ impl TaxonomySchema {
                             skip_to_end(reader, &name)?;
                         }
                         "complexType" | "simpleType" => {
-                            if let Some((type_name, base)) =
+                            if let Some((type_name, base, declared_decimals, declared_precision)) =
                                 parse_named_type_base(reader, e.attributes(), &name)?
                             {
-                                schema.type_bases.insert(type_name, base);
+                                schema.type_bases.insert(type_name.clone(), base);
+                                schema
+                                    .type_declared_accuracy
+                                    .insert(type_name, (declared_decimals, declared_precision));
                             }
                         }
                         _ => {}
@@ -225,6 +233,13 @@ impl TaxonomySchema {
             buf.clear();
         }
 
+        if !has_schema_root {
+            return Err(XbrlError::InvalidSchemaDocument {
+                path: path.to_path_buf(),
+                reason: "missing <schema> root element".to_string(),
+            });
+        }
+
         Ok(schema)
     }
 }
@@ -233,7 +248,7 @@ fn parse_named_type_base<R: io::BufRead>(
     reader: &mut Reader<R>,
     attrs: Attributes,
     type_tag_name: &str,
-) -> Result<Option<(String, String)>> {
+) -> Result<Option<(String, String, Option<String>, Option<String>)>> {
     let mut type_name = None;
     for attr in attrs.flatten() {
         let key = String::from_utf8_lossy(attr.key.as_ref());
@@ -249,6 +264,8 @@ fn parse_named_type_base<R: io::BufRead>(
     };
 
     let mut base: Option<String> = None;
+    let mut declared_decimals: Option<String> = None;
+    let mut declared_precision: Option<String> = None;
     let mut depth = 1u32;
     let mut buf = Vec::new();
 
@@ -266,6 +283,33 @@ fn parse_named_type_base<R: io::BufRead>(
                             break;
                         }
                     }
+                } else if local == "attribute" {
+                    let mut attr_name: Option<String> = None;
+                    let mut fixed_value: Option<String> = None;
+                    let mut default_value: Option<String> = None;
+                    for attr in e.attributes().flatten() {
+                        let key = String::from_utf8_lossy(attr.key.as_ref());
+                        match local_name(&key) {
+                            "name" => {
+                                attr_name = attr.unescape_value().ok().map(|v| v.to_string());
+                            }
+                            "fixed" => {
+                                fixed_value = attr.unescape_value().ok().map(|v| v.to_string());
+                            }
+                            "default" => {
+                                default_value = attr.unescape_value().ok().map(|v| v.to_string());
+                            }
+                            _ => {}
+                        }
+                    }
+                    let declared_value = fixed_value.or(default_value);
+                    if let Some(value) = declared_value {
+                        match attr_name.as_deref() {
+                            Some("decimals") => declared_decimals = Some(value),
+                            Some("precision") => declared_precision = Some(value),
+                            _ => {}
+                        }
+                    }
                 }
             }
             Ok(Event::Empty(e)) => {
@@ -277,6 +321,33 @@ fn parse_named_type_base<R: io::BufRead>(
                         if local_name(&key) == "base" {
                             base = attr.unescape_value().ok().map(|v| v.to_string());
                             break;
+                        }
+                    }
+                } else if local == "attribute" {
+                    let mut attr_name: Option<String> = None;
+                    let mut fixed_value: Option<String> = None;
+                    let mut default_value: Option<String> = None;
+                    for attr in e.attributes().flatten() {
+                        let key = String::from_utf8_lossy(attr.key.as_ref());
+                        match local_name(&key) {
+                            "name" => {
+                                attr_name = attr.unescape_value().ok().map(|v| v.to_string());
+                            }
+                            "fixed" => {
+                                fixed_value = attr.unescape_value().ok().map(|v| v.to_string());
+                            }
+                            "default" => {
+                                default_value = attr.unescape_value().ok().map(|v| v.to_string());
+                            }
+                            _ => {}
+                        }
+                    }
+                    let declared_value = fixed_value.or(default_value);
+                    if let Some(value) = declared_value {
+                        match attr_name.as_deref() {
+                            Some("decimals") => declared_decimals = Some(value),
+                            Some("precision") => declared_precision = Some(value),
+                            _ => {}
                         }
                     }
                 }
@@ -300,7 +371,7 @@ fn parse_named_type_base<R: io::BufRead>(
         buf.clear();
     }
 
-    Ok(base.map(|b| (type_name, b)))
+    Ok(base.map(|b| (type_name, b, declared_decimals, declared_precision)))
 }
 
 /// Extract the local name from a possibly prefixed XML name.
