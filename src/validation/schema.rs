@@ -11,6 +11,7 @@ const ROLE_LINK: &str = "http://www.xbrl.org/2003/role/link";
 const ROLE_FOOTNOTE: &str = "http://www.xbrl.org/2003/role/footnote";
 const ROLE_LABEL: &str = "http://www.xbrl.org/2003/role/label";
 const ARCROLE_FACT_FOOTNOTE: &str = "http://www.xbrl.org/2003/arcrole/fact-footnote";
+const ARCROLE_ESSENCE_ALIAS: &str = "http://www.xbrl.org/2003/arcrole/essence-alias";
 
 /// Run all schema-level validation checks.
 pub(super) fn validate_schema(
@@ -20,10 +21,116 @@ pub(super) fn validate_schema(
 ) {
     validate_contexts(instance, taxonomy, result);
     validate_footnotes(instance, result);
+    validate_essence_alias_units(instance, taxonomy, result);
 
     for fact in instance.facts() {
         validate_fact(fact, instance, taxonomy, result);
     }
+}
+
+fn validate_essence_alias_units(
+    instance: &XbrlInstance,
+    taxonomy: &TaxonomySet,
+    result: &mut ValidationResult,
+) {
+    if taxonomy.definitions().is_empty() {
+        return;
+    }
+
+    let mut facts_by_element_id: HashMap<String, Vec<&Fact>> = HashMap::new();
+    for fact in instance.facts() {
+        if let Some(element) = taxonomy.find_element(fact.local_name())
+            && let Some(id) = element.id.as_ref()
+        {
+            facts_by_element_id.entry(id.clone()).or_default().push(fact);
+        }
+    }
+
+    for arcs in taxonomy.definitions().values() {
+        for arc in arcs {
+            if arc.arcrole != ARCROLE_ESSENCE_ALIAS {
+                continue;
+            }
+
+            let Some(essence_facts) = facts_by_element_id.get(&arc.from) else {
+                continue;
+            };
+            let Some(alias_facts) = facts_by_element_id.get(&arc.to) else {
+                continue;
+            };
+
+            for essence_fact in essence_facts {
+                if essence_fact.is_nil() {
+                    continue;
+                }
+                let Some(essence_unit_ref) = essence_fact.unit_ref() else {
+                    continue;
+                };
+                let Some(essence_unit) = instance.get_unit(essence_unit_ref) else {
+                    continue;
+                };
+
+                for alias_fact in alias_facts {
+                    if alias_fact.is_nil() || essence_fact.context_ref() != alias_fact.context_ref()
+                    {
+                        continue;
+                    }
+
+                    let Some(alias_unit_ref) = alias_fact.unit_ref() else {
+                        continue;
+                    };
+                    let Some(alias_unit) = instance.get_unit(alias_unit_ref) else {
+                        continue;
+                    };
+
+                    if !units_semantically_equal(essence_unit, alias_unit) {
+                        result.add(
+                            Severity::Error,
+                            "spec.essence_alias_unit_mismatch",
+                            format!(
+                                "Essence-alias facts '{}' and '{}' in context '{}' must have equal units",
+                                essence_fact.concept(),
+                                alias_fact.concept(),
+                                essence_fact.context_ref()
+                            ),
+                            Some(essence_fact.concept()),
+                            Some(essence_fact.context_ref()),
+                        );
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn units_semantically_equal(left: &crate::instance::Unit, right: &crate::instance::Unit) -> bool {
+    let mut left_num: Vec<(Option<&str>, &str)> = left
+        .numerator_measures
+        .iter()
+        .map(|measure| (measure.namespace_uri.as_deref(), measure.local_name.as_str()))
+        .collect();
+    let mut right_num: Vec<(Option<&str>, &str)> = right
+        .numerator_measures
+        .iter()
+        .map(|measure| (measure.namespace_uri.as_deref(), measure.local_name.as_str()))
+        .collect();
+    left_num.sort();
+    right_num.sort();
+
+    let mut left_den: Vec<(Option<&str>, &str)> = left
+        .denominator_measures
+        .iter()
+        .map(|measure| (measure.namespace_uri.as_deref(), measure.local_name.as_str()))
+        .collect();
+    let mut right_den: Vec<(Option<&str>, &str)> = right
+        .denominator_measures
+        .iter()
+        .map(|measure| (measure.namespace_uri.as_deref(), measure.local_name.as_str()))
+        .collect();
+    left_den.sort();
+    right_den.sort();
+
+    left_num == right_num && left_den == right_den
 }
 
 fn validate_footnotes(instance: &XbrlInstance, result: &mut ValidationResult) {
