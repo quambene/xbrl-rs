@@ -4,12 +4,17 @@
 use super::{Severity, ValidationResult};
 use crate::{Fact, Period, TaxonomySet, XbrlInstance, taxonomy::ElementDefinition};
 
+const NS_XBRLI: &str = "http://www.xbrl.org/2003/instance";
+const NS_ISO4217: &str = "http://www.xbrl.org/2003/iso4217";
+
 /// Run all schema-level validation checks.
 pub(super) fn validate_schema(
     instance: &XbrlInstance,
     taxonomy: &TaxonomySet,
     result: &mut ValidationResult,
 ) {
+    validate_contexts(instance, taxonomy, result);
+
     for fact in instance.facts() {
         validate_fact(fact, instance, taxonomy, result);
     }
@@ -138,6 +143,7 @@ fn validate_fact(
             let actual = match &context.period {
                 Period::Instant { .. } => "instant",
                 Period::Duration { .. } => "duration",
+                Period::Forever => "forever",
             };
             result.add(
                 Severity::Error,
@@ -150,6 +156,193 @@ fn validate_fact(
             );
         }
     }
+
+    // 7. Unit semantics for specific item types
+    if let Some(unit_ref) = fact.unit_ref()
+        && let Some(unit) = instance.get_unit(unit_ref)
+    {
+        validate_unit_constraints(fact, element, unit, result);
+    }
+}
+
+fn validate_contexts(
+    instance: &XbrlInstance,
+    taxonomy: &TaxonomySet,
+    result: &mut ValidationResult,
+) {
+    for (ctx_id, context) in instance.contexts() {
+        if context.segment_has_instance_descendant {
+            result.add(
+                Severity::Error,
+                "spec.segment_contains_xbrli",
+                format!(
+                    "Context '{ctx_id}' has a segment descendant in the XBRL instance namespace"
+                ),
+                None,
+                Some(ctx_id),
+            );
+        }
+
+        if context.scenario_has_instance_descendant {
+            result.add(
+                Severity::Error,
+                "spec.scenario_contains_xbrli",
+                format!(
+                    "Context '{ctx_id}' has a scenario descendant in the XBRL instance namespace"
+                ),
+                None,
+                Some(ctx_id),
+            );
+        }
+
+        for qname in context
+            .segment_elements
+            .iter()
+            .chain(context.scenario_elements.iter())
+        {
+            let local = qname.rsplit(':').next().unwrap_or(qname);
+            if let Some(element) = taxonomy.find_element(local)
+                && element
+                    .substitution_group
+                    .as_deref()
+                    .is_some_and(|sg| sg.contains("xbrli:item") || sg.contains("xbrli:tuple"))
+            {
+                result.add(
+                    Severity::Error,
+                    "spec.context_contains_xbrl_item",
+                    format!(
+                        "Context '{ctx_id}' contains '{qname}' which is in an XBRL substitution group"
+                    ),
+                    None,
+                    Some(ctx_id),
+                );
+            }
+        }
+
+        if let Period::Duration { start, end } = &context.period
+            && !period_order_is_valid(start, end)
+        {
+            result.add(
+                Severity::Error,
+                "spec.invalid_period_order",
+                format!(
+                    "Context '{ctx_id}' has start date '{start}' that is not earlier than end date '{end}'"
+                ),
+                None,
+                Some(ctx_id),
+            );
+        }
+    }
+}
+
+fn validate_unit_constraints(
+    fact: &Fact,
+    element: &ElementDefinition,
+    unit: &crate::instance::Unit,
+    result: &mut ValidationResult,
+) {
+    let concept = fact.concept();
+    let ctx_ref = fact.context_ref();
+
+    for measure in unit
+        .numerator_measures
+        .iter()
+        .chain(unit.denominator_measures.iter())
+    {
+        if measure.namespace_uri.as_deref() == Some(NS_XBRLI)
+            && measure.local_name != "pure"
+            && measure.local_name != "shares"
+        {
+            result.add(
+                Severity::Error,
+                "spec.invalid_xbrli_measure_local_name",
+                format!(
+                    "Fact '{}' uses invalid measure '{}' in XBRL instance namespace",
+                    fact.local_name(),
+                    measure.qname
+                ),
+                Some(concept),
+                Some(ctx_ref),
+            );
+            return;
+        }
+    }
+
+    let type_name = element.type_name.as_deref().unwrap_or("").to_lowercase();
+
+    if type_name.contains("monetary") {
+        if !unit.has_single_measure_no_divide() {
+            result.add(
+                Severity::Error,
+                "spec.invalid_monetary_unit_shape",
+                format!(
+                    "Monetary fact '{}' must use exactly one non-divide measure",
+                    fact.local_name()
+                ),
+                Some(concept),
+                Some(ctx_ref),
+            );
+            return;
+        }
+
+        if let Some(measure) = unit.primary_measure() {
+            let is_iso = measure.namespace_uri.as_deref() == Some(NS_ISO4217);
+            let is_code = measure.local_name.len() == 3
+                && measure.local_name.chars().all(|ch| ch.is_ascii_uppercase());
+            if !is_iso || !is_code {
+                result.add(
+                    Severity::Error,
+                    "spec.invalid_monetary_measure",
+                    format!(
+                        "Monetary fact '{}' must use ISO4217 currency measure, got '{}'",
+                        fact.local_name(),
+                        measure.qname
+                    ),
+                    Some(concept),
+                    Some(ctx_ref),
+                );
+            }
+        }
+    }
+
+    if type_name.contains("shares") {
+        if !unit.has_single_measure_no_divide() {
+            result.add(
+                Severity::Error,
+                "spec.invalid_shares_unit_shape",
+                format!(
+                    "Shares fact '{}' must use exactly one non-divide measure",
+                    fact.local_name()
+                ),
+                Some(concept),
+                Some(ctx_ref),
+            );
+            return;
+        }
+
+        if let Some(measure) = unit.primary_measure()
+            && !(measure.namespace_uri.as_deref() == Some(NS_XBRLI)
+                && measure.local_name == "shares")
+        {
+            result.add(
+                Severity::Error,
+                "spec.invalid_shares_measure",
+                format!(
+                    "Shares fact '{}' must use xbrli:shares measure, got '{}'",
+                    fact.local_name(),
+                    measure.qname
+                ),
+                Some(concept),
+                Some(ctx_ref),
+            );
+        }
+    }
+}
+
+fn period_order_is_valid(start: &str, end: &str) -> bool {
+    let s = start.trim();
+    let e = end.trim();
+    !s.is_empty() && !e.is_empty() && s < e
 }
 
 /// Determine whether an element definition is numeric based on its XSD type name.

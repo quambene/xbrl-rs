@@ -3,13 +3,14 @@
 use crate::{
     Context, EntityIdentifier, Fact, Period, XbrlInstance,
     error::{Result, XbrlError},
-    instance::Unit,
+    instance::{Unit, unit::UnitMeasure},
 };
 use quick_xml::{
     Reader,
     escape::unescape,
     events::{Event, attributes::Attributes},
 };
+use std::collections::HashMap;
 use std::io;
 
 fn local_name(name: &str) -> &str {
@@ -60,10 +61,12 @@ where
                         instance.add_schema_ref(href);
                     }
                 } else if name_matches(&name_str, "context") {
-                    let context = parse_context(reader, &e)?;
+                    let namespaces = instance.namespaces().clone();
+                    let context = parse_context(reader, &e, &namespaces)?;
                     instance.add_context(context);
                 } else if name_matches(&name_str, "unit") {
-                    let unit = parse_unit(reader, &e)?;
+                    let namespaces = instance.namespaces().clone();
+                    let unit = parse_unit(reader, &e, &namespaces)?;
                     instance.add_unit(unit);
                 } else if inside_xbrl
                     && is_fact_element(&name_str)
@@ -99,7 +102,10 @@ where
 fn extract_namespaces(attributes: &Attributes, instance: &mut XbrlInstance) {
     for attr in attributes.clone().flatten() {
         let key = String::from_utf8_lossy(attr.key.as_ref());
-        if key.starts_with("xmlns:") {
+        if key == "xmlns" {
+            let uri = String::from_utf8_lossy(&attr.value).to_string();
+            instance.add_namespace(String::new(), uri);
+        } else if key.starts_with("xmlns:") {
             let prefix = key.strip_prefix("xmlns:").unwrap_or("");
             let uri = String::from_utf8_lossy(&attr.value).to_string();
             instance.add_namespace(prefix.to_string(), uri);
@@ -111,6 +117,7 @@ fn extract_namespaces(attributes: &Attributes, instance: &mut XbrlInstance) {
 fn parse_context<R: std::io::BufRead>(
     reader: &mut Reader<R>,
     start_element: &quick_xml::events::BytesStart,
+    namespaces: &HashMap<String, String>,
 ) -> Result<Context> {
     let id = get_attribute(&start_element.attributes(), b"id").ok_or_else(|| {
         XbrlError::MissingAttribute {
@@ -124,7 +131,14 @@ fn parse_context<R: std::io::BufRead>(
     let mut period_instant = None;
     let mut period_start = None;
     let mut period_end = None;
+    let mut period_forever = false;
     let mut dimensions = Vec::new();
+    let mut segment_elements = Vec::new();
+    let mut scenario_elements = Vec::new();
+    let mut segment_has_instance_descendant = false;
+    let mut scenario_has_instance_descendant = false;
+    let mut in_segment = false;
+    let mut in_scenario = false;
 
     let mut buf = Vec::new();
     let mut depth = 1;
@@ -135,6 +149,27 @@ fn parse_context<R: std::io::BufRead>(
                 depth += 1;
                 let name_bytes = e.name();
                 let name = String::from_utf8_lossy(name_bytes.as_ref());
+
+                if name_matches(&name, "segment") {
+                    in_segment = true;
+                } else if name_matches(&name, "scenario") {
+                    in_scenario = true;
+                } else if in_segment || in_scenario {
+                    let ns = resolve_element_namespace(&name, &e.attributes(), namespaces);
+                    if ns.as_deref() == Some("http://www.xbrl.org/2003/instance") {
+                        if in_segment {
+                            segment_has_instance_descendant = true;
+                        } else {
+                            scenario_has_instance_descendant = true;
+                        }
+                    }
+
+                    if in_segment {
+                        segment_elements.push(name.to_string());
+                    } else {
+                        scenario_elements.push(name.to_string());
+                    }
+                }
 
                 if name_matches(&name, "identifier") {
                     entity_scheme = get_attribute(&e.attributes(), b"scheme");
@@ -161,6 +196,8 @@ fn parse_context<R: std::io::BufRead>(
                         let text_str = std::str::from_utf8(t.as_ref())?;
                         period_end = Some(unescape(text_str)?.into_owned());
                     }
+                } else if name_matches(&name, "forever") {
+                    period_forever = true;
                 } else if name_matches(&name, "explicitMember") {
                     let dim = get_attribute(&e.attributes(), b"dimension");
                     let mut text_buf = Vec::new();
@@ -175,6 +212,27 @@ fn parse_context<R: std::io::BufRead>(
             Ok(Event::Empty(e)) => {
                 let name_bytes = e.name();
                 let name = String::from_utf8_lossy(name_bytes.as_ref());
+                if name_matches(&name, "forever") {
+                    period_forever = true;
+                }
+
+                if in_segment || in_scenario {
+                    let ns = resolve_element_namespace(&name, &e.attributes(), namespaces);
+                    if ns.as_deref() == Some("http://www.xbrl.org/2003/instance") {
+                        if in_segment {
+                            segment_has_instance_descendant = true;
+                        } else {
+                            scenario_has_instance_descendant = true;
+                        }
+                    }
+
+                    if in_segment {
+                        segment_elements.push(name.to_string());
+                    } else {
+                        scenario_elements.push(name.to_string());
+                    }
+                }
+
                 if name_matches(&name, "explicitMember") {
                     let dim = get_attribute(&e.attributes(), b"dimension");
                     if let Some(dimension) = dim {
@@ -182,7 +240,14 @@ fn parse_context<R: std::io::BufRead>(
                     }
                 }
             }
-            Ok(Event::End(_)) => {
+            Ok(Event::End(e)) => {
+                let name_bytes = e.name();
+                let name = String::from_utf8_lossy(name_bytes.as_ref());
+                if name_matches(&name, "segment") {
+                    in_segment = false;
+                } else if name_matches(&name, "scenario") {
+                    in_scenario = false;
+                }
                 depth -= 1;
                 if depth == 0 {
                     break;
@@ -207,7 +272,9 @@ fn parse_context<R: std::io::BufRead>(
     };
 
     // Determine period type
-    let period = if let Some(instant) = period_instant {
+    let period = if period_forever {
+        Period::Forever
+    } else if let Some(instant) = period_instant {
         Period::Instant { date: instant }
     } else if let (Some(start), Some(end)) = (period_start, period_end) {
         Period::Duration { start, end }
@@ -221,6 +288,10 @@ fn parse_context<R: std::io::BufRead>(
     for (dim, member) in dimensions {
         context.add_dimension(dim, member);
     }
+    context.segment_elements = segment_elements;
+    context.scenario_elements = scenario_elements;
+    context.segment_has_instance_descendant = segment_has_instance_descendant;
+    context.scenario_has_instance_descendant = scenario_has_instance_descendant;
 
     Ok(context)
 }
@@ -229,6 +300,7 @@ fn parse_context<R: std::io::BufRead>(
 fn parse_unit<R: std::io::BufRead>(
     reader: &mut Reader<R>,
     start_element: &quick_xml::events::BytesStart,
+    namespaces: &HashMap<String, String>,
 ) -> Result<Unit> {
     let id = get_attribute(&start_element.attributes(), b"id").ok_or_else(|| {
         XbrlError::MissingAttribute {
@@ -238,6 +310,11 @@ fn parse_unit<R: std::io::BufRead>(
     })?;
 
     let mut measure = String::new();
+    let mut numerator_measures = Vec::new();
+    let mut denominator_measures = Vec::new();
+    let mut in_denominator = false;
+    let mut unit_scope = namespaces.clone();
+    unit_scope.extend(collect_local_xmlns(&start_element.attributes()));
     let mut buf = Vec::new();
 
     loop {
@@ -245,17 +322,45 @@ fn parse_unit<R: std::io::BufRead>(
             Ok(Event::Start(e)) => {
                 let name_bytes = e.name();
                 let name = String::from_utf8_lossy(name_bytes.as_ref());
-                if name_matches(&name, "measure") {
+                if name_matches(&name, "unitDenominator") {
+                    in_denominator = true;
+                } else if name_matches(&name, "measure") {
+                    let mut scope = unit_scope.clone();
+                    scope.extend(collect_local_xmlns(&e.attributes()));
                     let mut text_buf = Vec::new();
                     if let Ok(Event::Text(t)) = reader.read_event_into(&mut text_buf) {
                         let text_str = std::str::from_utf8(t.as_ref())?;
                         measure = unescape(text_str)?.into_owned();
+
+                        let parsed = parse_measure(&measure, &scope);
+                        if in_denominator {
+                            denominator_measures.push(parsed);
+                        } else {
+                            numerator_measures.push(parsed);
+                        }
+                    }
+                }
+            }
+            Ok(Event::Empty(e)) => {
+                let name_bytes = e.name();
+                let name = String::from_utf8_lossy(name_bytes.as_ref());
+                if name_matches(&name, "measure") {
+                    let mut scope = unit_scope.clone();
+                    scope.extend(collect_local_xmlns(&e.attributes()));
+                    let parsed = parse_measure("", &scope);
+                    if in_denominator {
+                        denominator_measures.push(parsed);
+                    } else {
+                        numerator_measures.push(parsed);
                     }
                 }
             }
             Ok(Event::End(e)) => {
                 let name_bytes = e.name();
                 let name = String::from_utf8_lossy(name_bytes.as_ref());
+                if name_matches(&name, "unitDenominator") {
+                    in_denominator = false;
+                }
                 if name_matches(&name, "unit") {
                     break;
                 }
@@ -273,7 +378,11 @@ fn parse_unit<R: std::io::BufRead>(
         buf.clear();
     }
 
-    Ok(Unit::new(id, measure))
+    let mut unit = Unit::new(id, measure);
+    if !numerator_measures.is_empty() || !denominator_measures.is_empty() {
+        unit.set_measures(numerator_measures, denominator_measures);
+    }
+    Ok(unit)
 }
 
 /// Parse a fact element.
@@ -352,6 +461,63 @@ fn get_attribute(attributes: &Attributes, key: &[u8]) -> Option<String> {
         }
     }
     None
+}
+
+fn collect_local_xmlns(attributes: &Attributes) -> HashMap<String, String> {
+    let mut out = HashMap::new();
+    for attr in attributes.clone().flatten() {
+        let key = String::from_utf8_lossy(attr.key.as_ref());
+        let value = attr
+            .unescape_value()
+            .map(|v| v.to_string())
+            .unwrap_or_default();
+        if key == "xmlns" {
+            out.insert(String::new(), value);
+        } else if let Some(prefix) = key.strip_prefix("xmlns:") {
+            out.insert(prefix.to_string(), value);
+        }
+    }
+    out
+}
+
+fn resolve_element_namespace(
+    name: &str,
+    attributes: &Attributes,
+    root_namespaces: &HashMap<String, String>,
+) -> Option<String> {
+    let local = collect_local_xmlns(attributes);
+    if let Some((prefix, _)) = name.split_once(':') {
+        local
+            .get(prefix)
+            .cloned()
+            .or_else(|| root_namespaces.get(prefix).cloned())
+    } else {
+        local
+            .get("")
+            .cloned()
+            .or_else(|| root_namespaces.get("").cloned())
+    }
+}
+
+fn parse_measure(qname: &str, namespace_scope: &HashMap<String, String>) -> UnitMeasure {
+    let (prefix, local_name) = if let Some((prefix, local)) = qname.split_once(':') {
+        (Some(prefix.to_string()), local.to_string())
+    } else {
+        (None, qname.to_string())
+    };
+
+    let namespace_uri = if let Some(prefix) = prefix.as_deref() {
+        namespace_scope.get(prefix).cloned()
+    } else {
+        namespace_scope.get("").cloned()
+    };
+
+    UnitMeasure {
+        qname: qname.to_string(),
+        prefix,
+        local_name,
+        namespace_uri,
+    }
 }
 
 fn get_attribute_local(attributes: &Attributes, local: &str) -> Option<String> {

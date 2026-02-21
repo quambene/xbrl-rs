@@ -12,6 +12,8 @@
   - Add benchmarks in `/benches`
   - Check version compatibility of schemas
   - Add `LinkbaseLocator`
+  - Add precision to `Fact`
+  - Validate `Context`
 - changed
   - Rename `TaxonomySchema::parse` to `TaxonomySchema::from_xml`
   - Use `BufReader` for parsing schemas and linkbases

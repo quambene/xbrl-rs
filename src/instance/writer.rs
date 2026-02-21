@@ -98,6 +98,9 @@ fn write_context<W: std::io::Write>(writer: &mut Writer<W>, context: &Context) -
             writer.write_event(Event::Text(BytesText::new(end)))?;
             writer.write_event(Event::End(BytesEnd::new("xbrli:endDate")))?;
         }
+        Period::Forever => {
+            writer.write_event(Event::Empty(BytesStart::new("xbrli:forever")))?;
+        }
     }
     writer.write_event(Event::End(BytesEnd::new("xbrli:period")))?;
 

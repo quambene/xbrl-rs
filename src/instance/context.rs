@@ -18,6 +18,8 @@ pub enum Period {
     Instant { date: String },
     /// A duration between two dates
     Duration { start: String, end: String },
+    /// An open-ended period
+    Forever,
 }
 
 /// XBRL context combining entity, period, and optional dimensions
@@ -27,6 +29,10 @@ pub struct Context {
     pub entity: EntityIdentifier,
     pub period: Period,
     pub dimensions: HashMap<String, String>,
+    pub segment_elements: Vec<String>,
+    pub scenario_elements: Vec<String>,
+    pub segment_has_instance_descendant: bool,
+    pub scenario_has_instance_descendant: bool,
 }
 
 impl Context {
@@ -36,6 +42,10 @@ impl Context {
             entity,
             period,
             dimensions: HashMap::new(),
+            segment_elements: Vec::new(),
+            scenario_elements: Vec::new(),
+            segment_has_instance_descendant: false,
+            scenario_has_instance_descendant: false,
         }
     }
 
