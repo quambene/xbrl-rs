@@ -17,6 +17,7 @@
   - Parse and validate `FootnoteLink`
   - Add `root_xml_lang`, `role_refs`, and `arcrole_refs` to `XbrlInstance`
   - Add `type_bases` and `type_declared_accuracy` to `TaxonomySchema`
+  - Add `Period::Forever`
   - Validate schema, context, instance refs, and essence alias units
 - changed
   - Rename `TaxonomySchema::parse` to `TaxonomySchema::from_xml`
