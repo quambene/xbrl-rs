@@ -75,7 +75,9 @@ pub struct LinkbaseRef {
 /// An `xs:import` reference in a schema.
 #[derive(Debug, Clone)]
 pub struct SchemaImport {
+    /// Namespace URI declared by `xs:import/@namespace`.
     pub namespace: String,
+    /// Optional schema location from `xs:import/@schemaLocation`.
     pub schema_location: Option<String>,
 }
 
@@ -85,10 +87,15 @@ pub struct SchemaInclude {
     pub schema_location: String,
 }
 
+/// Parsed metadata for a named `xs:simpleType`/`xs:complexType` base relation.
 struct NamedTypeBase {
+    /// The declared type name (`@name`) on the type definition.
     type_name: String,
+    /// The resolved `@base` QName from restriction/extension.
     base: String,
+    /// Declared `decimals` value from type-level attribute constraints.
     declared_decimals: Option<String>,
+    /// Declared `precision` value from type-level attribute constraints.
     declared_precision: Option<String>,
 }
 
