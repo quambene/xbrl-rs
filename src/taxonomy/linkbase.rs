@@ -113,3 +113,83 @@ impl LinkbaseLocator {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::LinkbaseLocator;
+    use crate::XbrlError;
+    use assert_matches::assert_matches;
+    use quick_xml::Reader;
+
+    #[test]
+    fn parse_extracts_locators_and_standard_link_context() {
+        let xml = r#"
+            <link:linkbase xmlns:link="http://www.xbrl.org/2003/linkbase" xmlns:my="urn:test">
+                <link:presentationLink>
+                    <link:loc xlink:href="a.xsd#id_a" xmlns:xlink="http://www.w3.org/1999/xlink"/>
+                </link:presentationLink>
+                <my:customLink>
+                    <my:loc xlink:href="b.xsd#id_b" xmlns:xlink="http://www.w3.org/1999/xlink"/>
+                </my:customLink>
+            </link:linkbase>
+        "#;
+
+        let mut reader = Reader::from_str(xml);
+        let locators = LinkbaseLocator::parse(&mut reader).expect("parse should succeed");
+
+        assert_eq!(locators.len(), 2);
+        assert_eq!(locators[0].href, "a.xsd#id_a");
+        assert!(locators[0].in_standard_link);
+        assert_eq!(locators[1].href, "b.xsd#id_b");
+        assert!(!locators[1].in_standard_link);
+    }
+
+    #[test]
+    fn validate_accepts_non_empty_standard_href() {
+        let locator = LinkbaseLocator {
+            href: "some-schema.xsd#concept".to_string(),
+            in_standard_link: true,
+        };
+
+        assert!(locator.validate().is_ok());
+    }
+
+    #[test]
+    fn validate_rejects_empty_href_in_standard_link() {
+        let locator = LinkbaseLocator {
+            href: String::new(),
+            in_standard_link: true,
+        };
+
+        let res = locator.validate();
+        assert_matches!(res, Err(XbrlError::InvalidHref { reason, .. }) => {
+            assert!(reason.contains("empty href"));
+        });
+    }
+
+    #[test]
+    fn validate_rejects_illegal_xpointer_scheme() {
+        let locator = LinkbaseLocator {
+            href: "schema.xsd#xpointer(id('abc'))".to_string(),
+            in_standard_link: false,
+        };
+
+        let res = locator.validate();
+        assert_matches!(res, Err(XbrlError::InvalidHref { reason, .. }) => {
+            assert!(reason.contains("xpointer() scheme is illegal"));
+        });
+    }
+
+    #[test]
+    fn validate_rejects_illegal_xmlns_scheme() {
+        let locator = LinkbaseLocator {
+            href: "schema.xsd#element(foo)/xmlns(x=http://example.com)".to_string(),
+            in_standard_link: false,
+        };
+
+        let res = locator.validate();
+        assert_matches!(res, Err(XbrlError::InvalidHref { reason, .. }) => {
+            assert!(reason.contains("xmlns() scheme is illegal"));
+        });
+    }
+}

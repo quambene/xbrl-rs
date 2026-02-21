@@ -259,8 +259,6 @@ impl TaxonomySchema {
             });
         }
 
-        schema.validate()?;
-
         Ok(schema)
     }
 
@@ -1455,4 +1453,219 @@ fn skip_to_end<R: io::BufRead>(reader: &mut Reader<R>, tag_name: &str) -> Result
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{ElementDefinition, RoleType, TaxonomySchema};
+    use crate::XbrlError;
+    use assert_matches::assert_matches;
+    use quick_xml::Reader;
+    use std::{collections::HashMap, path::Path};
+
+    #[test]
+    fn from_xml_unchecked_parses_minimal_valid_schema() {
+        let xml = r#"
+            <xs:schema
+                xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                xmlns:xbrli="http://www.xbrl.org/2003/instance"
+                targetNamespace="http://example.com/taxonomy">
+                <xs:import
+                    namespace="http://www.xbrl.org/2003/instance"
+                    schemaLocation="xbrl-instance-2003-12-31.xsd"/>
+                <xs:element
+                    name="Cash"
+                    id="ex_Cash"
+                    type="xbrli:monetaryItemType"
+                    substitutionGroup="xbrli:item"
+                    xbrli:periodType="instant"/>
+            </xs:schema>
+        "#;
+
+        let mut reader = Reader::from_str(xml);
+        let schema = TaxonomySchema::from_xml_unchecked(Path::new("test.xsd"), &mut reader)
+            .expect("schema should parse");
+
+        assert_eq!(
+            schema.target_namespace.as_deref(),
+            Some("http://example.com/taxonomy")
+        );
+        assert_eq!(schema.imports.len(), 1);
+        assert_eq!(schema.elements.len(), 1);
+        assert_eq!(schema.elements[0].name, "Cash");
+    }
+
+    #[test]
+    fn from_xml_unchecked_requires_schema_root() {
+        let xml = r#"<root/>"#;
+        let mut reader = Reader::from_str(xml);
+
+        let res = TaxonomySchema::from_xml_unchecked(Path::new("test.xsd"), &mut reader);
+
+        assert_matches!(res, Err(XbrlError::InvalidSchemaDocument { reason, .. }) => {
+            assert!(reason.contains("missing <schema> root element"));
+        });
+    }
+
+    #[test]
+    fn validate_requires_period_type_on_items() {
+        let schema = TaxonomySchema {
+            file_path: "test.xsd".into(),
+            target_namespace: Some("http://example.com/taxonomy".to_string()),
+            namespaces: HashMap::new(),
+            imports: vec![],
+            includes: vec![],
+            linkbase_refs: vec![],
+            schema_location_refs: vec![],
+            role_types: vec![],
+            arcrole_types: vec![],
+            elements: vec![ElementDefinition {
+                name: "MissingPeriodType".to_string(),
+                id: None,
+                type_name: Some("xbrli:stringItemType".to_string()),
+                substitution_group: Some("xbrli:item".to_string()),
+                nillable: true,
+                is_abstract: false,
+                period_type: None,
+                balance: None,
+            }],
+            type_bases: HashMap::new(),
+            type_declared_accuracy: HashMap::new(),
+        };
+
+        let res = schema.validate();
+
+        assert_matches!(res, Err(XbrlError::InvalidSchemaDocument { reason, .. }) => {
+            assert!(reason.contains("missing xbrli:periodType"));
+        });
+    }
+
+    #[test]
+    fn validate_rejects_balance_on_non_monetary_item() {
+        let schema = TaxonomySchema {
+            file_path: "test.xsd".into(),
+            target_namespace: Some("http://example.com/taxonomy".to_string()),
+            namespaces: HashMap::new(),
+            imports: vec![],
+            includes: vec![],
+            linkbase_refs: vec![],
+            schema_location_refs: vec![],
+            role_types: vec![],
+            arcrole_types: vec![],
+            elements: vec![ElementDefinition {
+                name: "NonMonetaryWithBalance".to_string(),
+                id: None,
+                type_name: Some("xbrli:stringItemType".to_string()),
+                substitution_group: Some("xbrli:item".to_string()),
+                nillable: true,
+                is_abstract: false,
+                period_type: Some("duration".to_string()),
+                balance: Some("credit".to_string()),
+            }],
+            type_bases: HashMap::new(),
+            type_declared_accuracy: HashMap::new(),
+        };
+
+        let res = schema.validate();
+
+        assert_matches!(res, Err(XbrlError::InvalidSchemaDocument { reason, .. }) => {
+            assert!(reason.contains("not monetaryItemType-derived"));
+        });
+    }
+
+    #[test]
+    fn validate_rejects_tuple_with_period_type() {
+        let schema = TaxonomySchema {
+            file_path: "test.xsd".into(),
+            target_namespace: Some("http://example.com/taxonomy".to_string()),
+            namespaces: HashMap::new(),
+            imports: vec![],
+            includes: vec![],
+            linkbase_refs: vec![],
+            schema_location_refs: vec![],
+            role_types: vec![],
+            arcrole_types: vec![],
+            elements: vec![ElementDefinition {
+                name: "TupleWithPeriodType".to_string(),
+                id: None,
+                type_name: Some("xbrli:stringItemType".to_string()),
+                substitution_group: Some("xbrli:tuple".to_string()),
+                nillable: true,
+                is_abstract: false,
+                period_type: Some("duration".to_string()),
+                balance: None,
+            }],
+            type_bases: HashMap::new(),
+            type_declared_accuracy: HashMap::new(),
+        };
+
+        let res = schema.validate();
+
+        assert_matches!(res, Err(XbrlError::InvalidSchemaDocument { reason, .. }) => {
+            assert!(reason.contains("must not declare xbrli:periodType"));
+        });
+    }
+
+    #[test]
+    fn validate_rejects_tuple_with_balance() {
+        let schema = TaxonomySchema {
+            file_path: "test.xsd".into(),
+            target_namespace: Some("http://example.com/taxonomy".to_string()),
+            namespaces: HashMap::new(),
+            imports: vec![],
+            includes: vec![],
+            linkbase_refs: vec![],
+            schema_location_refs: vec![],
+            role_types: vec![],
+            arcrole_types: vec![],
+            elements: vec![ElementDefinition {
+                name: "TupleWithBalance".to_string(),
+                id: None,
+                type_name: Some("xbrli:stringItemType".to_string()),
+                substitution_group: Some("xbrli:tuple".to_string()),
+                nillable: true,
+                is_abstract: false,
+                period_type: None,
+                balance: Some("credit".to_string()),
+            }],
+            type_bases: HashMap::new(),
+            type_declared_accuracy: HashMap::new(),
+        };
+
+        let res = schema.validate();
+
+        assert_matches!(res, Err(XbrlError::InvalidSchemaDocument { reason, .. }) => {
+            assert!(reason.contains("must not declare xbrli:balance"));
+        });
+    }
+
+    #[test]
+    fn validate_rejects_role_type_with_invalid_ncname_id() {
+        let schema = TaxonomySchema {
+            file_path: "test.xsd".into(),
+            target_namespace: Some("http://example.com/taxonomy".to_string()),
+            namespaces: HashMap::new(),
+            imports: vec![],
+            includes: vec![],
+            linkbase_refs: vec![],
+            schema_location_refs: vec![],
+            role_types: vec![RoleType {
+                id: "1invalid-id".to_string(),
+                role_uri: "http://example.com/role".to_string(),
+                definition: None,
+                used_on: vec![],
+            }],
+            arcrole_types: vec![],
+            elements: vec![],
+            type_bases: HashMap::new(),
+            type_declared_accuracy: HashMap::new(),
+        };
+
+        let res = schema.validate();
+
+        assert_matches!(res, Err(XbrlError::InvalidSchemaDocument { reason, .. }) => {
+            assert!(reason.contains("roleType id"));
+            assert!(reason.contains("NCName"));
+        });
+    }
 }

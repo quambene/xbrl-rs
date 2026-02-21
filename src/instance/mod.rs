@@ -279,3 +279,145 @@ impl XbrlInstance {
         &self.units
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::XbrlInstance;
+    use crate::TaxonomySet;
+    use quick_xml::Reader;
+
+    #[test]
+    fn from_xml_parses_basic_instance() {
+        let xml = r#"
+            <xbrli:xbrl
+                xmlns:xbrli="http://www.xbrl.org/2003/instance"
+                xmlns:link="http://www.xbrl.org/2003/linkbase"
+                xmlns:xlink="http://www.w3.org/1999/xlink">
+                <link:schemaRef
+                    xlink:type="simple"
+                    xlink:href="http://www.xbrl.de/taxonomies/de-gcd-2020-04-01/de-gcd-2020-04-01-shell.xsd"/>
+            </xbrli:xbrl>
+        "#;
+
+        let mut reader = Reader::from_str(xml);
+        let instance = XbrlInstance::from_xml(&mut reader).expect("instance should parse");
+
+        assert_eq!(instance.schema_refs().len(), 1);
+        assert!(instance.contexts().is_empty());
+        assert!(instance.units().is_empty());
+        assert!(instance.facts().is_empty());
+    }
+
+    #[test]
+    fn validate_reports_duplicate_role_refs() {
+        let taxonomy = TaxonomySet::default();
+        let mut instance = XbrlInstance::default();
+        let role_uri = "http://www.xbrl.org/2003/role/link".to_string();
+
+        instance.add_role_ref(role_uri.clone());
+        instance.add_role_ref(role_uri);
+
+        let result = instance.validate(&taxonomy);
+
+        assert!(!result.is_valid());
+        assert!(
+            result
+                .errors()
+                .iter()
+                .any(|message| message.code == "spec.duplicate_role_ref")
+        );
+    }
+
+    #[test]
+    fn validate_reports_duplicate_arcrole_refs() {
+        let taxonomy = TaxonomySet::default();
+        let mut instance = XbrlInstance::default();
+        let arcrole_uri = "http://www.xbrl.org/2003/arcrole/fact-footnote".to_string();
+
+        instance.add_arcrole_ref(arcrole_uri.clone());
+        instance.add_arcrole_ref(arcrole_uri);
+
+        let result = instance.validate(&taxonomy);
+
+        assert!(!result.is_valid());
+        assert!(
+            result
+                .errors()
+                .iter()
+                .any(|message| message.code == "spec.duplicate_arcrole_ref")
+        );
+    }
+
+    #[test]
+    fn validate_accepts_unique_refs() {
+        let taxonomy = TaxonomySet::default();
+        let mut instance = XbrlInstance::default();
+
+        instance.add_role_ref("http://www.xbrl.org/2003/role/link".to_string());
+        instance.add_arcrole_ref("http://www.xbrl.org/2003/arcrole/fact-footnote".to_string());
+
+        let result = instance.validate(&taxonomy);
+
+        assert!(
+            result.is_valid(),
+            "unexpected errors: {:#?}",
+            result.errors()
+        );
+        assert!(result.errors().is_empty());
+    }
+
+    #[test]
+    fn from_xml_parses_role_and_arcrole_refs() {
+        let xml = r#"
+            <xbrli:xbrl
+                xmlns:xbrli="http://www.xbrl.org/2003/instance"
+                xmlns:link="http://www.xbrl.org/2003/linkbase"
+                xmlns:xlink="http://www.w3.org/1999/xlink">
+                <link:roleRef
+                    roleURI="http://www.xbrl.org/2003/role/link"
+                    xlink:type="simple"
+                    xlink:href="dummy.xsd#role_link"/>
+                <link:arcroleRef
+                    arcroleURI="http://www.xbrl.org/2003/arcrole/fact-footnote"
+                    xlink:type="simple"
+                    xlink:href="dummy.xsd#arcrole_fact_footnote"/>
+            </xbrli:xbrl>
+        "#;
+
+        let mut reader = Reader::from_str(xml);
+        let instance = XbrlInstance::from_xml(&mut reader).expect("instance should parse");
+
+        assert_eq!(instance.role_refs(), ["http://www.xbrl.org/2003/role/link"]);
+        assert_eq!(
+            instance.arcrole_refs(),
+            ["http://www.xbrl.org/2003/arcrole/fact-footnote"]
+        );
+    }
+
+    #[test]
+    fn validate_reports_both_duplicate_role_and_arcrole_refs() {
+        let taxonomy = TaxonomySet::default();
+        let mut instance = XbrlInstance::default();
+
+        instance.add_role_ref("http://www.xbrl.org/2003/role/link".to_string());
+        instance.add_role_ref("http://www.xbrl.org/2003/role/link".to_string());
+        instance.add_arcrole_ref("http://www.xbrl.org/2003/arcrole/fact-footnote".to_string());
+        instance.add_arcrole_ref("http://www.xbrl.org/2003/arcrole/fact-footnote".to_string());
+
+        let result = instance.validate(&taxonomy);
+
+        assert!(!result.is_valid());
+        assert!(
+            result
+                .errors()
+                .iter()
+                .any(|message| message.code == "spec.duplicate_role_ref")
+        );
+        assert!(
+            result
+                .errors()
+                .iter()
+                .any(|message| message.code == "spec.duplicate_arcrole_ref")
+        );
+    }
+}

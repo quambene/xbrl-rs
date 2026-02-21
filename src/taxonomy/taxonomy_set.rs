@@ -171,7 +171,7 @@ impl fmt::Display for RoleUri {
 ///
 /// Built by following all schema imports, includes, and linkbase references
 /// starting from one or more entry point schemas.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct TaxonomySet {
     /// The directory of the taxonomy files, used to resolve relative
     /// references.
