@@ -130,8 +130,8 @@ pub struct TaxonomySchema {
 }
 
 impl TaxonomySchema {
-    /// Parse a taxonomy schema from an XML reader.
-    pub fn from_xml<R: io::BufRead>(path: &Path, reader: &mut Reader<R>) -> Result<Self> {
+    /// Parse a taxonomy schema from an XML reader without semantic validation.
+    pub fn from_xml_unchecked<R: io::BufRead>(path: &Path, reader: &mut Reader<R>) -> Result<Self> {
         reader.config_mut().trim_text_start = true;
         reader.config_mut().trim_text_end = true;
 
@@ -261,6 +261,13 @@ impl TaxonomySchema {
 
         schema.validate()?;
 
+        Ok(schema)
+    }
+
+    /// Parse a taxonomy schema from an XML reader with semantic validation.
+    pub fn from_xml<R: io::BufRead>(path: &Path, reader: &mut Reader<R>) -> Result<Self> {
+        let schema = Self::from_xml_unchecked(path, reader)?;
+        schema.validate()?;
         Ok(schema)
     }
 
