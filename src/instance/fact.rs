@@ -17,6 +17,8 @@ pub struct Fact {
     is_nil: bool,
     /// Decimals attribute for numeric facts
     decimals: Option<String>,
+    /// Precision attribute for numeric facts
+    precision: Option<String>,
 }
 
 impl Fact {
@@ -33,6 +35,7 @@ impl Fact {
             value,
             is_nil: false,
             decimals: None,
+            precision: None,
         }
     }
 
@@ -70,6 +73,14 @@ impl Fact {
 
     pub fn set_decimals(&mut self, decimals: String) {
         self.decimals = Some(decimals);
+    }
+
+    pub fn precision(&self) -> Option<&str> {
+        self.precision.as_deref()
+    }
+
+    pub fn set_precision(&mut self, precision: String) {
+        self.precision = Some(precision);
     }
 
     /// Extract the namespace prefix from the concept

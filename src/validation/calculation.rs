@@ -53,7 +53,11 @@ pub(super) fn validate_calculations(
                     continue;
                 }
 
-                let tolerance = rounding_tolerance(parent_fact.decimals());
+                let tolerance = rounding_tolerance(
+                    parent_fact.value(),
+                    parent_fact.decimals(),
+                    parent_fact.precision(),
+                );
                 let diff = (parent_value - weighted_sum).abs();
 
                 if diff > tolerance {
@@ -114,21 +118,37 @@ fn parse_numeric(value: &str) -> Option<f64> {
     trimmed.parse::<f64>().ok()
 }
 
-/// Compute rounding tolerance from the `decimals` attribute.
+/// Compute rounding tolerance from `decimals` or inferred from `precision`.
 ///
 /// - `decimals="2"` → tolerance 0.005
 /// - `decimals="0"` → tolerance 0.5
 /// - `decimals="-3"` → tolerance 500
 /// - `decimals="INF"` → tolerance 0 (exact)
-fn rounding_tolerance(decimals: Option<&str>) -> f64 {
-    let Some(dec_str) = decimals else {
-        return 1.0;
-    };
-    if dec_str == "INF" {
-        return 0.0;
+fn rounding_tolerance(value: &str, decimals: Option<&str>, precision: Option<&str>) -> f64 {
+    if let Some(dec_str) = decimals {
+        if dec_str == "INF" {
+            return 0.0;
+        }
+        return match dec_str.parse::<i32>() {
+            Ok(d) => 0.5 * 10.0_f64.powi(-d),
+            Err(_) => 1.0,
+        };
     }
-    match dec_str.parse::<i32>() {
-        Ok(d) => 0.5 * 10.0_f64.powi(-d),
-        Err(_) => 1.0,
+
+    if let Some(prec_str) = precision {
+        if prec_str == "INF" {
+            return 0.0;
+        }
+
+        if let (Ok(p), Some(v)) = (prec_str.parse::<i32>(), parse_numeric(value)) {
+            if v == 0.0 {
+                return 0.0;
+            }
+            let magnitude = v.abs().log10().floor() as i32;
+            let inferred_decimals = p - magnitude - 1;
+            return 0.5 * 10.0_f64.powi(-inferred_decimals);
+        }
     }
+
+    1.0
 }

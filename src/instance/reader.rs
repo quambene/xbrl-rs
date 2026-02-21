@@ -12,6 +12,14 @@ use quick_xml::{
 };
 use std::io;
 
+fn local_name(name: &str) -> &str {
+    name.rsplit(':').next().unwrap_or(name)
+}
+
+fn name_matches(name: &str, expected_local: &str) -> bool {
+    local_name(name) == expected_local
+}
+
 /// Parse an XBRL instance document from XML content.
 ///
 /// The raw XML may contain a wrapper around the `<xbrli:xbrl>` element; this
@@ -34,7 +42,7 @@ where
                 let name_str = String::from_utf8_lossy(name.as_ref());
 
                 // Detect XBRL root element and extract namespaces
-                if name_str.ends_with(":xbrl") || name_str == "xbrl" {
+                if name_matches(&name_str, "xbrl") {
                     inside_xbrl = true;
                     extract_namespaces(&e.attributes(), &mut instance);
                 }
@@ -45,14 +53,16 @@ where
                 }
 
                 // Parse different XBRL elements
-                if name_str.ends_with(":schemaRef") {
-                    if let Some(href) = get_attribute(&e.attributes(), b"xlink:href") {
+                if name_matches(&name_str, "schemaRef") {
+                    if let Some(href) = get_attribute(&e.attributes(), b"xlink:href")
+                        .or_else(|| get_attribute_local(&e.attributes(), "href"))
+                    {
                         instance.add_schema_ref(href);
                     }
-                } else if name_str.ends_with(":context") {
+                } else if name_matches(&name_str, "context") {
                     let context = parse_context(reader, &e)?;
                     instance.add_context(context);
-                } else if name_str.ends_with(":unit") {
+                } else if name_matches(&name_str, "unit") {
                     let unit = parse_unit(reader, &e)?;
                     instance.add_unit(unit);
                 } else if inside_xbrl
@@ -65,7 +75,7 @@ where
             Ok(Event::End(e)) => {
                 let name_bytes = e.name();
                 let name_str = String::from_utf8_lossy(name_bytes.as_ref());
-                if name_str.ends_with(":xbrl") || name_str == "xbrl" {
+                if name_matches(&name_str, "xbrl") {
                     break;
                 }
             }
@@ -126,32 +136,32 @@ fn parse_context<R: std::io::BufRead>(
                 let name_bytes = e.name();
                 let name = String::from_utf8_lossy(name_bytes.as_ref());
 
-                if name.ends_with(":identifier") {
+                if name_matches(&name, "identifier") {
                     entity_scheme = get_attribute(&e.attributes(), b"scheme");
                     let mut text_buf = Vec::new();
                     if let Ok(Event::Text(t)) = reader.read_event_into(&mut text_buf) {
                         let text_str = std::str::from_utf8(t.as_ref())?;
                         entity_value = Some(unescape(text_str)?.into_owned());
                     }
-                } else if name.ends_with(":instant") {
+                } else if name_matches(&name, "instant") {
                     let mut text_buf = Vec::new();
                     if let Ok(Event::Text(t)) = reader.read_event_into(&mut text_buf) {
                         let text_str = std::str::from_utf8(t.as_ref())?;
                         period_instant = Some(unescape(text_str)?.into_owned());
                     }
-                } else if name.ends_with(":startDate") {
+                } else if name_matches(&name, "startDate") {
                     let mut text_buf = Vec::new();
                     if let Ok(Event::Text(t)) = reader.read_event_into(&mut text_buf) {
                         let text_str = std::str::from_utf8(t.as_ref())?;
                         period_start = Some(unescape(text_str)?.into_owned());
                     }
-                } else if name.ends_with(":endDate") {
+                } else if name_matches(&name, "endDate") {
                     let mut text_buf = Vec::new();
                     if let Ok(Event::Text(t)) = reader.read_event_into(&mut text_buf) {
                         let text_str = std::str::from_utf8(t.as_ref())?;
                         period_end = Some(unescape(text_str)?.into_owned());
                     }
-                } else if name.ends_with(":explicitMember") {
+                } else if name_matches(&name, "explicitMember") {
                     let dim = get_attribute(&e.attributes(), b"dimension");
                     let mut text_buf = Vec::new();
                     if let (Some(dimension), Ok(Event::Text(t))) =
@@ -165,7 +175,7 @@ fn parse_context<R: std::io::BufRead>(
             Ok(Event::Empty(e)) => {
                 let name_bytes = e.name();
                 let name = String::from_utf8_lossy(name_bytes.as_ref());
-                if name.ends_with(":explicitMember") {
+                if name_matches(&name, "explicitMember") {
                     let dim = get_attribute(&e.attributes(), b"dimension");
                     if let Some(dimension) = dim {
                         dimensions.push((dimension, String::new()));
@@ -235,7 +245,7 @@ fn parse_unit<R: std::io::BufRead>(
             Ok(Event::Start(e)) => {
                 let name_bytes = e.name();
                 let name = String::from_utf8_lossy(name_bytes.as_ref());
-                if name.ends_with(":measure") {
+                if name_matches(&name, "measure") {
                     let mut text_buf = Vec::new();
                     if let Ok(Event::Text(t)) = reader.read_event_into(&mut text_buf) {
                         let text_str = std::str::from_utf8(t.as_ref())?;
@@ -246,7 +256,7 @@ fn parse_unit<R: std::io::BufRead>(
             Ok(Event::End(e)) => {
                 let name_bytes = e.name();
                 let name = String::from_utf8_lossy(name_bytes.as_ref());
-                if name.ends_with(":unit") {
+                if name_matches(&name, "unit") {
                     break;
                 }
             }
@@ -278,6 +288,7 @@ fn parse_fact<R: std::io::BufRead>(
         .map(|v| v == "true")
         .unwrap_or(false);
     let decimals = get_attribute(&start_element.attributes(), b"decimals");
+    let precision = get_attribute(&start_element.attributes(), b"precision");
 
     // Only process if we have a context reference
     let context_ref = match context_ref {
@@ -305,33 +316,48 @@ fn parse_fact<R: std::io::BufRead>(
     if let Some(dec) = decimals {
         fact.set_decimals(dec);
     }
+    if let Some(prec) = precision {
+        fact.set_precision(prec);
+    }
 
     Ok(Some(fact))
 }
 
 /// Check if an element name represents a fact.
 fn is_fact_element(name: &str) -> bool {
+    let local = local_name(name);
+
     // Facts are elements with namespace prefixes from taxonomies
     name.contains(':')
-        && !name.ends_with(":xbrl")
-        && !name.ends_with(":context")
-        && !name.ends_with(":unit")
-        && !name.ends_with(":schemaRef")
-        && !name.ends_with(":identifier")
-        && !name.ends_with(":entity")
-        && !name.ends_with(":period")
-        && !name.ends_with(":instant")
-        && !name.ends_with(":startDate")
-        && !name.ends_with(":endDate")
-        && !name.ends_with(":scenario")
-        && !name.ends_with(":explicitMember")
-        && !name.ends_with(":measure")
+        && local != "xbrl"
+        && local != "context"
+        && local != "unit"
+        && local != "schemaRef"
+        && local != "identifier"
+        && local != "entity"
+        && local != "period"
+        && local != "instant"
+        && local != "startDate"
+        && local != "endDate"
+        && local != "scenario"
+        && local != "explicitMember"
+        && local != "measure"
 }
 
 /// Extract an attribute value from attributes.
 fn get_attribute(attributes: &Attributes, key: &[u8]) -> Option<String> {
     for attr in attributes.clone().flatten() {
         if attr.key.as_ref() == key {
+            return attr.unescape_value().ok().map(|v| v.to_string());
+        }
+    }
+    None
+}
+
+fn get_attribute_local(attributes: &Attributes, local: &str) -> Option<String> {
+    for attr in attributes.clone().flatten() {
+        let key = String::from_utf8_lossy(attr.key.as_ref());
+        if key.rsplit(':').next() == Some(local) {
             return attr.unescape_value().ok().map(|v| v.to_string());
         }
     }

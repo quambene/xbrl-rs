@@ -71,8 +71,8 @@ fn validate_fact(
         );
     }
 
-    // 5. Numeric facts: unit reference and decimals
-    if is_numeric_type(element) && !fact.is_nil() {
+    // 5. Numeric facts: unit reference and decimals/precision constraints
+    if is_numeric_type(element) {
         if fact.unit_ref().is_none() {
             result.add(
                 Severity::Error,
@@ -83,11 +83,32 @@ fn validate_fact(
             );
         }
 
-        if fact.decimals().is_none() {
+        let has_decimals = fact.decimals().is_some();
+        let has_precision = fact.precision().is_some();
+
+        if has_decimals && has_precision {
             result.add(
                 Severity::Error,
-                "spec.numeric_no_decimals",
-                format!("Numeric fact '{local_name}' has no decimals attribute"),
+                "spec.numeric_decimals_precision_mutual_exclusion",
+                format!("Numeric fact '{local_name}' specifies both decimals and precision"),
+                Some(concept),
+                Some(ctx_ref),
+            );
+        } else if !fact.is_nil() && !has_decimals && !has_precision {
+            result.add(
+                Severity::Error,
+                "spec.numeric_missing_accuracy",
+                format!("Numeric fact '{local_name}' must specify either decimals or precision"),
+                Some(concept),
+                Some(ctx_ref),
+            );
+        }
+
+        if fact.is_nil() && (has_decimals || has_precision) {
+            result.add(
+                Severity::Error,
+                "spec.nil_fact_has_accuracy",
+                format!("Nil numeric fact '{local_name}' must not specify decimals or precision"),
                 Some(concept),
                 Some(ctx_ref),
             );
