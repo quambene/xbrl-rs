@@ -115,14 +115,14 @@ Benchmark `single_dts_2020`: 1 entry point
 | Library |  Mean time | Speedup |
 | ------- | ---------: | ------: |
 | Arelle  | 1003.46 ms |      1x |
-| xbrl-rs |   99.28 ms |     10x |
+| xbrl-rs |  106.40 ms |      9x |
 
 Benchmark `full_dts_2020`: 6 entry points combined into one DTS
 
 | Library |  Mean time | Speedup |
 | ------- | ---------: | ------: |
 | Arelle  | 3851.48 ms |      1x |
-| xbrl-rs |  157.26 ms |   24.5x |
+| xbrl-rs |  174.32 ms |     22x |
 
 ## References
 
