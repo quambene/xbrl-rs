@@ -264,7 +264,7 @@ impl TaxonomySchema {
         Ok(schema)
     }
 
-    /// Validate schema-level XBRL constraints used by conformance tests.
+    /// Validate schema-level XBRL constraints.
     pub fn validate(&self) -> Result<()> {
         if self
             .target_namespace
