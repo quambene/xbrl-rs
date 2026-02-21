@@ -34,6 +34,8 @@ The main concepts of XBRL are:
 
 ## Usage
 
+To download XBRL taxonomies feature `download` needs to be enabled.
+
 ```rust
 // Parse XBRL instance document from XML file
 let xml_file = File::open("/path/to/financial_report.xml").unwrap();
