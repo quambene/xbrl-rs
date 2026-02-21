@@ -24,12 +24,13 @@ include = [
 [features]
 default = []
 download = ["dep:reqwest"]
+logger = ["dep:env_logger"]
 
 [dependencies]
 thiserror = "2.0"
-env_logger = "0.11.8"
 log = "0.4.29"
 quick-xml = "0.39.0"
+env_logger = { version = "0.11.8", optional = true }
 reqwest = { version = "0.12", optional = true, default-features = false, features = ["blocking", "rustls-tls"] }
 
 [dev-dependencies]
@@ -43,4 +44,4 @@ harness = false
 [[bin]]
 name = "download_taxonomies"
 path = "src/bin/download_taxonomies.rs"
-required-features = ["download"]
+required-features = ["download", "logger"]

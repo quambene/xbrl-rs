@@ -22,7 +22,8 @@
 - changed
   - Rename `TaxonomySchema::parse` to `TaxonomySchema::from_xml`
   - Use `BufReader` for parsing schemas and linkbases
-  - Put `TaxonomyLoader` behind feature flag
+  - Put `TaxonomyLoader` behind feature flag `download`
+  - Put `env:logger` behind feature flag `logger`
 
 ## v0.1.1 (2026-02-18)
 
