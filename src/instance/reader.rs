@@ -10,7 +10,7 @@ use crate::{
 use quick_xml::{
     Reader,
     escape::unescape,
-    events::{Event, attributes::Attributes},
+    events::{BytesStart, Event, attributes::Attributes},
 };
 use std::{collections::HashMap, io};
 
@@ -337,9 +337,9 @@ fn parse_context<R: std::io::BufRead>(
     Ok(context)
 }
 
-fn parse_footnote_link<R: std::io::BufRead>(
+fn parse_footnote_link<R: io::BufRead>(
     reader: &mut Reader<R>,
-    start_element: &quick_xml::events::BytesStart,
+    start_element: &BytesStart,
 ) -> Result<FootnoteLink> {
     let mut link = FootnoteLink {
         role: get_attribute(&start_element.attributes(), b"xlink:role")
