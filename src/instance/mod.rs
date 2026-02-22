@@ -5,6 +5,7 @@ mod fact;
 mod footnote;
 mod reader;
 mod unit;
+mod view;
 mod writer;
 
 use crate::{TaxonomySet, error::Result, validation, validation::ValidationResult};
@@ -14,6 +15,7 @@ pub use footnote::{FootnoteArc, FootnoteLink, FootnoteLocator, FootnoteResource}
 use quick_xml::{Reader, Writer};
 use std::{collections::HashMap, io};
 pub use unit::Unit;
+pub use view::{DocumentView, SectionView, TreeNode};
 
 /// Represents a complete XBRL instance document
 #[derive(Debug, Default)]
@@ -81,6 +83,11 @@ impl XbrlInstance {
     /// Validate this instance against a taxonomy.
     pub fn validate(&self, taxonomy: &TaxonomySet) -> ValidationResult {
         validation::validate_all(self, taxonomy)
+    }
+
+    /// Convenience wrapper for [`DocumentView::build`] using this instance's facts.
+    pub fn view<'a>(&self, taxonomy: &'a TaxonomySet) -> DocumentView<'a> {
+        DocumentView::build(&self.facts, taxonomy)
     }
 
     /// Serialize this instance to an XBRL XML document.

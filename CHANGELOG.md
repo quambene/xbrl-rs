@@ -21,6 +21,8 @@
   - Validate context, instance refs, and essence alias units
   - Add newtypes for `SchemaRefUrl`, `ConceptId`, and `RoleUri`
   - Add `TaxonomySchema::from_xml_unchecked` and `TaxonomySchema::validate`
+  - Add `DocumentView` and implement `XbrlInstance::view`
+  - Add `example/print_facts.rs`
 - changed
   - Rename `TaxonomySchema::parse` to `TaxonomySchema::from_xml`
   - Use `BufReader` for parsing schemas and linkbases
