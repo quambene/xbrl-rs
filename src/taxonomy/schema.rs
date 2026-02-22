@@ -1646,6 +1646,35 @@ mod tests {
     }
 
     #[test]
+    fn validate_accepts_monetary_item_with_balance_and_period_type() {
+        let schema = TaxonomySchema {
+            file_path: "test.xsd".into(),
+            target_namespace: Some("http://example.com/taxonomy".to_string()),
+            namespaces: HashMap::new(),
+            imports: vec![],
+            includes: vec![],
+            linkbase_refs: vec![],
+            schema_location_refs: vec![],
+            role_types: vec![],
+            arcrole_types: vec![],
+            elements: vec![ElementDefinition {
+                name: "Cash".to_string(),
+                id: None,
+                type_name: Some("xbrli:monetaryItemType".to_string()),
+                substitution_group: Some("xbrli:item".to_string()),
+                nillable: true,
+                is_abstract: false,
+                period_type: Some("instant".to_string()),
+                balance: Some("debit".to_string()),
+            }],
+            type_bases: HashMap::new(),
+            type_declared_accuracy: HashMap::new(),
+        };
+
+        assert!(schema.validate().is_ok());
+    }
+
+    #[test]
     fn from_xml_unchecked_accepts_arcrole_used_on_when_qnames_are_not_s_equal() {
         let xml = r#"
             <xsd:schema
