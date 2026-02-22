@@ -103,4 +103,13 @@ impl Fact {
     pub fn local_name(&self) -> &str {
         self.concept.split(':').nth(1).unwrap_or(&self.concept)
     }
+
+    /// Convert the concept QName to element ID format used in taxonomy linkbases.
+    ///
+    /// Replaces the first `:` with `_`, e.g. `de-gaap-ci:bs.ass` →
+    /// `de-gaap-ci_bs.ass`. This matches the `id` attribute convention in XSD
+    /// where colons are not valid in XML ID values.
+    pub fn concept_id(&self) -> String {
+        self.concept.replacen(':', "_", 1)
+    }
 }

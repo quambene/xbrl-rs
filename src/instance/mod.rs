@@ -5,12 +5,14 @@ mod fact;
 mod footnote;
 mod reader;
 mod unit;
+mod view;
 mod writer;
 
 use crate::{TaxonomySet, error::Result, validation, validation::ValidationResult};
 pub use context::{Context, EntityIdentifier, Period};
 pub use fact::Fact;
 pub use footnote::{FootnoteArc, FootnoteLink, FootnoteLocator, FootnoteResource};
+pub use view::{DocumentView, SectionView, TreeNode};
 use quick_xml::{Reader, Writer};
 use std::{collections::HashMap, io};
 pub use unit::Unit;
@@ -81,6 +83,16 @@ impl XbrlInstance {
     /// Validate this instance against a taxonomy.
     pub fn validate(&self, taxonomy: &TaxonomySet) -> ValidationResult {
         validation::validate_all(self, taxonomy)
+    }
+
+    /// Build a hierarchical document view from the presentation linkbase.
+    ///
+    /// Each section corresponds to one extended link role in the presentation
+    /// linkbase. Nodes within each section are ordered by the arc `order`
+    /// attribute and annotated with labels for the requested `lang`. Facts
+    /// from this instance are attached to their matching concept nodes.
+    pub fn view<'a>(&'a self, taxonomy: &'a TaxonomySet, lang: &str) -> DocumentView<'a> {
+        view::build_view(&self.facts, taxonomy, lang)
     }
 
     /// Serialize this instance to an XBRL XML document.

@@ -634,6 +634,19 @@ impl TaxonomySet {
     }
 }
 
+#[cfg(test)]
+impl TaxonomySet {
+    /// Insert a presentation arc for a role URI. Used in unit tests.
+    pub fn add_presentation_arc(&mut self, role: String, arc: PresentationArc) {
+        self.presentations.entry(role.into()).or_default().push(arc);
+    }
+
+    /// Insert a label for a concept ID. Used in unit tests.
+    pub fn add_label(&mut self, concept_id: String, label: super::label::Label) {
+        self.labels.entry(concept_id.into()).or_default().push(label);
+    }
+}
+
 /// Resolve a relative reference to a local file path.
 /// Returns `None` for HTTP/HTTPS URLs.
 fn resolve_local_path(base_dir: &Path, reference: &str) -> Option<PathBuf> {
