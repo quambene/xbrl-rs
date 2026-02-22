@@ -1,0 +1,124 @@
+//! Print all facts of an XBRL instance as a labelled document tree.
+//!
+//! Facts are grouped by presentation section (extended link role) and shown
+//! in their presentation hierarchy with labels and indentation.
+//!
+//! Usage:
+//!     cargo run --example print_facts
+
+use quick_xml::Reader;
+use std::{fs::File, io::BufReader, path::PathBuf};
+use xbrl_rs::{TaxonomySet, TreeNode, XbrlInstance};
+
+const INSTANCE_PATH: &str = "test_data/instances/balance_sheet_v64.xml";
+const TAXONOMY_ENTRY_POINT: &str = "test_data/taxonomies";
+const LANG: &str = "en";
+
+const ROLE_TERSE: &str = "http://www.xbrl.org/2003/role/terseLabel";
+const ROLE_LABEL: &str = "http://www.xbrl.org/2003/role/label";
+
+fn truncate(s: &str, max: usize) -> String {
+    if s.len() <= max {
+        s.to_string()
+    } else {
+        format!("{}~", &s[..max - 1])
+    }
+}
+
+/// Resolve terse label first, then standard label, then fall back to concept ID.
+fn resolve_label<'a>(node: &'a TreeNode<'a>, lang: &str) -> &'a str {
+    if let Some(label) = node
+        .labels
+        .iter()
+        .find(|l| l.lang == lang && l.role == ROLE_TERSE)
+    {
+        return label.text.as_str();
+    }
+    if let Some(label) = node
+        .labels
+        .iter()
+        .find(|l| l.lang == lang && l.role == ROLE_LABEL)
+    {
+        return label.text.as_str();
+    }
+    node.concept_id
+}
+
+fn print_node(node: &TreeNode, lang: &str, w_label: usize, w_concept: usize, w_value: usize) {
+    let indent = "  ".repeat(node.depth);
+    let label = resolve_label(node, lang);
+    let label_col = truncate(&format!("{indent}{label}"), w_label);
+    let concept_col = truncate(node.concept_id, w_concept);
+
+    let level = node.depth;
+    if node.facts.is_empty() {
+        println!(
+            "| {:<w_concept$} | {:>5} | {:<w_label$} | {:>w_value$} | {:<6} | {:<16} |",
+            concept_col, level, label_col, "", "", "",
+        );
+    } else {
+        for fact in &node.facts {
+            if fact.is_nil() {
+                continue;
+            }
+            println!(
+                "| {:<w_concept$} | {:>5} | {:<w_label$} | {:>w_value$} | {:<6} | {:<16} |",
+                concept_col,
+                level,
+                label_col,
+                truncate(fact.value(), w_value),
+                fact.unit_ref().unwrap_or(""),
+                truncate(fact.context_ref(), 16),
+            );
+        }
+    }
+
+    for child in &node.children {
+        print_node(child, lang, w_label, w_concept, w_value);
+    }
+}
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Parse instance
+    let file = File::open(INSTANCE_PATH)?;
+    let mut reader = Reader::from_reader(BufReader::new(file));
+    let instance = XbrlInstance::from_xml(&mut reader)?;
+
+    // Discover taxonomy
+    let schema_refs: Vec<String> = instance.schema_refs().to_vec();
+    let entry_point = PathBuf::from(TAXONOMY_ENTRY_POINT);
+    let taxonomy = TaxonomySet::discover(schema_refs, entry_point)?;
+
+    // Build document view
+    let view = instance.view(&taxonomy);
+
+    let w_concept = 40;
+    let w_level = 5;
+    let w_label = 80;
+    let w_value = 20;
+    let w_unit = 6;
+    let w_context = 16;
+
+    for section in &view.sections {
+        let role_label = section.role.rsplit('/').next().unwrap_or(section.role);
+        println!("\n=== {role_label} ===");
+        println!(
+            "| {:<w_concept$} | {:>w_level$} | {:<w_label$} | {:>w_value$} | {:<w_unit$} | {:<w_context$} |",
+            "CONCEPT", "LEVEL", "LABEL", "VALUE", "UNIT", "CONTEXT"
+        );
+        println!(
+            "|-{:-<w_concept$}-|-{:-<w_level$}-|-{:-<w_label$}-|-{:-<w_value$}-|-{:-<w_unit$}-|-{:-<w_context$}-|",
+            "", "", "", "", "", ""
+        );
+
+        for node in &section.nodes {
+            print_node(node, LANG, w_label, w_concept, w_value);
+        }
+    }
+
+    let total_facts = instance.facts().len();
+    let nil_facts = instance.facts().iter().filter(|f| f.is_nil()).count();
+    println!("\n{} facts total ({} nil)", total_facts, nil_facts);
+
+    Ok(())
+}
