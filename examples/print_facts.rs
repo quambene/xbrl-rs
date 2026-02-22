@@ -30,14 +30,14 @@ fn resolve_label<'a>(node: &'a TreeNode<'a>, lang: &str) -> &'a str {
     if let Some(label) = node
         .labels
         .iter()
-        .find(|l| l.lang == lang && l.role == ROLE_TERSE)
+        .find(|label| label.lang == lang && label.role == ROLE_TERSE)
     {
         return label.text.as_str();
     }
     if let Some(label) = node
         .labels
         .iter()
-        .find(|l| l.lang == lang && l.role == ROLE_LABEL)
+        .find(|label| label.lang == lang && label.role == ROLE_LABEL)
     {
         return label.text.as_str();
     }
