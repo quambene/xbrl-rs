@@ -14,7 +14,6 @@ categories = ["finance"]
 include = [
   "src/**",
   "!src/bin/**",
-  "tests/**",
   "README.md",
   "LICENSE",
   "CHANGELOG.md",
