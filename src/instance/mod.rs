@@ -89,10 +89,11 @@ impl XbrlInstance {
     ///
     /// Each section corresponds to one extended link role in the presentation
     /// linkbase. Nodes within each section are ordered by the arc `order`
-    /// attribute and annotated with labels for the requested `lang`. Facts
-    /// from this instance are attached to their matching concept nodes.
-    pub fn view<'a>(&'a self, taxonomy: &'a TaxonomySet, lang: &str) -> DocumentView<'a> {
-        view::build_view(&self.facts, taxonomy, lang)
+    /// attribute. All labels for each concept are attached to the node; the
+    /// caller selects the desired language and role (e.g. `terseLabel`).
+    /// Facts from this instance are attached to their matching concept nodes.
+    pub fn view<'a>(&'a self, taxonomy: &'a TaxonomySet) -> DocumentView<'a> {
+        view::build_view(&self.facts, taxonomy)
     }
 
     /// Serialize this instance to an XBRL XML document.

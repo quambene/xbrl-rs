@@ -2,7 +2,7 @@
 
 use super::fact::Fact;
 use crate::TaxonomySet;
-use crate::taxonomy::PresentationArc;
+use crate::taxonomy::{Label, PresentationArc};
 use std::{
     cmp::Ordering,
     collections::{HashMap, HashSet},
@@ -29,8 +29,9 @@ pub struct SectionView<'a> {
 pub struct TreeNode<'a> {
     /// Concept element ID (e.g. `de-gaap-ci_bs.ass`).
     pub concept_id: &'a str,
-    /// Resolved label text for the requested language, if available.
-    pub label: Option<&'a str>,
+    /// All labels for this concept. The caller selects the desired language
+    /// and role (e.g. `terseLabel`, `label`).
+    pub labels: &'a [Label],
     /// Depth in the tree; root nodes have depth 0.
     pub depth: usize,
     /// All facts from the instance whose concept maps to this element ID.
@@ -41,11 +42,7 @@ pub struct TreeNode<'a> {
 
 /// Build a [`DocumentView`] by walking the presentation linkbase and
 /// attaching instance facts and taxonomy labels to each node.
-pub fn build_view<'a>(
-    facts: &'a [Fact],
-    taxonomy: &'a TaxonomySet,
-    lang: &str,
-) -> DocumentView<'a> {
+pub fn build_view<'a>(facts: &'a [Fact], taxonomy: &'a TaxonomySet) -> DocumentView<'a> {
     // Index facts by their element ID so lookups are O(1).
     let mut fact_index: HashMap<String, Vec<&'a Fact>> = HashMap::new();
     for fact in facts {
@@ -68,7 +65,7 @@ pub fn build_view<'a>(
         let nodes = roots
             .iter()
             .flat_map(|root_id| {
-                build_nodes(arcs, root_id, 0, taxonomy, lang, &fact_index, &mut visited)
+                build_nodes(arcs, root_id, 0, taxonomy, &fact_index, &mut visited)
             })
             .collect();
 
@@ -113,7 +110,6 @@ fn build_nodes<'a>(
     parent_id: &'a str,
     depth: usize,
     taxonomy: &'a TaxonomySet,
-    lang: &str,
     fact_index: &HashMap<String, Vec<&'a Fact>>,
     visited: &mut HashSet<&'a str>,
 ) -> Vec<TreeNode<'a>> {
@@ -137,28 +133,17 @@ fn build_nodes<'a>(
 
     for arc in children_arcs {
         let child_id = arc.to.as_str();
-        let label = taxonomy
-            .labels_for(child_id)
-            .and_then(|labels| labels.iter().find(|l| l.lang == lang))
-            .map(|l| l.text.as_str());
+        let labels = taxonomy.labels_for(child_id).unwrap_or(&[]);
         let facts = fact_index
             .get(child_id)
             .map(|v| v.as_slice())
             .unwrap_or(&[])
             .to_vec();
-        let children = build_nodes(
-            arcs,
-            child_id,
-            depth + 1,
-            taxonomy,
-            lang,
-            fact_index,
-            visited,
-        );
+        let children = build_nodes(arcs, child_id, depth + 1, taxonomy, fact_index, visited);
 
         nodes.push(TreeNode {
             concept_id: child_id,
-            label,
+            labels,
             depth,
             facts,
             children,
@@ -193,7 +178,7 @@ mod tests {
     #[test]
     fn build_view_empty_taxonomy() {
         let taxonomy = TaxonomySet::default();
-        let view = build_view(&[], &taxonomy, "en");
+        let view = build_view(&[], &taxonomy);
         assert!(view.sections.is_empty());
     }
 
@@ -238,15 +223,15 @@ mod tests {
 
         // Use a QName without a prefix so concept_id() == "child_a" directly,
         // matching the element ID used in the presentation arcs above.
-        let fact2 = Fact::new(
+        let fact = Fact::new(
             "child_a".to_string(), // no prefix → concept_id() == "child_a"
             "ctx1".to_string(),
             None,
             "42".to_string(),
         );
-        let facts = vec![fact2];
+        let facts = vec![fact];
 
-        let view = build_view(&facts, &taxonomy, "en");
+        let view = build_view(&facts, &taxonomy);
 
         assert_eq!(view.sections.len(), 1);
         let section = &view.sections[0];
@@ -257,7 +242,9 @@ mod tests {
 
         let node_a = &section.nodes[0];
         assert_eq!(node_a.concept_id, "child_a");
-        assert_eq!(node_a.label, Some("Child A"));
+        assert_eq!(node_a.labels.len(), 1);
+        assert_eq!(node_a.labels[0].text, "Child A");
+        assert_eq!(node_a.labels[0].lang, "en");
         assert_eq!(node_a.depth, 0);
         assert_eq!(node_a.facts.len(), 1);
         assert_eq!(node_a.children.len(), 1);
@@ -265,6 +252,7 @@ mod tests {
         let grandchild = &node_a.children[0];
         assert_eq!(grandchild.concept_id, "grandchild");
         assert_eq!(grandchild.depth, 1);
+        assert!(grandchild.labels.is_empty());
 
         let node_b = &section.nodes[1];
         assert_eq!(node_b.concept_id, "child_b");
@@ -295,7 +283,7 @@ mod tests {
         ];
         let taxonomy = make_taxonomy(arcs, vec![]);
         // Should not hang or panic.
-        let view = build_view(&[], &taxonomy, "en");
+        let view = build_view(&[], &taxonomy);
         assert_eq!(view.sections.len(), 1);
     }
 
@@ -321,7 +309,7 @@ mod tests {
             ),
         ];
         let taxonomy = make_taxonomy(arcs, vec![]);
-        let view = build_view(&[], &taxonomy, "en");
+        let view = build_view(&[], &taxonomy);
 
         let section = &view.sections[0];
         assert_eq!(section.nodes[0].concept_id, "a");
