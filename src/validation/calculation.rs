@@ -5,7 +5,7 @@
 //! rounding tolerance derived from the `decimals` attribute.
 
 use super::{Severity, ValidationResult};
-use crate::{Context, Decimals, Fact, Period, TaxonomySet, Unit, XbrlInstance};
+use crate::{Context, Decimals, DeclaredAccuracy, Fact, Period, TaxonomySet, Unit, XbrlInstance};
 use std::collections::HashMap;
 
 /// Run calculation consistency checks for all roles.
@@ -41,12 +41,12 @@ pub(super) fn validate_calculations(
                     continue;
                 };
 
-                let (parent_decimals, parent_precision) = effective_accuracy(parent_fact, taxonomy);
+                let parent_acc = effective_accuracy(parent_fact, taxonomy);
                 let parent_effective_value = apply_effective_accuracy(
                     parent_fact.value(),
                     parent_value,
-                    parent_decimals.as_ref(),
-                    parent_precision.as_ref(),
+                    parent_acc.decimals.as_ref(),
+                    parent_acc.precision.as_ref(),
                 );
 
                 let mut weighted_sum = 0.0;
@@ -67,13 +67,12 @@ pub(super) fn validate_calculations(
                             continue;
                         };
 
-                        let (child_decimals, child_precision) =
-                            effective_accuracy(child_fact, taxonomy);
+                        let child_acc = effective_accuracy(child_fact, taxonomy);
                         let child_effective_value = apply_effective_accuracy(
                             child_fact.value(),
                             child_value,
-                            child_decimals.as_ref(),
-                            child_precision.as_ref(),
+                            child_acc.decimals.as_ref(),
+                            child_acc.precision.as_ref(),
                         );
 
                         weighted_sum += weight * child_effective_value;
@@ -88,8 +87,8 @@ pub(super) fn validate_calculations(
                 let weighted_sum_effective = apply_effective_accuracy(
                     &weighted_sum.to_string(),
                     weighted_sum,
-                    parent_decimals.as_ref(),
-                    parent_precision.as_ref(),
+                    parent_acc.decimals.as_ref(),
+                    parent_acc.precision.as_ref(),
                 );
                 let diff = (parent_effective_value - weighted_sum_effective).abs();
 
@@ -110,18 +109,21 @@ pub(super) fn validate_calculations(
     }
 }
 
-fn effective_accuracy(fact: &Fact, taxonomy: &TaxonomySet) -> (Option<Decimals>, Option<Decimals>) {
+fn effective_accuracy(fact: &Fact, taxonomy: &TaxonomySet) -> DeclaredAccuracy {
     let decimals = fact.decimals().cloned();
     let precision = fact.precision().cloned();
     if decimals.is_some() || precision.is_some() {
-        return (decimals, precision);
+        return DeclaredAccuracy {
+            decimals,
+            precision,
+        };
     }
 
     let Some(element) = taxonomy.find_element(fact.local_name()) else {
-        return (None, None);
+        return DeclaredAccuracy::default();
     };
     let Some(type_name) = element.type_name.as_deref() else {
-        return (None, None);
+        return DeclaredAccuracy::default();
     };
 
     taxonomy.type_declared_accuracy(type_name)

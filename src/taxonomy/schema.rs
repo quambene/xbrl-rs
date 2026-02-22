@@ -193,6 +193,18 @@ pub struct SchemaInclude {
     pub schema_location: String,
 }
 
+/// Declared accuracy constraints for an XBRL item type.
+///
+/// Holds the `decimals` and/or `precision` fixed/default values declared on
+/// a named type's attribute restrictions (e.g. `xbrli:decimalItemType`).
+#[derive(Debug, Clone, Default)]
+pub struct DeclaredAccuracy {
+    /// Declared `decimals` constraint, if any.
+    pub decimals: Option<Decimals>,
+    /// Declared `precision` constraint, if any.
+    pub precision: Option<Decimals>,
+}
+
 /// Parsed metadata for a named `xs:simpleType`/`xs:complexType` base relation.
 struct NamedTypeBase {
     /// The declared type name (`@name`) on the type definition.
@@ -234,7 +246,7 @@ pub struct TaxonomySchema {
     /// Named simple/complex type derivations: type name -> base QName.
     pub type_bases: HashMap<String, String>,
     /// Named types with declared decimals/precision attributes (fixed/default) on restrictions.
-    pub type_declared_accuracy: HashMap<String, (Option<Decimals>, Option<Decimals>)>,
+    pub type_declared_accuracy: HashMap<String, DeclaredAccuracy>,
 }
 
 impl TaxonomySchema {
@@ -334,9 +346,13 @@ impl TaxonomySchema {
                                 if let Some(base) = base {
                                     schema.type_bases.insert(type_name.clone(), base);
                                 }
-                                schema
-                                    .type_declared_accuracy
-                                    .insert(type_name, (declared_decimals, declared_precision));
+                                schema.type_declared_accuracy.insert(
+                                    type_name,
+                                    DeclaredAccuracy {
+                                        decimals: declared_decimals,
+                                        precision: declared_precision,
+                                    },
+                                );
                             }
                         }
                         _ => {}
@@ -1012,12 +1028,13 @@ fn parse_named_type_base<R: io::BufRead>(
                     if let Some(value) = declared_value {
                         match attr_name.as_deref() {
                             Some("decimals") => {
-                                declared_decimals = Some(value.parse::<Decimals>().map_err(|e| {
-                                    XbrlError::InvalidSchemaDocument {
-                                        path: path.to_path_buf(),
-                                        reason: e.to_string(),
-                                    }
-                                })?);
+                                declared_decimals =
+                                    Some(value.parse::<Decimals>().map_err(|e| {
+                                        XbrlError::InvalidSchemaDocument {
+                                            path: path.to_path_buf(),
+                                            reason: e.to_string(),
+                                        }
+                                    })?);
                             }
                             Some("precision") => {
                                 declared_precision =
@@ -1074,12 +1091,13 @@ fn parse_named_type_base<R: io::BufRead>(
                     if let Some(value) = declared_value {
                         match attr_name.as_deref() {
                             Some("decimals") => {
-                                declared_decimals = Some(value.parse::<Decimals>().map_err(|e| {
-                                    XbrlError::InvalidSchemaDocument {
-                                        path: path.to_path_buf(),
-                                        reason: e.to_string(),
-                                    }
-                                })?);
+                                declared_decimals =
+                                    Some(value.parse::<Decimals>().map_err(|e| {
+                                        XbrlError::InvalidSchemaDocument {
+                                            path: path.to_path_buf(),
+                                            reason: e.to_string(),
+                                        }
+                                    })?);
                             }
                             Some("precision") => {
                                 declared_precision =

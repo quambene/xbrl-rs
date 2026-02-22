@@ -2,7 +2,10 @@
 //! and XBRL specification structural rules.
 
 use super::{Severity, ValidationResult};
-use crate::{Fact, Period, TaxonomySet, XbrlInstance, taxonomy::{ElementDefinition, PeriodType}};
+use crate::{
+    Fact, Period, TaxonomySet, XbrlInstance,
+    taxonomy::{ElementDefinition, PeriodType},
+};
 use std::collections::{HashMap, HashSet};
 
 const NS_XBRLI: &str = "http://www.xbrl.org/2003/instance";
@@ -487,9 +490,8 @@ fn validate_fact(
         let has_decimals = fact.decimals().is_some();
         let has_precision = fact.precision().is_some();
         let has_declared_accuracy = element.type_name.as_deref().is_some_and(|type_name| {
-            let (declared_decimals, declared_precision) =
-                taxonomy.type_declared_accuracy(type_name);
-            declared_decimals.is_some() || declared_precision.is_some()
+            let acc = taxonomy.type_declared_accuracy(type_name);
+            acc.decimals.is_some() || acc.precision.is_some()
         });
 
         if has_decimals && has_precision {

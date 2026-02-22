@@ -4,9 +4,8 @@ use super::{
     label::{self, Label},
     presentation::{self, PresentationArc},
     reference::{self, Reference},
-    schema::{ElementDefinition, RoleType, TaxonomySchema},
+    schema::{DeclaredAccuracy, ElementDefinition, RoleType, TaxonomySchema},
 };
-use crate::instance::Decimals;
 use crate::error::{Result, XbrlError};
 use log::warn;
 use quick_xml::Reader;
@@ -519,7 +518,7 @@ impl TaxonomySet {
             .find_map(|schema| schema.type_bases.get(type_local_name).cloned())
     }
 
-    pub fn type_declared_accuracy(&self, type_name: &str) -> (Option<Decimals>, Option<Decimals>) {
+    pub fn type_declared_accuracy(&self, type_name: &str) -> DeclaredAccuracy {
         let mut current = type_name.to_string();
         let mut seen = HashSet::new();
 
@@ -531,26 +530,26 @@ impl TaxonomySet {
                 .values()
                 .find_map(|schema| schema.type_declared_accuracy.get(current_local).cloned());
 
-            if let Some((decimals, precision)) = declared
-                && (decimals.is_some() || precision.is_some())
+            if let Some(acc) = declared
+                && (acc.decimals.is_some() || acc.precision.is_some())
             {
-                return (decimals, precision);
+                return acc;
             }
 
             if !seen.insert(current.clone()) {
-                return (None, None);
+                return DeclaredAccuracy::default();
             }
 
             let Some(next) = self.find_type_base(current_local) else {
-                return (None, None);
+                return DeclaredAccuracy::default();
             };
             current = next;
         }
     }
 
     pub fn type_has_fixed_accuracy(&self, type_name: &str) -> bool {
-        let (decimals, precision) = self.type_declared_accuracy(type_name);
-        decimals.is_some() || precision.is_some()
+        let acc = self.type_declared_accuracy(type_name);
+        acc.decimals.is_some() || acc.precision.is_some()
     }
 
     /// Map an element ID to the qualified concept name used in instance facts.
