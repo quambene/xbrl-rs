@@ -1,8 +1,10 @@
 //! Document view built from the presentation linkbase.
 
 use super::fact::Fact;
-use crate::TaxonomySet;
-use crate::taxonomy::{Label, PresentationArc};
+use crate::{
+    TaxonomySet,
+    taxonomy::{Label, PresentationArc},
+};
 use std::{
     cmp::Ordering,
     collections::{HashMap, HashSet},
@@ -13,6 +15,17 @@ use std::{
 pub struct DocumentView<'a> {
     /// One section per extended link role found in the presentation linkbase.
     pub sections: Vec<SectionView<'a>>,
+}
+
+impl<'a> DocumentView<'a> {
+    /// Build a document view from a flat facts slice and a taxonomy.
+    ///
+    /// `facts` is read once to map concept IDs to their positions; no
+    /// references into the slice are retained. The returned view borrows
+    /// only from `taxonomy`.
+    pub fn build(facts: &[Fact], taxonomy: &'a TaxonomySet) -> Self {
+        build_view(facts, taxonomy)
+    }
 }
 
 /// One report section (extended link role) from the presentation linkbase.
@@ -34,19 +47,26 @@ pub struct TreeNode<'a> {
     pub labels: &'a [Label],
     /// Depth in the tree; root nodes have depth 0.
     pub depth: usize,
-    /// All facts from the instance whose concept maps to this element ID.
-    pub facts: Vec<&'a Fact>,
+    /// Indices into the `XbrlInstance::facts()` slice for facts whose concept
+    /// maps to this element ID. Storing indices rather than references means
+    /// the view's lifetime is tied only to the taxonomy, leaving the instance
+    /// free to be mutably borrowed while the view is alive.
+    pub fact_indices: Vec<usize>,
     /// Child nodes, ordered by the presentation arc `order` attribute.
     pub children: Vec<TreeNode<'a>>,
 }
 
 /// Build a [`DocumentView`] by walking the presentation linkbase and
 /// attaching instance facts and taxonomy labels to each node.
-pub fn build_view<'a>(facts: &'a [Fact], taxonomy: &'a TaxonomySet) -> DocumentView<'a> {
-    // Index facts by their element ID so lookups are O(1).
-    let mut fact_index: HashMap<String, Vec<&'a Fact>> = HashMap::new();
-    for fact in facts {
-        fact_index.entry(fact.concept_id()).or_default().push(fact);
+///
+/// `facts` is borrowed for index-building only; no references into the slice
+/// are retained, so the returned `DocumentView<'a>` borrows only from
+/// `taxonomy`.
+pub fn build_view<'a>(facts: &[Fact], taxonomy: &'a TaxonomySet) -> DocumentView<'a> {
+    // Index facts by their element ID → position in the facts slice.
+    let mut fact_index: HashMap<String, Vec<usize>> = HashMap::new();
+    for (i, fact) in facts.iter().enumerate() {
+        fact_index.entry(fact.concept_id()).or_default().push(i);
     }
 
     // Sort roles for deterministic output.
@@ -64,9 +84,7 @@ pub fn build_view<'a>(facts: &'a [Fact], taxonomy: &'a TaxonomySet) -> DocumentV
         let mut visited: HashSet<&'a str> = HashSet::new();
         let nodes = roots
             .iter()
-            .flat_map(|root_id| {
-                build_nodes(arcs, root_id, 0, taxonomy, &fact_index, &mut visited)
-            })
+            .flat_map(|root_id| build_nodes(arcs, root_id, 0, taxonomy, &fact_index, &mut visited))
             .collect();
 
         sections.push(SectionView { role, nodes });
@@ -110,7 +128,7 @@ fn build_nodes<'a>(
     parent_id: &'a str,
     depth: usize,
     taxonomy: &'a TaxonomySet,
-    fact_index: &HashMap<String, Vec<&'a Fact>>,
+    fact_index: &HashMap<String, Vec<usize>>,
     visited: &mut HashSet<&'a str>,
 ) -> Vec<TreeNode<'a>> {
     if !visited.insert(parent_id) {
@@ -134,18 +152,14 @@ fn build_nodes<'a>(
     for arc in children_arcs {
         let child_id = arc.to.as_str();
         let labels = taxonomy.labels_for(child_id).unwrap_or(&[]);
-        let facts = fact_index
-            .get(child_id)
-            .map(|v| v.as_slice())
-            .unwrap_or(&[])
-            .to_vec();
+        let fact_indices = fact_index.get(child_id).cloned().unwrap_or_default();
         let children = build_nodes(arcs, child_id, depth + 1, taxonomy, fact_index, visited);
 
         nodes.push(TreeNode {
             concept_id: child_id,
             labels,
             depth,
-            facts,
+            fact_indices,
             children,
         });
     }
@@ -158,10 +172,12 @@ fn build_nodes<'a>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Fact;
-    use crate::taxonomy::{Label, PresentationArc, TaxonomySet};
+    use crate::{
+        Fact,
+        taxonomy::{Label, PresentationArc, TaxonomySet},
+    };
 
-    fn make_taxonomy(
+    fn create_taxonomy(
         arcs: Vec<(String, PresentationArc)>,
         labels: Vec<(String, Label)>,
     ) -> TaxonomySet {
@@ -219,7 +235,7 @@ mod tests {
                 text: "Child A".to_string(),
             },
         )];
-        let taxonomy = make_taxonomy(arcs, labels);
+        let taxonomy = create_taxonomy(arcs, labels);
 
         // Use a QName without a prefix so concept_id() == "child_a" directly,
         // matching the element ID used in the presentation arcs above.
@@ -246,7 +262,8 @@ mod tests {
         assert_eq!(node_a.labels[0].text, "Child A");
         assert_eq!(node_a.labels[0].lang, "en");
         assert_eq!(node_a.depth, 0);
-        assert_eq!(node_a.facts.len(), 1);
+        assert_eq!(node_a.fact_indices.len(), 1);
+        assert_eq!(facts[node_a.fact_indices[0]].value(), "42");
         assert_eq!(node_a.children.len(), 1);
 
         let grandchild = &node_a.children[0];
@@ -256,7 +273,7 @@ mod tests {
 
         let node_b = &section.nodes[1];
         assert_eq!(node_b.concept_id, "child_b");
-        assert!(node_b.facts.is_empty());
+        assert!(node_b.fact_indices.is_empty());
     }
 
     #[test]
@@ -281,7 +298,7 @@ mod tests {
                 },
             ),
         ];
-        let taxonomy = make_taxonomy(arcs, vec![]);
+        let taxonomy = create_taxonomy(arcs, vec![]);
         // Should not hang or panic.
         let view = build_view(&[], &taxonomy);
         assert_eq!(view.sections.len(), 1);
@@ -308,11 +325,45 @@ mod tests {
                 },
             ),
         ];
-        let taxonomy = make_taxonomy(arcs, vec![]);
+        let taxonomy = create_taxonomy(arcs, vec![]);
         let view = build_view(&[], &taxonomy);
 
         let section = &view.sections[0];
         assert_eq!(section.nodes[0].concept_id, "a");
         assert_eq!(section.nodes[1].concept_id, "b");
+    }
+
+    #[test]
+    fn fact_indices_allow_mutation_while_view_alive() {
+        // Demonstrates that because view borrows only taxonomy (not instance
+        // facts), the facts slice can be mutably borrowed while the view lives.
+        let role = "http://example.com/role/edit".to_string();
+        let arcs = vec![(
+            role.clone(),
+            PresentationArc {
+                from: "root".to_string(),
+                to: "concept_a".to_string(),
+                order: Some(1.0),
+            },
+        )];
+        let taxonomy = create_taxonomy(arcs, vec![]);
+
+        let mut facts = vec![Fact::new(
+            "concept_a".to_string(),
+            "ctx1".to_string(),
+            None,
+            "original".to_string(),
+        )];
+
+        let view = build_view(&facts, &taxonomy);
+        let idx = view.sections[0].nodes[0].fact_indices[0];
+
+        // `view` is alive here, but `facts` can still be mutably borrowed
+        // because `view` holds no references into `facts`.
+        facts[idx].set_value("edited".to_string());
+
+        assert_eq!(facts[idx].value(), "edited");
+        // view is still usable afterwards
+        assert_eq!(view.sections[0].nodes[0].fact_indices[0], 0);
     }
 }

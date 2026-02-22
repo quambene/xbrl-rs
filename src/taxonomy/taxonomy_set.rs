@@ -643,7 +643,10 @@ impl TaxonomySet {
 
     /// Insert a label for a concept ID. Used in unit tests.
     pub fn add_label(&mut self, concept_id: String, label: super::label::Label) {
-        self.labels.entry(concept_id.into()).or_default().push(label);
+        self.labels
+            .entry(concept_id.into())
+            .or_default()
+            .push(label);
     }
 }
 

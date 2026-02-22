@@ -8,7 +8,7 @@
 
 use quick_xml::Reader;
 use std::{fs::File, io::BufReader, path::PathBuf};
-use xbrl_rs::{TaxonomySet, TreeNode, XbrlInstance};
+use xbrl_rs::{Fact, TaxonomySet, TreeNode, XbrlInstance};
 
 const INSTANCE_PATH: &str = "test_data/instances/balance_sheet_v64.xml";
 const TAXONOMY_ENTRY_POINT: &str = "test_data/taxonomies";
@@ -44,20 +44,28 @@ fn resolve_label<'a>(node: &'a TreeNode<'a>, lang: &str) -> &'a str {
     node.concept_id
 }
 
-fn print_node(node: &TreeNode, lang: &str, w_label: usize, w_concept: usize, w_value: usize) {
+fn print_node(
+    node: &TreeNode,
+    facts: &[Fact],
+    lang: &str,
+    w_label: usize,
+    w_concept: usize,
+    w_value: usize,
+) {
     let indent = "  ".repeat(node.depth);
     let label = resolve_label(node, lang);
     let label_col = truncate(&format!("{indent}{label}"), w_label);
     let concept_col = truncate(node.concept_id, w_concept);
 
     let level = node.depth;
-    if node.facts.is_empty() {
+    if node.fact_indices.is_empty() {
         println!(
             "| {:<w_concept$} | {:>5} | {:<w_label$} | {:>w_value$} | {:<6} | {:<16} |",
             concept_col, level, label_col, "", "", "",
         );
     } else {
-        for fact in &node.facts {
+        for &idx in &node.fact_indices {
+            let fact = &facts[idx];
             if fact.is_nil() {
                 continue;
             }
@@ -74,7 +82,7 @@ fn print_node(node: &TreeNode, lang: &str, w_label: usize, w_concept: usize, w_v
     }
 
     for child in &node.children {
-        print_node(child, lang, w_label, w_concept, w_value);
+        print_node(child, facts, lang, w_label, w_concept, w_value);
     }
 }
 
@@ -112,7 +120,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
 
         for node in &section.nodes {
-            print_node(node, LANG, w_label, w_concept, w_value);
+            print_node(node, instance.facts(), LANG, w_label, w_concept, w_value);
         }
     }
 
