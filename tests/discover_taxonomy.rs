@@ -2,7 +2,7 @@
 //! across all available taxonomy versions.
 
 use std::{path::PathBuf, str::FromStr};
-use xbrl_rs::TaxonomySet;
+use xbrl_rs::{Balance, PeriodType, TaxonomySet};
 
 const TAXONOMY_ENTRY_POINT: &str = "test_data/taxonomies";
 
@@ -15,8 +15,8 @@ fn assert_dts(dts: &TaxonomySet) {
 
     // GAAP-CI elements
     let bs_ass = dts.find_element("bs.ass").expect("bs.ass not found");
-    assert_eq!(bs_ass.period_type.as_deref(), Some("instant"));
-    assert_eq!(bs_ass.balance.as_deref(), Some("debit"));
+    assert_eq!(bs_ass.period_type, Some(PeriodType::Instant));
+    assert_eq!(bs_ass.balance, Some(Balance::Debit));
     assert!(bs_ass.nillable);
 
     assert!(

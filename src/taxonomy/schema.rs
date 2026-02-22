@@ -1,13 +1,120 @@
-use crate::error::{Result, XbrlError};
+use crate::{
+    error::{Result, XbrlError},
+    instance::Decimals,
+};
 use quick_xml::{
     Reader,
     events::{Event, attributes::Attributes},
 };
 use std::{
     collections::{HashMap, HashSet},
-    io,
+    fmt, io,
     path::{Path, PathBuf},
+    str::FromStr,
 };
+
+/// The XBRL period type for a taxonomy element (`xbrli:periodType` attribute).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PeriodType {
+    /// The element reports a value at a specific point in time.
+    Instant,
+    /// The element reports a value over a time range.
+    Duration,
+}
+
+impl FromStr for PeriodType {
+    type Err = XbrlError;
+
+    fn from_str(str: &str) -> Result<Self> {
+        match str {
+            "instant" => Ok(Self::Instant),
+            "duration" => Ok(Self::Duration),
+            _ => Err(XbrlError::ParseError {
+                expected: "PeriodType",
+                value: str.to_owned(),
+            }),
+        }
+    }
+}
+
+impl fmt::Display for PeriodType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Instant => f.write_str("instant"),
+            Self::Duration => f.write_str("duration"),
+        }
+    }
+}
+
+/// The XBRL balance type for a monetary taxonomy element (`xbrli:balance` attribute).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Balance {
+    /// An asset or expense concept (increases on the debit side).
+    Debit,
+    /// A liability, equity, or income concept (increases on the credit side).
+    Credit,
+}
+
+impl FromStr for Balance {
+    type Err = XbrlError;
+
+    fn from_str(str: &str) -> Result<Self> {
+        match str {
+            "debit" => Ok(Self::Debit),
+            "credit" => Ok(Self::Credit),
+            _ => Err(XbrlError::ParseError {
+                expected: "Balance",
+                value: str.to_owned(),
+            }),
+        }
+    }
+}
+
+impl fmt::Display for Balance {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Debit => f.write_str("debit"),
+            Self::Credit => f.write_str("credit"),
+        }
+    }
+}
+
+/// The allowed cycle direction for an arcrole (`cyclesAllowed` attribute).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CyclesAllowed {
+    /// Any cycles are allowed.
+    Any,
+    /// Only undirected cycles are allowed.
+    Undirected,
+    /// No cycles are allowed.
+    None,
+}
+
+impl FromStr for CyclesAllowed {
+    type Err = XbrlError;
+
+    fn from_str(str: &str) -> Result<Self> {
+        match str {
+            "any" => Ok(Self::Any),
+            "undirected" => Ok(Self::Undirected),
+            "none" => Ok(Self::None),
+            _ => Err(XbrlError::ParseError {
+                expected: "CyclesAllowed",
+                value: str.to_owned(),
+            }),
+        }
+    }
+}
+
+impl fmt::Display for CyclesAllowed {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Any => f.write_str("any"),
+            Self::Undirected => f.write_str("undirected"),
+            Self::None => f.write_str("none"),
+        }
+    }
+}
 
 /// An `xs:element` definition from a taxonomy schema.
 #[derive(Debug, Clone)]
@@ -25,9 +132,9 @@ pub struct ElementDefinition {
     /// Whether this element is abstract.
     pub is_abstract: bool,
     /// The XBRL period type ("instant" or "duration").
-    pub period_type: Option<String>,
+    pub period_type: Option<PeriodType>,
     /// The XBRL balance type ("debit" or "credit").
-    pub balance: Option<String>,
+    pub balance: Option<Balance>,
 }
 
 /// A `link:roleType` definition from a taxonomy schema.
@@ -55,7 +162,7 @@ pub struct ArcroleType {
     /// Which link types this arcrole is used on.
     pub used_on: Vec<String>,
     /// The cycles-allowed attribute.
-    pub cycles_allowed: Option<String>,
+    pub cycles_allowed: Option<CyclesAllowed>,
 }
 
 /// A `link:linkbaseRef` found in a schema's `xs:annotation/xs:appinfo`.
@@ -93,9 +200,9 @@ struct NamedTypeBase {
     /// The resolved `@base` QName from restriction/extension.
     base: Option<String>,
     /// Declared `decimals` value from type-level attribute constraints.
-    declared_decimals: Option<String>,
+    declared_decimals: Option<Decimals>,
     /// Declared `precision` value from type-level attribute constraints.
-    declared_precision: Option<String>,
+    declared_precision: Option<Decimals>,
     /// Whether the named type declares local element content.
     has_local_element_content: bool,
 }
@@ -127,7 +234,7 @@ pub struct TaxonomySchema {
     /// Named simple/complex type derivations: type name -> base QName.
     pub type_bases: HashMap<String, String>,
     /// Named types with declared decimals/precision attributes (fixed/default) on restrictions.
-    pub type_declared_accuracy: HashMap<String, (Option<String>, Option<String>)>,
+    pub type_declared_accuracy: HashMap<String, (Option<Decimals>, Option<Decimals>)>,
 }
 
 impl TaxonomySchema {
@@ -219,7 +326,7 @@ impl TaxonomySchema {
                                 declared_decimals,
                                 declared_precision,
                                 has_local_element_content,
-                            }) = parse_named_type_base(reader, e.attributes(), &name)?
+                            }) = parse_named_type_base(reader, e.attributes(), &name, path)?
                             {
                                 if has_local_element_content {
                                     complex_types_with_local_elements.insert(type_name.clone());
@@ -485,12 +592,7 @@ impl TaxonomySchema {
                 .map(local_name)
                 .unwrap_or("");
 
-            if substitution == "item"
-                && element
-                    .period_type
-                    .as_deref()
-                    .is_none_or(|period| period.trim().is_empty())
-            {
+            if substitution == "item" && element.period_type.is_none() {
                 return Err(XbrlError::InvalidSchemaDocument {
                     path: self.file_path.clone(),
                     reason: format!("item '{}' is missing xbrli:periodType", element.name),
@@ -581,20 +683,6 @@ impl TaxonomySchema {
                     reason: format!(
                         "arcroleType arcroleURI '{}' is not an absolute URI",
                         arcrole_type.arcrole_uri
-                    ),
-                });
-            }
-
-            if arcrole_type
-                .cycles_allowed
-                .as_deref()
-                .is_some_and(|value| value != "any" && value != "undirected" && value != "none")
-            {
-                return Err(XbrlError::InvalidSchemaDocument {
-                    path: self.file_path.clone(),
-                    reason: format!(
-                        "arcroleType cyclesAllowed '{}' is invalid",
-                        arcrole_type.cycles_allowed.as_deref().unwrap_or_default()
                     ),
                 });
             }
@@ -864,6 +952,7 @@ fn parse_named_type_base<R: io::BufRead>(
     reader: &mut Reader<R>,
     attrs: Attributes,
     type_tag_name: &str,
+    path: &Path,
 ) -> Result<Option<NamedTypeBase>> {
     let mut type_name = None;
     for attr in attrs.flatten() {
@@ -880,8 +969,8 @@ fn parse_named_type_base<R: io::BufRead>(
     };
 
     let mut base: Option<String> = None;
-    let mut declared_decimals: Option<String> = None;
-    let mut declared_precision: Option<String> = None;
+    let mut declared_decimals: Option<Decimals> = None;
+    let mut declared_precision: Option<Decimals> = None;
     let mut has_local_element_content = false;
     let mut depth = 1u32;
     let mut buf = Vec::new();
@@ -922,8 +1011,23 @@ fn parse_named_type_base<R: io::BufRead>(
                     let declared_value = fixed_value.or(default_value);
                     if let Some(value) = declared_value {
                         match attr_name.as_deref() {
-                            Some("decimals") => declared_decimals = Some(value),
-                            Some("precision") => declared_precision = Some(value),
+                            Some("decimals") => {
+                                declared_decimals = Some(value.parse::<Decimals>().map_err(|e| {
+                                    XbrlError::InvalidSchemaDocument {
+                                        path: path.to_path_buf(),
+                                        reason: e.to_string(),
+                                    }
+                                })?);
+                            }
+                            Some("precision") => {
+                                declared_precision =
+                                    Some(value.parse::<Decimals>().map_err(|e| {
+                                        XbrlError::InvalidSchemaDocument {
+                                            path: path.to_path_buf(),
+                                            reason: e.to_string(),
+                                        }
+                                    })?);
+                            }
                             _ => {}
                         }
                     }
@@ -969,8 +1073,23 @@ fn parse_named_type_base<R: io::BufRead>(
                     let declared_value = fixed_value.or(default_value);
                     if let Some(value) = declared_value {
                         match attr_name.as_deref() {
-                            Some("decimals") => declared_decimals = Some(value),
-                            Some("precision") => declared_precision = Some(value),
+                            Some("decimals") => {
+                                declared_decimals = Some(value.parse::<Decimals>().map_err(|e| {
+                                    XbrlError::InvalidSchemaDocument {
+                                        path: path.to_path_buf(),
+                                        reason: e.to_string(),
+                                    }
+                                })?);
+                            }
+                            Some("precision") => {
+                                declared_precision =
+                                    Some(value.parse::<Decimals>().map_err(|e| {
+                                        XbrlError::InvalidSchemaDocument {
+                                            path: path.to_path_buf(),
+                                            reason: e.to_string(),
+                                        }
+                                    })?);
+                            }
                             _ => {}
                         }
                     }
@@ -1194,7 +1313,16 @@ fn parse_arcrole_type<R: io::BufRead>(
                     .unwrap_or_default();
             }
             "cyclesAllowed" => {
-                cycles_allowed = attr.unescape_value().ok().map(|v| v.to_string());
+                let value = attr
+                    .unescape_value()
+                    .map(|v| v.to_string())
+                    .unwrap_or_default();
+                cycles_allowed = Some(value.parse::<CyclesAllowed>().map_err(|e| {
+                    XbrlError::InvalidSchemaDocument {
+                        path: path.to_path_buf(),
+                        reason: e.to_string(),
+                    }
+                })?);
             }
             _ => {}
         }
@@ -1343,10 +1471,10 @@ fn parse_element_def(attrs: Attributes) -> Option<ElementDefinition> {
                     .is_some_and(|v| v.as_ref() == "true");
             }
             "periodType" => {
-                period_type = attr.unescape_value().ok().map(|v| v.to_string());
+                period_type = attr.unescape_value().ok().and_then(|v| v.parse().ok());
             }
             "balance" => {
-                balance = attr.unescape_value().ok().map(|v| v.to_string());
+                balance = attr.unescape_value().ok().and_then(|v| v.parse().ok());
             }
             _ => {}
         }
@@ -1433,7 +1561,7 @@ fn skip_to_end<R: io::BufRead>(reader: &mut Reader<R>, tag_name: &str) -> Result
 
 #[cfg(test)]
 mod tests {
-    use super::{ElementDefinition, RoleType, TaxonomySchema};
+    use super::{Balance, ElementDefinition, PeriodType, RoleType, TaxonomySchema};
     use crate::XbrlError;
     use assert_matches::assert_matches;
     use quick_xml::Reader;
@@ -1535,8 +1663,8 @@ mod tests {
                 substitution_group: Some("xbrli:item".to_string()),
                 nillable: true,
                 is_abstract: false,
-                period_type: Some("duration".to_string()),
-                balance: Some("credit".to_string()),
+                period_type: Some(PeriodType::Duration),
+                balance: Some(Balance::Credit),
             }],
             type_bases: HashMap::new(),
             type_declared_accuracy: HashMap::new(),
@@ -1568,7 +1696,7 @@ mod tests {
                 substitution_group: Some("xbrli:tuple".to_string()),
                 nillable: true,
                 is_abstract: false,
-                period_type: Some("duration".to_string()),
+                period_type: Some(PeriodType::Duration),
                 balance: None,
             }],
             type_bases: HashMap::new(),
@@ -1602,7 +1730,7 @@ mod tests {
                 nillable: true,
                 is_abstract: false,
                 period_type: None,
-                balance: Some("credit".to_string()),
+                balance: Some(Balance::Credit),
             }],
             type_bases: HashMap::new(),
             type_declared_accuracy: HashMap::new(),
@@ -1664,8 +1792,8 @@ mod tests {
                 substitution_group: Some("xbrli:item".to_string()),
                 nillable: true,
                 is_abstract: false,
-                period_type: Some("instant".to_string()),
-                balance: Some("debit".to_string()),
+                period_type: Some(PeriodType::Instant),
+                balance: Some(Balance::Debit),
             }],
             type_bases: HashMap::new(),
             type_declared_accuracy: HashMap::new(),

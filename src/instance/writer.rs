@@ -153,10 +153,10 @@ fn write_fact<W: std::io::Write>(writer: &mut Writer<W>, fact: &Fact) -> Result<
         elem.push_attribute(("unitRef", unit_ref));
     }
     if let Some(decimals) = fact.decimals() {
-        elem.push_attribute(("decimals", decimals));
+        elem.push_attribute(("decimals", decimals.to_string().as_str()));
     }
     if let Some(precision) = fact.precision() {
-        elem.push_attribute(("precision", precision));
+        elem.push_attribute(("precision", precision.to_string().as_str()));
     }
     if fact.is_nil() {
         elem.push_attribute(("xsi:nil", "true"));

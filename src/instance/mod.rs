@@ -10,7 +10,7 @@ mod writer;
 
 use crate::{TaxonomySet, error::Result, validation, validation::ValidationResult};
 pub use context::{Context, ContextId, EntityIdentifier, Period};
-pub use fact::Fact;
+pub use fact::{Decimals, Fact};
 pub use footnote::{FootnoteArc, FootnoteLink, FootnoteLocator, FootnoteResource};
 use quick_xml::{Reader, Writer};
 use std::{borrow::Borrow, collections::HashMap, fmt, io, ops::Deref};

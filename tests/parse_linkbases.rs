@@ -1,5 +1,5 @@
 use std::{path::PathBuf, str::FromStr};
-use xbrl_rs::{Label, TaxonomySet};
+use xbrl_rs::{Label, PeriodType, TaxonomySet};
 
 const TAXONOMY_ENTRY_POINT: &str = "test_data/taxonomies";
 
@@ -210,7 +210,7 @@ fn find_element_by_id() {
         .find_element_by_id("de-gaap-ci_bs.ass")
         .expect("Expected to find element by ID");
     assert_eq!(elem.name, "bs.ass");
-    assert_eq!(elem.period_type.as_deref(), Some("instant"));
+    assert_eq!(elem.period_type, Some(PeriodType::Instant));
     assert!(!elem.is_abstract);
 }
 

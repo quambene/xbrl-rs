@@ -93,6 +93,13 @@ pub enum XbrlError {
     #[error("Invalid schema document '{}': {reason}", path.display())]
     InvalidSchemaDocument { path: PathBuf, reason: String },
 
+    /// A string value could not be parsed as the expected XBRL type.
+    #[error("invalid {expected} value '{value}'")]
+    ParseError {
+        expected: &'static str,
+        value: String,
+    },
+
     /// IO error
     #[error(transparent)]
     Io(#[from] std::io::Error),

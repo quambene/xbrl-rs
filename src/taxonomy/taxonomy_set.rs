@@ -6,6 +6,7 @@ use super::{
     reference::{self, Reference},
     schema::{ElementDefinition, RoleType, TaxonomySchema},
 };
+use crate::instance::Decimals;
 use crate::error::{Result, XbrlError};
 use log::warn;
 use quick_xml::Reader;
@@ -518,7 +519,7 @@ impl TaxonomySet {
             .find_map(|schema| schema.type_bases.get(type_local_name).cloned())
     }
 
-    pub fn type_declared_accuracy(&self, type_name: &str) -> (Option<String>, Option<String>) {
+    pub fn type_declared_accuracy(&self, type_name: &str) -> (Option<Decimals>, Option<Decimals>) {
         let mut current = type_name.to_string();
         let mut seen = HashSet::new();
 

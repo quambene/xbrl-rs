@@ -19,7 +19,8 @@
   - Add `type_bases` and `type_declared_accuracy` to `TaxonomySchema`
   - Add `Period::Forever`
   - Validate context, instance refs, and essence alias units
-  - Add `SchemaRefUrl`, `ConceptId`, `RoleUri`, `ContextId`, `NamespacePrefix`, `UnitId`
+  - Add `SchemaRefUrl`, `ConceptId`, `RoleUri`, `ContextId`, `NamespacePrefix`,
+    `UnitId`, `Decimals`, `Balance`, `CyclesAllowed`, and `PeriodType`
   - Add `TaxonomySchema::from_xml_unchecked` and `TaxonomySchema::validate`
   - Add `DocumentView` and implement `XbrlInstance::view`
   - Add `example/print_facts.rs`

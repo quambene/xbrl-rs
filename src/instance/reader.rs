@@ -584,11 +584,11 @@ fn parse_fact<R: io::BufRead>(
         fact.set_id(id);
     }
     fact.set_nil(is_nil);
-    if let Some(dec) = decimals {
-        fact.set_decimals(dec);
+    if let Some(value) = decimals {
+        fact.set_decimals(value.parse()?);
     }
-    if let Some(prec) = precision {
-        fact.set_precision(prec);
+    if let Some(value) = precision {
+        fact.set_precision(value.parse()?);
     }
 
     Ok(Some(fact))

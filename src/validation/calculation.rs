@@ -5,7 +5,7 @@
 //! rounding tolerance derived from the `decimals` attribute.
 
 use super::{Severity, ValidationResult};
-use crate::{Context, Fact, Period, TaxonomySet, Unit, XbrlInstance};
+use crate::{Context, Decimals, Fact, Period, TaxonomySet, Unit, XbrlInstance};
 use std::collections::HashMap;
 
 /// Run calculation consistency checks for all roles.
@@ -45,8 +45,8 @@ pub(super) fn validate_calculations(
                 let parent_effective_value = apply_effective_accuracy(
                     parent_fact.value(),
                     parent_value,
-                    parent_decimals.as_deref(),
-                    parent_precision.as_deref(),
+                    parent_decimals.as_ref(),
+                    parent_precision.as_ref(),
                 );
 
                 let mut weighted_sum = 0.0;
@@ -72,8 +72,8 @@ pub(super) fn validate_calculations(
                         let child_effective_value = apply_effective_accuracy(
                             child_fact.value(),
                             child_value,
-                            child_decimals.as_deref(),
-                            child_precision.as_deref(),
+                            child_decimals.as_ref(),
+                            child_precision.as_ref(),
                         );
 
                         weighted_sum += weight * child_effective_value;
@@ -88,8 +88,8 @@ pub(super) fn validate_calculations(
                 let weighted_sum_effective = apply_effective_accuracy(
                     &weighted_sum.to_string(),
                     weighted_sum,
-                    parent_decimals.as_deref(),
-                    parent_precision.as_deref(),
+                    parent_decimals.as_ref(),
+                    parent_precision.as_ref(),
                 );
                 let diff = (parent_effective_value - weighted_sum_effective).abs();
 
@@ -110,9 +110,9 @@ pub(super) fn validate_calculations(
     }
 }
 
-fn effective_accuracy(fact: &Fact, taxonomy: &TaxonomySet) -> (Option<String>, Option<String>) {
-    let decimals = fact.decimals().map(str::to_string);
-    let precision = fact.precision().map(str::to_string);
+fn effective_accuracy(fact: &Fact, taxonomy: &TaxonomySet) -> (Option<Decimals>, Option<Decimals>) {
+    let decimals = fact.decimals().cloned();
+    let precision = fact.precision().cloned();
     if decimals.is_some() || precision.is_some() {
         return (decimals, precision);
     }
@@ -293,30 +293,24 @@ fn parse_numeric(value: &str) -> Option<f64> {
 fn apply_effective_accuracy(
     raw_value: &str,
     parsed_value: f64,
-    decimals: Option<&str>,
-    precision: Option<&str>,
+    decimals: Option<&Decimals>,
+    precision: Option<&Decimals>,
 ) -> f64 {
-    if let Some(dec_str) = decimals {
-        if dec_str.eq_ignore_ascii_case("INF") {
-            return parsed_value;
-        }
-        if let Ok(decimals_value) = dec_str.parse::<i32>() {
-            return round_to_decimals_ties_even(parsed_value, decimals_value);
-        }
-        return parsed_value;
+    if let Some(dec) = decimals {
+        return match dec {
+            Decimals::Infinite => parsed_value,
+            Decimals::Finite(n) => round_to_decimals_ties_even(parsed_value, *n),
+        };
     }
 
-    if let Some(prec_str) = precision {
-        if prec_str.eq_ignore_ascii_case("INF") {
-            return parsed_value;
-        }
-
-        if let Ok(precision_value) = prec_str.parse::<i32>() {
-            let inferred_decimals = infer_decimals_from_precision(parsed_value, precision_value);
-            return round_to_decimals_ties_even(parsed_value, inferred_decimals);
-        }
-
-        return parsed_value;
+    if let Some(prec) = precision {
+        return match prec {
+            Decimals::Infinite => parsed_value,
+            Decimals::Finite(n) => {
+                let inferred_decimals = infer_decimals_from_precision(parsed_value, *n);
+                round_to_decimals_ties_even(parsed_value, inferred_decimals)
+            }
+        };
     }
 
     if let Some(parsed_again) = parse_numeric(raw_value) {

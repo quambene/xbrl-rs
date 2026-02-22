@@ -18,7 +18,7 @@ pub use loader::TaxonomyLoader;
 pub use presentation::PresentationArc;
 pub use reference::{Reference, ReferencePart};
 pub use schema::{
-    ArcroleType, ElementDefinition, LinkbaseRef, RoleType, SchemaImport, SchemaInclude,
-    TaxonomySchema,
+    ArcroleType, Balance, CyclesAllowed, DeclaredAccuracy, ElementDefinition, LinkbaseRef,
+    PeriodType, RoleType, SchemaImport, SchemaInclude, TaxonomySchema,
 };
 pub use taxonomy_set::{ConceptId, RoleUri, SchemaRefUrl, TaxonomySet};

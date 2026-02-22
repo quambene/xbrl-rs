@@ -2,6 +2,47 @@
 //!
 //! Facts are the actual data values in an XBRL instance document.
 
+use crate::XbrlError;
+use std::{fmt, str::FromStr};
+
+/// The numeric accuracy attribute value for a fact (`decimals` or `precision`).
+///
+/// Per XBRL 2.1, the value is either `"INF"` (exact, no rounding) or an integer
+/// representing the number of decimal places (for `decimals`) or significant
+/// digits (for `precision`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Decimals {
+    /// An exact value; no rounding tolerance (`"INF"`).
+    Infinite,
+    /// Finite accuracy: the integer value of the `decimals` or `precision` attribute.
+    Finite(i32),
+}
+
+impl FromStr for Decimals {
+    type Err = XbrlError;
+
+    fn from_str(str: &str) -> Result<Self, Self::Err> {
+        if str.eq_ignore_ascii_case("INF") {
+            return Ok(Self::Infinite);
+        }
+        str.parse::<i32>()
+            .map(Self::Finite)
+            .map_err(|_| XbrlError::ParseError {
+                expected: "Decimals",
+                value: str.to_owned(),
+            })
+    }
+}
+
+impl fmt::Display for Decimals {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Infinite => f.write_str("INF"),
+            Self::Finite(n) => write!(f, "{n}"),
+        }
+    }
+}
+
 /// Represents a single fact (data point) in an XBRL instance
 #[derive(Debug, Clone)]
 pub struct Fact {
@@ -18,9 +59,9 @@ pub struct Fact {
     /// Whether the fact is nil (xsi:nil="true")
     is_nil: bool,
     /// Decimals attribute for numeric facts
-    decimals: Option<String>,
+    decimals: Option<Decimals>,
     /// Precision attribute for numeric facts
-    precision: Option<String>,
+    precision: Option<Decimals>,
 }
 
 impl Fact {
@@ -78,19 +119,19 @@ impl Fact {
         self.is_nil = is_nil;
     }
 
-    pub fn decimals(&self) -> Option<&str> {
-        self.decimals.as_deref()
+    pub fn decimals(&self) -> Option<&Decimals> {
+        self.decimals.as_ref()
     }
 
-    pub fn set_decimals(&mut self, decimals: String) {
+    pub fn set_decimals(&mut self, decimals: Decimals) {
         self.decimals = Some(decimals);
     }
 
-    pub fn precision(&self) -> Option<&str> {
-        self.precision.as_deref()
+    pub fn precision(&self) -> Option<&Decimals> {
+        self.precision.as_ref()
     }
 
-    pub fn set_precision(&mut self, precision: String) {
+    pub fn set_precision(&mut self, precision: Decimals) {
         self.precision = Some(precision);
     }
 

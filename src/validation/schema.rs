@@ -2,7 +2,7 @@
 //! and XBRL specification structural rules.
 
 use super::{Severity, ValidationResult};
-use crate::{Fact, Period, TaxonomySet, XbrlInstance, taxonomy::ElementDefinition};
+use crate::{Fact, Period, TaxonomySet, XbrlInstance, taxonomy::{ElementDefinition, PeriodType}};
 use std::collections::{HashMap, HashSet};
 
 const NS_XBRLI: &str = "http://www.xbrl.org/2003/instance";
@@ -537,8 +537,9 @@ fn validate_fact(
     // 6. Period type check
     if let (Some(period_type), Some(context)) = (&element.period_type, context) {
         let period_matches = matches!(
-            (period_type.as_str(), &context.period),
-            ("instant", Period::Instant { .. }) | ("duration", Period::Duration { .. })
+            (period_type, &context.period),
+            (PeriodType::Instant, Period::Instant { .. })
+                | (PeriodType::Duration, Period::Duration { .. })
         );
         if !period_matches {
             let actual = match &context.period {
