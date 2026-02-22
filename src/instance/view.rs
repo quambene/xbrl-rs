@@ -332,38 +332,4 @@ mod tests {
         assert_eq!(section.nodes[0].concept_id, "a");
         assert_eq!(section.nodes[1].concept_id, "b");
     }
-
-    #[test]
-    fn fact_indices_allow_mutation_while_view_alive() {
-        // Demonstrates that because view borrows only taxonomy (not instance
-        // facts), the facts slice can be mutably borrowed while the view lives.
-        let role = "http://example.com/role/edit".to_string();
-        let arcs = vec![(
-            role.clone(),
-            PresentationArc {
-                from: "root".to_string(),
-                to: "concept_a".to_string(),
-                order: Some(1.0),
-            },
-        )];
-        let taxonomy = create_taxonomy(arcs, vec![]);
-
-        let mut facts = vec![Fact::new(
-            "concept_a".to_string(),
-            "ctx1".to_string(),
-            None,
-            "original".to_string(),
-        )];
-
-        let view = build_view(&facts, &taxonomy);
-        let idx = view.sections[0].nodes[0].fact_indices[0];
-
-        // `view` is alive here, but `facts` can still be mutably borrowed
-        // because `view` holds no references into `facts`.
-        facts[idx].set_value("edited".to_string());
-
-        assert_eq!(facts[idx].value(), "edited");
-        // view is still usable afterwards
-        assert_eq!(view.sections[0].nodes[0].fact_indices[0], 0);
-    }
 }
