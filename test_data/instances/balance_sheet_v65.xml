@@ -23,9 +23,24 @@
             <xbrli:instant>2021-12-31</xbrli:instant>
         </xbrli:period>
     </xbrli:context>
+    <xbrli:context id="D-CURRENT-YEAR">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.rzf-nrw.de/Steuernummer">0000000000000</xbrli:identifier>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2021-01-01</xbrli:startDate>
+            <xbrli:endDate>2021-12-31</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
     <xbrli:unit id="EUR">
         <xbrli:measure>iso4217:EUR</xbrli:measure>
     </xbrli:unit>
+    <!-- company data -->
+    <de-gcd:genInfo.doc.id.generationDate
+        contextRef="D-CURRENT-YEAR">2021-06-30</de-gcd:genInfo.doc.id.generationDate>
+    <de-gcd:genInfo.report.id.reportType>
+        <de-gcd:genInfo.report.id.reportType.reportType.JA contextRef="D-CURRENT-YEAR" />
+    </de-gcd:genInfo.report.id.reportType>
     <!-- base asset facts -->
     <de-gaap-ci:bs.ass decimals="2" contextRef="I-CURRENT-YEAR" unitRef="EUR">150000.00</de-gaap-ci:bs.ass>
     <de-gaap-ci:bs.ass.currAss decimals="2" contextRef="I-CURRENT-YEAR" unitRef="EUR">100000.00</de-gaap-ci:bs.ass.currAss>
