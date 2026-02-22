@@ -1,10 +1,11 @@
 //! XBRL instance XML reader (deserialization).
 
 use crate::{
-    Context, EntityIdentifier, Fact, Period, XbrlInstance,
+    Context, ContextId, EntityIdentifier, Fact, Period, XbrlInstance,
     error::{Result, XbrlError},
     instance::{
-        FootnoteArc, FootnoteLink, FootnoteLocator, FootnoteResource, Unit, unit::UnitMeasure,
+        FootnoteArc, FootnoteLink, FootnoteLocator, FootnoteResource, NamespacePrefix, Unit,
+        UnitId, unit::UnitMeasure,
     },
 };
 use quick_xml::{
@@ -158,7 +159,7 @@ fn extract_namespaces(attributes: &Attributes, instance: &mut XbrlInstance) {
 fn parse_context<R: std::io::BufRead>(
     reader: &mut Reader<R>,
     start_element: &quick_xml::events::BytesStart,
-    namespaces: &HashMap<String, String>,
+    namespaces: &HashMap<NamespacePrefix, String>,
 ) -> Result<Context> {
     let id = get_attribute(&start_element.attributes(), b"id").ok_or_else(|| {
         XbrlError::MissingAttribute {
@@ -325,7 +326,7 @@ fn parse_context<R: std::io::BufRead>(
         }
     };
 
-    let mut context = Context::new(id, entity, period);
+    let mut context = Context::new(ContextId::from(id), entity, period);
     for (dim, member) in dimensions {
         context.add_dimension(dim, member);
     }
@@ -447,7 +448,7 @@ fn parse_footnote_link<R: io::BufRead>(
 fn parse_unit<R: std::io::BufRead>(
     reader: &mut Reader<R>,
     start_element: &quick_xml::events::BytesStart,
-    namespaces: &HashMap<String, String>,
+    namespaces: &HashMap<NamespacePrefix, String>,
 ) -> Result<Unit> {
     let id = get_attribute(&start_element.attributes(), b"id").ok_or_else(|| {
         XbrlError::MissingAttribute {
@@ -525,7 +526,7 @@ fn parse_unit<R: std::io::BufRead>(
         buf.clear();
     }
 
-    let mut unit = Unit::new(id, measure);
+    let mut unit = Unit::new(UnitId::from(id), measure);
     if !numerator_measures.is_empty() || !denominator_measures.is_empty() {
         unit.set_measures(numerator_measures, denominator_measures);
     }
@@ -642,7 +643,7 @@ fn get_attribute(attributes: &Attributes, key: &[u8]) -> Option<String> {
     None
 }
 
-fn collect_local_xmlns(attributes: &Attributes) -> HashMap<String, String> {
+fn collect_local_xmlns(attributes: &Attributes) -> HashMap<NamespacePrefix, String> {
     let mut out = HashMap::new();
     for attr in attributes.clone().flatten() {
         let key = String::from_utf8_lossy(attr.key.as_ref());
@@ -651,9 +652,9 @@ fn collect_local_xmlns(attributes: &Attributes) -> HashMap<String, String> {
             .map(|v| v.to_string())
             .unwrap_or_default();
         if key == "xmlns" {
-            out.insert(String::new(), value);
+            out.insert(NamespacePrefix::from(""), value);
         } else if let Some(prefix) = key.strip_prefix("xmlns:") {
-            out.insert(prefix.to_string(), value);
+            out.insert(NamespacePrefix::from(prefix), value);
         }
     }
     out
@@ -662,7 +663,7 @@ fn collect_local_xmlns(attributes: &Attributes) -> HashMap<String, String> {
 fn resolve_element_namespace(
     name: &str,
     attributes: &Attributes,
-    root_namespaces: &HashMap<String, String>,
+    root_namespaces: &HashMap<NamespacePrefix, String>,
 ) -> Option<String> {
     let local = collect_local_xmlns(attributes);
     if let Some((prefix, _)) = name.split_once(':') {
@@ -678,7 +679,7 @@ fn resolve_element_namespace(
     }
 }
 
-fn parse_measure(qname: &str, namespace_scope: &HashMap<String, String>) -> UnitMeasure {
+fn parse_measure(qname: &str, namespace_scope: &HashMap<NamespacePrefix, String>) -> UnitMeasure {
     let (prefix, local_name) = if let Some((prefix, local)) = qname.split_once(':') {
         (Some(prefix.to_string()), local.to_string())
     } else {

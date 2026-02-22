@@ -2,6 +2,56 @@
 //!
 //! Units define the measurement unit for numeric facts (e.g., EUR, USD, pure).
 
+use std::{borrow::Borrow, fmt, ops::Deref};
+
+/// Type-safe identifier for an XBRL unit (the `id` attribute on
+/// `<xbrli:unit>` elements).
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct UnitId(String);
+
+impl UnitId {
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl From<String> for UnitId {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+
+impl From<&str> for UnitId {
+    fn from(value: &str) -> Self {
+        Self(value.to_owned())
+    }
+}
+
+impl Deref for UnitId {
+    type Target = str;
+    fn deref(&self) -> &Self::Target {
+        self.as_str()
+    }
+}
+
+impl AsRef<str> for UnitId {
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl Borrow<str> for UnitId {
+    fn borrow(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl fmt::Display for UnitId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
 /// A parsed unit measure QName with namespace resolution.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UnitMeasure {
@@ -19,7 +69,7 @@ pub struct UnitMeasure {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Unit {
     /// Unique ID of the unit.
-    pub id: String,
+    pub id: UnitId,
     /// Unit of measure, e.g., "iso4217:EUR" for Euro or "xbrli:pure" for
     /// dimensionless.
     pub measure: String,
@@ -30,7 +80,7 @@ pub struct Unit {
 }
 
 impl Unit {
-    pub fn new(id: String, measure: String) -> Self {
+    pub fn new(id: UnitId, measure: String) -> Self {
         let (prefix, local_name) = parse_qname(&measure);
         let first = UnitMeasure {
             qname: measure.clone(),

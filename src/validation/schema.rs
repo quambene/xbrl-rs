@@ -203,8 +203,8 @@ fn validate_footnotes(instance: &XbrlInstance, result: &mut ValidationResult) {
         return;
     }
 
-    let context_ids: HashSet<&str> = instance.contexts().keys().map(String::as_str).collect();
-    let unit_ids: HashSet<&str> = instance.units().keys().map(String::as_str).collect();
+    let context_ids: HashSet<&str> = instance.contexts().keys().map(|id| id.as_str()).collect();
+    let unit_ids: HashSet<&str> = instance.units().keys().map(|id| id.as_str()).collect();
     let fact_ids: HashSet<&str> = instance.facts().iter().filter_map(Fact::id).collect();
 
     for footnote_link in instance.footnote_links() {

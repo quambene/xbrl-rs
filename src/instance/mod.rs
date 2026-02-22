@@ -9,13 +9,61 @@ mod view;
 mod writer;
 
 use crate::{TaxonomySet, error::Result, validation, validation::ValidationResult};
-pub use context::{Context, EntityIdentifier, Period};
+pub use context::{Context, ContextId, EntityIdentifier, Period};
 pub use fact::Fact;
 pub use footnote::{FootnoteArc, FootnoteLink, FootnoteLocator, FootnoteResource};
 use quick_xml::{Reader, Writer};
-use std::{collections::HashMap, io};
-pub use unit::Unit;
+use std::{borrow::Borrow, collections::HashMap, fmt, io, ops::Deref};
+pub use unit::{Unit, UnitId};
 pub use view::{DocumentView, SectionView, TreeNode};
+
+/// Type-safe namespace prefix key used in the instance namespace map
+/// (the `xmlns:prefix` declarations on the root `<xbrli:xbrl>` element).
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct NamespacePrefix(String);
+
+impl NamespacePrefix {
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl From<String> for NamespacePrefix {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+
+impl From<&str> for NamespacePrefix {
+    fn from(value: &str) -> Self {
+        Self(value.to_owned())
+    }
+}
+
+impl Deref for NamespacePrefix {
+    type Target = str;
+    fn deref(&self) -> &Self::Target {
+        self.as_str()
+    }
+}
+
+impl AsRef<str> for NamespacePrefix {
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl Borrow<str> for NamespacePrefix {
+    fn borrow(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl fmt::Display for NamespacePrefix {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
 
 /// Represents a complete XBRL instance document
 #[derive(Debug, Default)]
@@ -27,14 +75,14 @@ pub struct XbrlInstance {
     /// arcroleURI values from arcroleRef elements in the instance.
     arcrole_refs: Vec<String>,
     /// All contexts in the instance
-    contexts: HashMap<String, Context>,
+    contexts: HashMap<ContextId, Context>,
     /// All units in the instance
-    units: HashMap<String, Unit>,
+    units: HashMap<UnitId, Unit>,
     /// All facts in the instance
     facts: Vec<Fact>,
     /// Namespace prefixes used in the document (e.g. "xbrli" ->
     /// "http://www.xbrl.org/2003/instance")
-    namespaces: HashMap<String, String>,
+    namespaces: HashMap<NamespacePrefix, String>,
     /// xml:lang value declared on the root xbrl element, if present.
     root_xml_lang: Option<String>,
     /// Source document file name used for scope-sensitive checks.
@@ -47,10 +95,10 @@ impl XbrlInstance {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         schema_refs: Vec<String>,
-        contexts: HashMap<String, Context>,
-        units: HashMap<String, Unit>,
+        contexts: HashMap<ContextId, Context>,
+        units: HashMap<UnitId, Unit>,
         facts: Vec<Fact>,
-        namespaces: HashMap<String, String>,
+        namespaces: HashMap<NamespacePrefix, String>,
         root_xml_lang: Option<String>,
         document_name: Option<String>,
         footnote_links: Vec<FootnoteLink>,
@@ -191,7 +239,7 @@ impl XbrlInstance {
 
     /// Add a namespace prefix mapping
     pub fn add_namespace(&mut self, prefix: String, uri: String) {
-        self.namespaces.insert(prefix, uri);
+        self.namespaces.insert(NamespacePrefix::from(prefix), uri);
     }
 
     /// Get namespace URI for a prefix
@@ -200,7 +248,7 @@ impl XbrlInstance {
     }
 
     /// Get all namespace prefix mappings
-    pub fn namespaces(&self) -> &HashMap<String, String> {
+    pub fn namespaces(&self) -> &HashMap<NamespacePrefix, String> {
         &self.namespaces
     }
 
@@ -229,12 +277,12 @@ impl XbrlInstance {
     }
 
     /// Get all contexts
-    pub fn contexts(&self) -> &HashMap<String, Context> {
+    pub fn contexts(&self) -> &HashMap<ContextId, Context> {
         &self.contexts
     }
 
     /// Get all units
-    pub fn units(&self) -> &HashMap<String, Unit> {
+    pub fn units(&self) -> &HashMap<UnitId, Unit> {
         &self.units
     }
 }
