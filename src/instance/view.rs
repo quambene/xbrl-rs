@@ -48,9 +48,11 @@ pub struct TreeNode<'a> {
     /// Depth in the tree; root nodes have depth 0.
     pub depth: usize,
     /// Indices into the `XbrlInstance::facts()` slice for facts whose concept
-    /// maps to this element ID. Storing indices rather than references means
-    /// the view's lifetime is tied only to the taxonomy, leaving the instance
-    /// free to be mutably borrowed while the view is alive.
+    /// maps to this element ID.
+    ///
+    /// Storing indices rather than references means the view's lifetime is tied
+    /// only to the taxonomy, leaving the instance free to be mutably borrowed
+    /// while the view is alive.
     pub fact_indices: Vec<usize>,
     /// Child nodes, ordered by the presentation arc `order` attribute.
     pub children: Vec<TreeNode<'a>>,
