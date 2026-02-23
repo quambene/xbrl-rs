@@ -8,12 +8,19 @@ mod unit;
 mod view;
 mod writer;
 
-use crate::{TaxonomySet, error::Result, validation, validation::ValidationResult};
+use crate::{
+    TaxonomySet, error::Result, taxonomy::PeriodType, validation, validation::ValidationResult,
+};
 pub use context::{Context, ContextId, EntityIdentifier, Period};
 pub use fact::{Decimals, Fact};
 pub use footnote::{FootnoteArc, FootnoteLink, FootnoteLocator, FootnoteResource};
 use quick_xml::{Reader, Writer};
-use std::{borrow::Borrow, collections::HashMap, fmt, io, ops::Deref};
+use std::{
+    borrow::Borrow,
+    collections::{HashMap, HashSet},
+    fmt, io,
+    ops::Deref,
+};
 pub use unit::{Unit, UnitId};
 pub use view::{DocumentView, SectionView, TreeNode};
 
@@ -115,6 +122,73 @@ impl InstanceDocument {
             document_name,
             footnote_links,
         }
+    }
+
+    /// Create a new instance pre-wired to a known taxonomy.
+    ///
+    /// - Registers all schema refs and role refs from the taxonomy
+    /// - Adds both contexts and the unit
+    /// - Pre-populates nil facts for every concept in the presentation linkbase
+    ///
+    /// Build the [`DocumentView`] once after this call, then fill values
+    /// in-place via [`set_fact_value`] without rebuilding the view.
+    pub fn from_taxonomy(
+        taxonomy: &TaxonomySet,
+        instant_context: Context,
+        duration_context: Context,
+        unit: Unit,
+    ) -> Self {
+        let mut instance = Self::default();
+
+        for schema_url in taxonomy.schema_refs().keys() {
+            instance.add_schema_ref(schema_url.to_string());
+        }
+        for role in taxonomy.role_types() {
+            instance.add_role_ref(role.role_uri.to_string());
+        }
+
+        let instant_context_ref = &instant_context.id;
+        let duration_context_ref = &duration_context.id;
+        instance.add_context(instant_context.clone());
+        instance.add_context(duration_context.clone());
+
+        let unit_ref = &unit.id;
+        instance.add_unit(unit.clone());
+
+        // Collect unique element IDs from all presentation arcs across all roles
+        let concept_ids: HashSet<&str> = taxonomy
+            .presentations()
+            .values()
+            .flat_map(|arcs| arcs.iter())
+            .flat_map(|arc| [arc.from.as_str(), arc.to.as_str()])
+            .collect();
+
+        for concept_id in concept_ids {
+            if let Some(element) = taxonomy.find_element_by_id(concept_id)
+                && let Some(ref period_type) = element.period_type
+            {
+                let context_ref = match period_type {
+                    PeriodType::Duration => duration_context_ref,
+                    PeriodType::Instant => instant_context_ref,
+                };
+
+                // arc from/to are element IDs — convert to QName for the fact concept field
+                let concept = taxonomy
+                    .qualified_name(concept_id)
+                    .unwrap_or_else(|| concept_id.replacen('_', ":", 1));
+
+                let mut fact = Fact::new(
+                    concept,
+                    context_ref.to_string(),
+                    Some(unit_ref.to_string()),
+                    String::new(),
+                );
+                fact.set_nil(true);
+                instance.add_fact(fact);
+            }
+        }
+
+        instance
     }
 
     /// Parse an XBRL instance document from XML.
@@ -235,6 +309,15 @@ impl InstanceDocument {
     /// Get all facts mutably
     pub fn facts_mut(&mut self) -> &mut [Fact] {
         &mut self.facts
+    }
+
+    /// Set the value of a fact by its index (from [`DocumentView`] fact_indices).
+    /// Clears nil status.
+    ///
+    /// # Panics
+    /// Panics if `index` is out of bounds.
+    pub fn set_fact_value(&mut self, index: usize, value: String) {
+        self.facts[index].set_value(value);
     }
 
     /// Add a namespace prefix mapping
