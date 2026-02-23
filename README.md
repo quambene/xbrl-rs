@@ -34,21 +34,21 @@ The main concepts of XBRL are:
 
 ## Usage
 
-To download XBRL taxonomies feature `download` needs to be enabled.
+To download XBRL taxonomies, feature `download` needs to be enabled.
 
 ```rust
-// Parse XBRL instance document from XML file
+// Parse instance document from XML file
 let xml_file = File::open("/path/to/financial_report.xml").unwrap();
 let mut reader = XmlReader::from_reader(BufReader::new(xml_file));
 let xbrl_instance = XbrlInstance::from_xml(&mut reader).unwrap();
 
-// Write XBRL instance document to XML file
+// Write instance document to XML file
 let mut xml_file = File::create("financial_report.xml")?;
 let mut writer = XmlWriter::new(xml_file);
 let xbrl_instance = XbrlInstance::default();
 xbrl_instance.to_xml(&mut writer).unwrap();
 
-// Validate XBRL instance document against XBRL taxonomy
+// Validate instance document against taxonomy
 let schema_refs = xbrl_instance.schema_refs();
 let taxonomy_root = "/path/to/taxonomies";
 let loader = TaxonomyLoader::new().unwrap();
