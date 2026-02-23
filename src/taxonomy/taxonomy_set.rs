@@ -1,12 +1,14 @@
-use super::{
-    calculation::{self, CalculationArc},
-    definition::{self, DefinitionArc},
-    label::{self, Label},
-    presentation::{self, PresentationArc},
-    reference::{self, Reference},
-    schema::{DeclaredAccuracy, ElementDefinition, RoleType, TaxonomySchema},
+use super::schema::{DeclaredAccuracy, ElementDefinition, RoleType, TaxonomySchema};
+use crate::{
+    error::{Result, XbrlError},
+    taxonomy::linkbases::{
+        calculation::{self, CalculationArc},
+        definition::{self, DefinitionArc},
+        label::{self, Label},
+        presentation::{self, PresentationArc},
+        reference::{self, Reference},
+    },
 };
-use crate::error::{Result, XbrlError};
 use log::warn;
 use quick_xml::Reader;
 use std::{
@@ -642,7 +644,7 @@ impl TaxonomySet {
     }
 
     /// Insert a label for a concept ID. Used in unit tests.
-    pub fn add_label(&mut self, concept_id: String, label: super::label::Label) {
+    pub fn add_label(&mut self, concept_id: String, label: Label) {
         self.labels
             .entry(concept_id.into())
             .or_default()
