@@ -47,7 +47,7 @@ pub struct TreeNode<'a> {
     pub labels: &'a [Label],
     /// Depth in the tree; root nodes have depth 0.
     pub depth: usize,
-    /// Indices into the `XbrlInstance::facts()` slice for facts whose concept
+    /// Indices into the `InstanceDocument::facts()` slice for facts whose concept
     /// maps to this element ID.
     ///
     /// Storing indices rather than references means the view's lifetime is tied

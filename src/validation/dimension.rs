@@ -4,7 +4,7 @@
 //! valid members in the definition linkbase's domain-member relationships.
 
 use super::{Severity, ValidationResult};
-use crate::{TaxonomySet, XbrlInstance};
+use crate::{InstanceDocument, TaxonomySet};
 use std::collections::{HashMap, HashSet};
 
 /// Well-known XBRL Dimensions arcrole URIs.
@@ -12,7 +12,7 @@ const ARCROLE_DOMAIN_MEMBER: &str = "http://xbrl.org/int/dim/arcrole/domain-memb
 const ARCROLE_DIMENSION_DOMAIN: &str = "http://xbrl.org/int/dim/arcrole/dimension-domain";
 
 pub(super) fn validate_dimensions(
-    instance: &XbrlInstance,
+    instance: &InstanceDocument,
     taxonomy: &TaxonomySet,
     result: &mut ValidationResult,
 ) {

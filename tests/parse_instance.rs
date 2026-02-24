@@ -2,15 +2,15 @@
 
 use quick_xml::Reader;
 use std::{fs::File, io::BufReader, path::Path};
-use xbrl_rs::XbrlInstance;
+use xbrl_rs::InstanceDocument;
 
 const INSTANCE_BASE: &str = "test_data/instances";
 
-fn parse_instance(path: &Path) -> XbrlInstance {
+fn parse_instance(path: &Path) -> InstanceDocument {
     let file = File::open(path).expect("failed to open instance file");
     let mut reader = Reader::from_reader(BufReader::new(file));
 
-    XbrlInstance::from_xml(&mut reader).expect("failed to parse instance")
+    InstanceDocument::from_xml(&mut reader).expect("failed to parse instance")
 }
 
 #[test]

@@ -15,7 +15,7 @@ use std::{
     io::{BufReader, Write},
     path::{Path, PathBuf},
 };
-use xbrl_rs::{LinkbaseLocator, TaxonomySet, XbrlInstance};
+use xbrl_rs::{InstanceDocument, LinkbaseLocator, TaxonomySet};
 
 // ---------------------------------------------------------------------------
 // Data model
@@ -315,7 +315,7 @@ fn run_instance_variation(variation: &Variation, base_dir: &Path) -> Outcome {
     let mut instance = match File::open(&instance_path) {
         Ok(f) => {
             let mut reader = Reader::from_reader(BufReader::new(f));
-            match XbrlInstance::from_xml(&mut reader) {
+            match InstanceDocument::from_xml(&mut reader) {
                 Ok(i) => i,
                 Err(_) => return Outcome::Invalid,
             }

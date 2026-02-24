@@ -8,7 +8,7 @@
 
 use quick_xml::Reader;
 use std::{fs::File, io::BufReader, path::PathBuf};
-use xbrl_rs::{Fact, TaxonomySet, TreeNode, XbrlInstance};
+use xbrl_rs::{Fact, InstanceDocument, TaxonomySet, TreeNode};
 
 const INSTANCE_PATH: &str = "test_data/instances/balance_sheet_v64.xml";
 const TAXONOMY_ENTRY_POINT: &str = "test_data/taxonomies";
@@ -90,7 +90,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Parse instance
     let file = File::open(INSTANCE_PATH)?;
     let mut reader = Reader::from_reader(BufReader::new(file));
-    let instance = XbrlInstance::from_xml(&mut reader)?;
+    let instance = InstanceDocument::from_xml(&mut reader)?;
 
     // Discover taxonomy
     let schema_refs: Vec<String> = instance.schema_refs().to_vec();

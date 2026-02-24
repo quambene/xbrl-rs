@@ -40,23 +40,23 @@ To download XBRL taxonomies, feature `download` needs to be enabled.
 // Parse instance document from XML file
 let xml_file = File::open("/path/to/financial_report.xml").unwrap();
 let mut reader = XmlReader::from_reader(BufReader::new(xml_file));
-let xbrl_instance = XbrlInstance::from_xml(&mut reader).unwrap();
+let instance = InstanceDocument::from_xml(&mut reader).unwrap();
 
 // Write instance document to XML file
 let mut xml_file = File::create("financial_report.xml")?;
 let mut writer = XmlWriter::new(xml_file);
-let xbrl_instance = XbrlInstance::default();
-xbrl_instance.to_xml(&mut writer).unwrap();
+let instance = InstanceDocument::default();
+instance.to_xml(&mut writer).unwrap();
 
 // Validate instance document against taxonomy
-let schema_refs = xbrl_instance.schema_refs();
+let schema_refs = instance.schema_refs();
 let taxonomy_root = "/path/to/taxonomies";
 let loader = TaxonomyLoader::new().unwrap();
 loader
     .download_all(schema_refs.iter().map(String::as_str), taxonomy_root)
     .unwrap();
 let taxonomy = TaxonomySet::discover(schema_refs.to_vec(), taxonomy_root.into()).unwrap();
-let validation_result = xbrl_instance.validate(&taxonomy);
+let validation_result = instance.validate(&taxonomy);
 ```
 
 ## Testing

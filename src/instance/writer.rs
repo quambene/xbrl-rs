@@ -1,16 +1,16 @@
 //! XBRL instance XML writer (serialization).
 
-use crate::{Context, Fact, Period, XbrlInstance, error::Result, instance::Unit};
+use crate::{Context, Fact, InstanceDocument, Period, error::Result, instance::Unit};
 use quick_xml::{
     Writer,
     events::{BytesDecl, BytesEnd, BytesStart, BytesText, Event},
 };
 use std::io;
 
-/// Serialize an [`XbrlInstance`] to an XBRL XML document.
+/// Serialize [`InstanceDocument`] to an XBRL XML document.
 pub(crate) fn write_xml<W: io::Write>(
     writer: &mut Writer<W>,
-    instance: &XbrlInstance,
+    instance: &InstanceDocument,
 ) -> Result<()> {
     // XML declaration
     writer.write_event(Event::Decl(BytesDecl::new("1.0", Some("utf-8"), None)))?;

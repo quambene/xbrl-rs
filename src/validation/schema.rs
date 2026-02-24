@@ -3,7 +3,7 @@
 
 use super::{Severity, ValidationResult};
 use crate::{
-    Fact, Period, TaxonomySet, XbrlInstance,
+    Fact, InstanceDocument, Period, TaxonomySet,
     taxonomy::{ElementDefinition, PeriodType},
 };
 use std::collections::{HashMap, HashSet};
@@ -18,7 +18,7 @@ const ARCROLE_ESSENCE_ALIAS: &str = "http://www.xbrl.org/2003/arcrole/essence-al
 
 /// Run all schema-level validation checks.
 pub(super) fn validate_schema(
-    instance: &XbrlInstance,
+    instance: &InstanceDocument,
     taxonomy: &TaxonomySet,
     result: &mut ValidationResult,
 ) {
@@ -36,7 +36,7 @@ pub(super) fn validate_schema(
 ///
 /// Adds an error when the same role URI or arcrole URI is declared more than
 /// once in the instance document.
-fn validate_instance_refs(instance: &XbrlInstance, result: &mut ValidationResult) {
+fn validate_instance_refs(instance: &InstanceDocument, result: &mut ValidationResult) {
     let mut role_uris = HashSet::new();
     for role_uri in instance.role_refs() {
         if !role_uris.insert(role_uri.as_str()) {
@@ -70,7 +70,7 @@ fn validate_instance_refs(instance: &XbrlInstance, result: &mut ValidationResult
 /// the same context and reports an error when non-nil source/target facts use
 /// semantically different units.
 fn validate_essence_alias_units(
-    instance: &XbrlInstance,
+    instance: &InstanceDocument,
     taxonomy: &TaxonomySet,
     result: &mut ValidationResult,
 ) {
@@ -201,7 +201,7 @@ fn units_semantically_equal(left: &crate::instance::Unit, right: &crate::instanc
 ///
 /// Enforces role constraints, locator/resource requirements, `href` target
 /// resolution, and `fact-footnote` arc endpoint correctness.
-fn validate_footnotes(instance: &XbrlInstance, result: &mut ValidationResult) {
+fn validate_footnotes(instance: &InstanceDocument, result: &mut ValidationResult) {
     if instance.footnote_links().is_empty() {
         return;
     }
@@ -421,7 +421,7 @@ fn href_target_id(href: &str) -> Option<(Option<&str>, &str)> {
 
 fn validate_fact(
     fact: &Fact,
-    instance: &XbrlInstance,
+    instance: &InstanceDocument,
     taxonomy: &TaxonomySet,
     result: &mut ValidationResult,
 ) {
@@ -575,7 +575,7 @@ fn validate_fact(
 /// disallowed XBRL substitution-group elements inside context content, and
 /// invalid duration period ordering (`startDate < endDate`).
 fn validate_contexts(
-    instance: &XbrlInstance,
+    instance: &InstanceDocument,
     taxonomy: &TaxonomySet,
     result: &mut ValidationResult,
 ) {

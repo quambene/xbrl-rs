@@ -1,7 +1,7 @@
 //! XBRL instance XML reader (deserialization).
 
 use crate::{
-    Context, ContextId, EntityIdentifier, Fact, Period, XbrlInstance,
+    Context, ContextId, EntityIdentifier, Fact, InstanceDocument, Period,
     error::{Result, XbrlError},
     instance::{
         FootnoteArc, FootnoteLink, FootnoteLocator, FootnoteResource, NamespacePrefix, Unit,
@@ -27,14 +27,14 @@ fn name_matches(name: &str, expected_local: &str) -> bool {
 ///
 /// The raw XML may contain a wrapper around the `<xbrli:xbrl>` element; this
 /// function handles extraction automatically.
-pub(crate) fn read_xml<R>(reader: &mut Reader<R>) -> Result<XbrlInstance>
+pub(crate) fn read_xml<R>(reader: &mut Reader<R>) -> Result<InstanceDocument>
 where
     R: io::BufRead,
 {
     reader.config_mut().trim_text_start = true;
     reader.config_mut().trim_text_end = true;
 
-    let mut instance = XbrlInstance::default();
+    let mut instance = InstanceDocument::default();
     let mut buf = Vec::new();
     let mut inside_xbrl = false;
 
@@ -141,7 +141,7 @@ fn resolve_xml_base_href(xml_base: &str, href: &str) -> String {
 }
 
 /// Extract namespace declarations from the xbrl element.
-fn extract_namespaces(attributes: &Attributes, instance: &mut XbrlInstance) {
+fn extract_namespaces(attributes: &Attributes, instance: &mut InstanceDocument) {
     for attr in attributes.clone().flatten() {
         let key = String::from_utf8_lossy(attr.key.as_ref());
         if key == "xmlns" {

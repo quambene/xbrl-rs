@@ -67,7 +67,7 @@ impl fmt::Display for NamespacePrefix {
 
 /// Represents a complete XBRL instance document
 #[derive(Debug, Default)]
-pub struct XbrlInstance {
+pub struct InstanceDocument {
     /// Schema references (xlink:href values from link:schemaRef elements)
     schema_refs: Vec<String>,
     /// roleURI values from roleRef elements in the instance.
@@ -91,7 +91,7 @@ pub struct XbrlInstance {
     footnote_links: Vec<FootnoteLink>,
 }
 
-impl XbrlInstance {
+impl InstanceDocument {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         schema_refs: Vec<String>,
@@ -289,7 +289,7 @@ impl XbrlInstance {
 
 #[cfg(test)]
 mod tests {
-    use super::XbrlInstance;
+    use super::InstanceDocument;
     use crate::TaxonomySet;
     use quick_xml::Reader;
 
@@ -307,7 +307,7 @@ mod tests {
         "#;
 
         let mut reader = Reader::from_str(xml);
-        let instance = XbrlInstance::from_xml(&mut reader).expect("instance should parse");
+        let instance = InstanceDocument::from_xml(&mut reader).expect("instance should parse");
 
         assert_eq!(instance.schema_refs().len(), 1);
         assert!(instance.contexts().is_empty());
@@ -318,7 +318,7 @@ mod tests {
     #[test]
     fn validate_reports_duplicate_role_refs() {
         let taxonomy = TaxonomySet::default();
-        let mut instance = XbrlInstance::default();
+        let mut instance = InstanceDocument::default();
         let role_uri = "http://www.xbrl.org/2003/role/link".to_string();
 
         instance.add_role_ref(role_uri.clone());
@@ -338,7 +338,7 @@ mod tests {
     #[test]
     fn validate_reports_duplicate_arcrole_refs() {
         let taxonomy = TaxonomySet::default();
-        let mut instance = XbrlInstance::default();
+        let mut instance = InstanceDocument::default();
         let arcrole_uri = "http://www.xbrl.org/2003/arcrole/fact-footnote".to_string();
 
         instance.add_arcrole_ref(arcrole_uri.clone());
@@ -358,7 +358,7 @@ mod tests {
     #[test]
     fn validate_accepts_unique_refs() {
         let taxonomy = TaxonomySet::default();
-        let mut instance = XbrlInstance::default();
+        let mut instance = InstanceDocument::default();
 
         instance.add_role_ref("http://www.xbrl.org/2003/role/link".to_string());
         instance.add_arcrole_ref("http://www.xbrl.org/2003/arcrole/fact-footnote".to_string());
@@ -392,7 +392,7 @@ mod tests {
         "#;
 
         let mut reader = Reader::from_str(xml);
-        let instance = XbrlInstance::from_xml(&mut reader).expect("instance should parse");
+        let instance = InstanceDocument::from_xml(&mut reader).expect("instance should parse");
 
         assert_eq!(instance.role_refs(), ["http://www.xbrl.org/2003/role/link"]);
         assert_eq!(
@@ -404,7 +404,7 @@ mod tests {
     #[test]
     fn validate_reports_both_duplicate_role_and_arcrole_refs() {
         let taxonomy = TaxonomySet::default();
-        let mut instance = XbrlInstance::default();
+        let mut instance = InstanceDocument::default();
 
         instance.add_role_ref("http://www.xbrl.org/2003/role/link".to_string());
         instance.add_role_ref("http://www.xbrl.org/2003/role/link".to_string());

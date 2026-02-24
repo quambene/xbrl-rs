@@ -5,12 +5,14 @@
 //! rounding tolerance derived from the `decimals` attribute.
 
 use super::{Severity, ValidationResult};
-use crate::{Context, Decimals, DeclaredAccuracy, Fact, Period, TaxonomySet, Unit, XbrlInstance};
+use crate::{
+    Context, Decimals, DeclaredAccuracy, Fact, InstanceDocument, Period, TaxonomySet, Unit,
+};
 use std::collections::HashMap;
 
 /// Run calculation consistency checks for all roles.
 pub(super) fn validate_calculations(
-    instance: &XbrlInstance,
+    instance: &InstanceDocument,
     taxonomy: &TaxonomySet,
     result: &mut ValidationResult,
 ) {
@@ -165,7 +167,7 @@ struct UnitKey {
 ///
 /// Only includes non-nil facts whose local_name maps to a known element with an id.
 fn build_fact_index<'a>(
-    instance: &'a XbrlInstance,
+    instance: &'a InstanceDocument,
     taxonomy: &TaxonomySet,
 ) -> HashMap<String, HashMap<CtxUnitKey, IndexedFact<'a>>> {
     let mut index: HashMap<String, HashMap<CtxUnitKey, IndexedFact<'a>>> = HashMap::new();
@@ -201,7 +203,7 @@ fn build_fact_index<'a>(
 }
 
 fn fact_semantic_key(
-    instance: &XbrlInstance,
+    instance: &InstanceDocument,
     fact: &Fact,
     context: &Context,
 ) -> Option<CtxUnitKey> {

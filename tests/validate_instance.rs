@@ -7,16 +7,16 @@ use std::{
     path::{Path, PathBuf},
     str::FromStr,
 };
-use xbrl_rs::{TaxonomySet, XbrlInstance};
+use xbrl_rs::{InstanceDocument, TaxonomySet};
 
 const INSTANCE_BASE: &str = "test_data/instances";
 const TAXONOMY_ENTRY_POINT: &str = "test_data/taxonomies";
 
-fn parse_instance(path: &Path) -> XbrlInstance {
+fn parse_instance(path: &Path) -> InstanceDocument {
     let file = File::open(path).expect("failed to open instance file");
     let mut reader = Reader::from_reader(BufReader::new(file));
 
-    XbrlInstance::from_xml(&mut reader).expect("failed to parse instance")
+    InstanceDocument::from_xml(&mut reader).expect("failed to parse instance")
 }
 
 #[test]

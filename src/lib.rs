@@ -12,8 +12,8 @@ pub(crate) mod validation;
 pub use error::{LinkbaseType, Result, XbrlError};
 pub use instance::{
     Context, ContextId, Decimals, DocumentView, EntityIdentifier, Fact, FootnoteArc, FootnoteLink,
-    FootnoteLocator, FootnoteResource, NamespacePrefix, Period, SectionView, TreeNode, Unit,
-    UnitId, XbrlInstance,
+    FootnoteLocator, FootnoteResource, InstanceDocument, NamespacePrefix, Period, SectionView,
+    TreeNode, Unit, UnitId,
 };
 pub use quick_xml::{Reader as XmlReader, Writer as XmlWriter};
 #[cfg(feature = "download")]

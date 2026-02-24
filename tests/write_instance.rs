@@ -1,6 +1,6 @@
 use roxmltree::Document;
 use std::{path::PathBuf, str::FromStr};
-use xbrl_rs::{TaxonomySet, XbrlInstance, XmlWriter};
+use xbrl_rs::{InstanceDocument, TaxonomySet, XmlWriter};
 
 const TAXONOMY_ENTRY_POINT: &str = "test_data/taxonomies";
 
@@ -12,7 +12,7 @@ fn write_empty_instance() {
     let taxonomy =
         TaxonomySet::discover(vec![gcd.to_owned(), gaap.to_owned()], entry_point).unwrap();
 
-    let mut instance = XbrlInstance::default();
+    let mut instance = InstanceDocument::default();
 
     for url in taxonomy.schema_refs().keys() {
         instance.add_schema_ref(url.to_string());

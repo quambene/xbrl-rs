@@ -4,7 +4,7 @@ mod calculation;
 mod dimension;
 mod schema;
 
-use crate::{TaxonomySet, XbrlInstance};
+use crate::{InstanceDocument, TaxonomySet};
 
 /// Severity level of a validation message.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -82,7 +82,7 @@ impl ValidationResult {
 }
 
 /// Run all validation checks: schema, calculation, and dimension.
-pub fn validate_all(instance: &XbrlInstance, taxonomy: &TaxonomySet) -> ValidationResult {
+pub fn validate_all(instance: &InstanceDocument, taxonomy: &TaxonomySet) -> ValidationResult {
     let mut result = ValidationResult::new();
     validate_schema(instance, taxonomy, &mut result);
     validate_calculations(instance, taxonomy, &mut result);
@@ -93,7 +93,7 @@ pub fn validate_all(instance: &XbrlInstance, taxonomy: &TaxonomySet) -> Validati
 /// Check that facts conform to the DTS element definitions and XBRL
 /// specification structural rules.
 pub fn validate_schema(
-    instance: &XbrlInstance,
+    instance: &InstanceDocument,
     taxonomy: &TaxonomySet,
     result: &mut ValidationResult,
 ) {
@@ -102,7 +102,7 @@ pub fn validate_schema(
 
 /// Check calculation linkbase consistency (summation-item relationships).
 pub fn validate_calculations(
-    instance: &XbrlInstance,
+    instance: &InstanceDocument,
     taxonomy: &TaxonomySet,
     result: &mut ValidationResult,
 ) {
@@ -112,7 +112,7 @@ pub fn validate_calculations(
 /// Check that dimension members in contexts are valid per the definition
 /// linkbase.
 pub fn validate_dimensions(
-    instance: &XbrlInstance,
+    instance: &InstanceDocument,
     taxonomy: &TaxonomySet,
     result: &mut ValidationResult,
 ) {
