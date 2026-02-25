@@ -1,7 +1,7 @@
 //! XBRL instance XML reader (deserialization).
 
 use crate::{
-    Context, ContextId, EntityIdentifier, Fact, InstanceDocument, Period,
+    Context, ContextId, EntityIdentifier, Fact, InstanceDocument, ItemFact, Period, TupleFact,
     error::{Result, XbrlError},
     instance::{
         FootnoteArc, FootnoteLink, FootnoteLocator, FootnoteResource, NamespacePrefix, Unit,
@@ -40,7 +40,7 @@ where
 
     loop {
         match reader.read_event_into(&mut buf) {
-            Ok(Event::Start(e)) | Ok(Event::Empty(e)) => {
+            Ok(Event::Start(e)) => {
                 let name = e.name();
                 let name_str = String::from_utf8_lossy(name.as_ref());
 
@@ -93,10 +93,55 @@ where
                 } else if name_matches(&name_str, "footnoteLink") {
                     let footnote_link = parse_footnote_link(reader, &e)?;
                     instance.add_footnote_link(footnote_link);
-                } else if inside_xbrl
-                    && is_fact_element(&name_str)
-                    && let Some(fact) = parse_fact(reader, &e, &name_str)?
-                {
+                } else if is_fact_element(&name_str) {
+                    let fact = parse_fact(reader, &e, &name_str)?;
+                    instance.add_fact(fact);
+                }
+            }
+            Ok(Event::Empty(e)) => {
+                let name = e.name();
+                let name_str = String::from_utf8_lossy(name.as_ref());
+
+                // Detect XBRL root element and extract namespaces
+                if name_matches(&name_str, "xbrl") {
+                    inside_xbrl = true;
+                    extract_namespaces(&e.attributes(), &mut instance);
+                    instance.set_root_xml_lang(
+                        get_attribute(&e.attributes(), b"xml:lang")
+                            .or_else(|| get_attribute_local(&e.attributes(), "lang")),
+                    );
+                }
+
+                if !inside_xbrl {
+                    buf.clear();
+                    continue;
+                }
+
+                if name_matches(&name_str, "schemaRef") {
+                    if let Some(href) = get_attribute(&e.attributes(), b"xlink:href")
+                        .or_else(|| get_attribute_local(&e.attributes(), "href"))
+                    {
+                        let resolved_href = get_attribute(&e.attributes(), b"xml:base")
+                            .or_else(|| get_attribute_local(&e.attributes(), "base"))
+                            .map(|xml_base| resolve_xml_base_href(&xml_base, &href))
+                            .unwrap_or(href);
+                        instance.add_schema_ref(resolved_href);
+                    }
+                } else if name_matches(&name_str, "roleRef") {
+                    if let Some(role_uri) = get_attribute(&e.attributes(), b"roleURI")
+                        .or_else(|| get_attribute_local(&e.attributes(), "roleURI"))
+                    {
+                        instance.add_role_ref(role_uri);
+                    }
+                } else if name_matches(&name_str, "arcroleRef") {
+                    if let Some(arcrole_uri) = get_attribute(&e.attributes(), b"arcroleURI")
+                        .or_else(|| get_attribute_local(&e.attributes(), "arcroleURI"))
+                    {
+                        instance.add_arcrole_ref(arcrole_uri);
+                    }
+                } else if is_fact_element(&name_str) {
+                    // Self-closing facts (e.g. xsi:nil="true")
+                    let fact = parse_empty_fact(&e, &name_str)?;
                     instance.add_fact(fact);
                 }
             }
@@ -538,7 +583,7 @@ fn parse_fact<R: io::BufRead>(
     reader: &mut Reader<R>,
     start_element: &quick_xml::events::BytesStart,
     concept: &str,
-) -> Result<Option<Fact>> {
+) -> Result<Fact> {
     for attr in start_element.attributes().flatten() {
         let key = String::from_utf8_lossy(attr.key.as_ref());
         if key.rsplit(':').next() == Some("periodType") {
@@ -558,40 +603,127 @@ fn parse_fact<R: io::BufRead>(
     let decimals = get_attribute(&start_element.attributes(), b"decimals");
     let precision = get_attribute(&start_element.attributes(), b"precision");
 
-    // Only process if we have a context reference
-    let context_ref = match context_ref {
-        Some(cr) => cr,
-        None => return Ok(None),
-    };
-
-    let mut value = String::new();
-
-    // Read the text content
-    let mut text_buf = Vec::new();
-    match reader.read_event_into(&mut text_buf) {
-        Ok(Event::Text(t)) => {
-            let text_str = std::str::from_utf8(t.as_ref())?;
-            value = unescape(text_str)?.into_owned();
+    if let Some(context_ref) = context_ref {
+        let mut value = String::new();
+        let mut depth = 1usize;
+        let mut text_buf = Vec::new();
+        loop {
+            match reader.read_event_into(&mut text_buf) {
+                Ok(Event::Start(_)) => depth += 1,
+                Ok(Event::End(e)) => {
+                    depth -= 1;
+                    if depth == 0 {
+                        break;
+                    }
+                    if e.name().as_ref() == start_element.name().as_ref() {
+                        break;
+                    }
+                }
+                Ok(Event::Text(t)) => {
+                    let text_str = std::str::from_utf8(t.as_ref())?;
+                    value.push_str(&unescape(text_str)?);
+                }
+                Ok(Event::CData(c)) => {
+                    value.push_str(std::str::from_utf8(c.as_ref())?);
+                }
+                Ok(Event::Eof) => break,
+                Err(err) => {
+                    return Err(XbrlError::XmlParse {
+                        position: reader.buffer_position(),
+                        element: Some(concept.to_string()),
+                        source: err,
+                    });
+                }
+                _ => {}
+            }
+            text_buf.clear();
         }
-        Ok(Event::End(_)) => {
-            // Empty element
+
+        let mut fact = ItemFact::new(concept.to_string(), context_ref, unit_ref, value);
+        if let Some(id) = id {
+            fact.set_id(id);
         }
-        _ => {}
+        fact.set_nil(is_nil);
+        if let Some(value) = decimals {
+            fact.set_decimals(value.parse()?);
+        }
+        if let Some(value) = precision {
+            fact.set_precision(value.parse()?);
+        }
+
+        return Ok(Fact::Item(fact));
     }
 
-    let mut fact = Fact::new(concept.to_string(), context_ref, unit_ref, value);
+    // Tuple fact: recursively parse child facts until tuple end
+    let mut tuple = TupleFact::new(concept.to_string());
     if let Some(id) = id {
-        fact.set_id(id);
-    }
-    fact.set_nil(is_nil);
-    if let Some(value) = decimals {
-        fact.set_decimals(value.parse()?);
-    }
-    if let Some(value) = precision {
-        fact.set_precision(value.parse()?);
+        tuple.set_id(id);
     }
 
-    Ok(Some(fact))
+    let mut buf = Vec::new();
+    loop {
+        match reader.read_event_into(&mut buf) {
+            Ok(Event::Start(e)) => {
+                let child_name = String::from_utf8_lossy(e.name().as_ref()).to_string();
+                if is_fact_element(&child_name) {
+                    let child = parse_fact(reader, &e, &child_name)?;
+                    tuple.add_child(child);
+                }
+            }
+            Ok(Event::Empty(e)) => {
+                let child_name = String::from_utf8_lossy(e.name().as_ref()).to_string();
+                if is_fact_element(&child_name) {
+                    let child = parse_empty_fact(&e, &child_name)?;
+                    tuple.add_child(child);
+                }
+            }
+            Ok(Event::End(e)) if e.name().as_ref() == start_element.name().as_ref() => break,
+            Ok(Event::Eof) => break,
+            Err(err) => {
+                return Err(XbrlError::XmlParse {
+                    position: reader.buffer_position(),
+                    element: Some(concept.to_string()),
+                    source: err,
+                });
+            }
+            _ => {}
+        }
+        buf.clear();
+    }
+
+    Ok(Fact::Tuple(tuple))
+}
+
+fn parse_empty_fact(start_element: &quick_xml::events::BytesStart, concept: &str) -> Result<Fact> {
+    let context_ref = get_attribute(&start_element.attributes(), b"contextRef");
+    let id = get_attribute(&start_element.attributes(), b"id");
+    let unit_ref = get_attribute(&start_element.attributes(), b"unitRef");
+    let is_nil = get_attribute(&start_element.attributes(), b"xsi:nil")
+        .map(|v| v == "true")
+        .unwrap_or(false);
+    let decimals = get_attribute(&start_element.attributes(), b"decimals");
+    let precision = get_attribute(&start_element.attributes(), b"precision");
+
+    if let Some(context_ref) = context_ref {
+        let mut fact = ItemFact::new(concept.to_string(), context_ref, unit_ref, String::new());
+        if let Some(id) = id {
+            fact.set_id(id);
+        }
+        fact.set_nil(is_nil);
+        if let Some(value) = decimals {
+            fact.set_decimals(value.parse()?);
+        }
+        if let Some(value) = precision {
+            fact.set_precision(value.parse()?);
+        }
+        return Ok(Fact::Item(fact));
+    }
+
+    let mut tuple = TupleFact::new(concept.to_string());
+    if let Some(id) = id {
+        tuple.set_id(id);
+    }
+    Ok(Fact::Tuple(tuple))
 }
 
 /// Check if an element name represents a fact.

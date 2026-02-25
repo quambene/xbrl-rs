@@ -45,7 +45,14 @@ impl fmt::Display for Decimals {
 
 /// Represents a single fact (data point) in an XBRL instance
 #[derive(Debug, Clone)]
-pub struct Fact {
+pub enum Fact {
+    Item(ItemFact),
+    Tuple(TupleFact),
+}
+
+/// Represents a single item fact (data point) in an XBRL instance.
+#[derive(Debug, Clone)]
+pub struct ItemFact {
     /// Optional XML id attribute
     id: Option<String>,
     /// The concept name (e.g. "de-gaap-ci:bs.ass.fixAss")
@@ -64,7 +71,18 @@ pub struct Fact {
     precision: Option<Decimals>,
 }
 
-impl Fact {
+/// Represents a tuple fact that can contain child facts.
+#[derive(Debug, Clone)]
+pub struct TupleFact {
+    /// Optional XML id attribute
+    id: Option<String>,
+    /// The concept name (e.g. "de-gcd:genInfo.company.id.shareholder")
+    concept: String,
+    /// Nested child facts (item and tuple facts)
+    children: Vec<Fact>,
+}
+
+impl ItemFact {
     pub fn new(
         concept: String,
         context_ref: String,
@@ -152,5 +170,118 @@ impl Fact {
     /// where colons are not valid in XML ID values.
     pub fn concept_id(&self) -> String {
         self.concept.replacen(':', "_", 1)
+    }
+}
+
+impl TupleFact {
+    pub fn new(concept: String) -> Self {
+        Self {
+            id: None,
+            concept,
+            children: Vec::new(),
+        }
+    }
+
+    pub fn concept(&self) -> &str {
+        &self.concept
+    }
+
+    pub fn id(&self) -> Option<&str> {
+        self.id.as_deref()
+    }
+
+    pub fn set_id(&mut self, id: String) {
+        self.id = Some(id);
+    }
+
+    pub fn children(&self) -> &[Fact] {
+        &self.children
+    }
+
+    pub fn children_mut(&mut self) -> &mut Vec<Fact> {
+        &mut self.children
+    }
+
+    pub fn add_child(&mut self, child: Fact) {
+        self.children.push(child);
+    }
+}
+
+impl Fact {
+    pub fn item(
+        concept: String,
+        context_ref: String,
+        unit_ref: Option<String>,
+        value: String,
+    ) -> Self {
+        Self::Item(ItemFact::new(concept, context_ref, unit_ref, value))
+    }
+
+    pub fn tuple(concept: String) -> Self {
+        Self::Tuple(TupleFact::new(concept))
+    }
+
+    pub fn concept(&self) -> &str {
+        match self {
+            Self::Item(fact) => fact.concept(),
+            Self::Tuple(fact) => fact.concept(),
+        }
+    }
+
+    pub fn id(&self) -> Option<&str> {
+        match self {
+            Self::Item(fact) => fact.id(),
+            Self::Tuple(fact) => fact.id(),
+        }
+    }
+
+    pub fn as_item(&self) -> Option<&ItemFact> {
+        match self {
+            Self::Item(fact) => Some(fact),
+            Self::Tuple(_) => None,
+        }
+    }
+
+    pub fn as_item_mut(&mut self) -> Option<&mut ItemFact> {
+        match self {
+            Self::Item(fact) => Some(fact),
+            Self::Tuple(_) => None,
+        }
+    }
+
+    pub fn as_tuple(&self) -> Option<&TupleFact> {
+        match self {
+            Self::Item(_) => None,
+            Self::Tuple(fact) => Some(fact),
+        }
+    }
+
+    pub fn as_tuple_mut(&mut self) -> Option<&mut TupleFact> {
+        match self {
+            Self::Item(_) => None,
+            Self::Tuple(fact) => Some(fact),
+        }
+    }
+
+    pub fn walk_items<'a>(&'a self, out: &mut Vec<&'a ItemFact>) {
+        match self {
+            Self::Item(fact) => out.push(fact),
+            Self::Tuple(fact) => {
+                for child in &fact.children {
+                    child.walk_items(out);
+                }
+            }
+        }
+    }
+
+    pub fn walk_items_mut<'a>(&'a mut self, out: &mut Vec<&'a mut ItemFact>) {
+        match self {
+            Self::Item(fact) => out.push(fact),
+            Self::Tuple(fact) => {
+                for child in &mut fact.children {
+                    child.walk_items_mut(out);
+                }
+            }
+        }
     }
 }

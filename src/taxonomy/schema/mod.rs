@@ -135,6 +135,24 @@ pub struct ElementDefinition {
     pub period_type: Option<PeriodType>,
     /// The XBRL balance type ("debit" or "credit").
     pub balance: Option<Balance>,
+    /// For tuple elements: the QNames of child elements declared via `xs:element[@ref]`
+    /// inside the tuple's inline `xs:complexType`. Empty for non-tuple elements.
+    pub tuple_children: Vec<String>,
+}
+
+impl ElementDefinition {
+    /// Returns `true` if this element is an XBRL tuple (`substitutionGroup="xbrli:tuple"`).
+    pub fn is_tuple(&self) -> bool {
+        self.substitution_group
+            .as_deref()
+            .is_some_and(|s| local_name(s) == "tuple")
+    }
+
+    /// Returns `true` if this element is a concrete (non-abstract) item fact.
+    /// Such elements are the only ones that should appear as facts in an instance document.
+    pub fn is_concrete_item(&self) -> bool {
+        !self.is_abstract && self.period_type.is_some()
+    }
 }
 
 /// A `link:roleType` definition from a taxonomy schema.
@@ -390,6 +408,7 @@ mod tests {
                 is_abstract: false,
                 period_type: None,
                 balance: None,
+                tuple_children: Vec::new(),
             }],
             type_bases: HashMap::new(),
             type_declared_accuracy: HashMap::new(),
@@ -423,6 +442,7 @@ mod tests {
                 is_abstract: false,
                 period_type: Some(PeriodType::Duration),
                 balance: Some(Balance::Credit),
+                tuple_children: Vec::new(),
             }],
             type_bases: HashMap::new(),
             type_declared_accuracy: HashMap::new(),
@@ -456,6 +476,7 @@ mod tests {
                 is_abstract: false,
                 period_type: Some(PeriodType::Duration),
                 balance: None,
+                tuple_children: Vec::new(),
             }],
             type_bases: HashMap::new(),
             type_declared_accuracy: HashMap::new(),
@@ -489,6 +510,7 @@ mod tests {
                 is_abstract: false,
                 period_type: None,
                 balance: Some(Balance::Credit),
+                tuple_children: Vec::new(),
             }],
             type_bases: HashMap::new(),
             type_declared_accuracy: HashMap::new(),
@@ -552,6 +574,7 @@ mod tests {
                 is_abstract: false,
                 period_type: Some(PeriodType::Instant),
                 balance: Some(Balance::Debit),
+                tuple_children: Vec::new(),
             }],
             type_bases: HashMap::new(),
             type_declared_accuracy: HashMap::new(),

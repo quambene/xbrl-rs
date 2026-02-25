@@ -25,6 +25,7 @@
   - Add `DocumentView` and implement `XbrlInstance::view`
   - Add `example/print_facts.rs`
   - Implement `XbrlInstance::from_taxonomy`
+  - Parse `TupleFact`s
 - changed
   - Rename `TaxonomySchema::parse` to `TaxonomySchema::from_xml`
   - Use `BufReader` for parsing schemas and linkbases

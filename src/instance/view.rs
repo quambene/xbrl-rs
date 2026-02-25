@@ -1,6 +1,6 @@
 //! Document view built from the presentation linkbase.
 
-use super::fact::Fact;
+use super::fact::ItemFact;
 use crate::{
     TaxonomySet,
     taxonomy::{Label, PresentationArc},
@@ -23,7 +23,7 @@ impl<'a> DocumentView<'a> {
     /// `facts` is read once to map concept IDs to their positions; no
     /// references into the slice are retained. The returned view borrows
     /// only from `taxonomy`.
-    pub fn build(facts: &[Fact], taxonomy: &'a TaxonomySet) -> Self {
+    pub fn build(facts: &[&ItemFact], taxonomy: &'a TaxonomySet) -> Self {
         build_view(facts, taxonomy)
     }
 }
@@ -64,7 +64,7 @@ pub struct TreeNode<'a> {
 /// `facts` is borrowed for index-building only; no references into the slice
 /// are retained, so the returned `DocumentView<'a>` borrows only from
 /// `taxonomy`.
-pub fn build_view<'a>(facts: &[Fact], taxonomy: &'a TaxonomySet) -> DocumentView<'a> {
+pub fn build_view<'a>(facts: &[&ItemFact], taxonomy: &'a TaxonomySet) -> DocumentView<'a> {
     // Index facts by their element ID → position in the facts slice.
     let mut fact_index: HashMap<String, Vec<usize>> = HashMap::new();
     for (i, fact) in facts.iter().enumerate() {
@@ -175,7 +175,7 @@ fn build_nodes<'a>(
 mod tests {
     use super::*;
     use crate::{
-        Fact,
+        ItemFact,
         taxonomy::{Label, PresentationArc, TaxonomySet},
     };
 
@@ -241,13 +241,13 @@ mod tests {
 
         // Use a QName without a prefix so concept_id() == "child_a" directly,
         // matching the element ID used in the presentation arcs above.
-        let fact = Fact::new(
+        let fact = ItemFact::new(
             "child_a".to_string(), // no prefix → concept_id() == "child_a"
             "ctx1".to_string(),
             None,
             "42".to_string(),
         );
-        let facts = vec![fact];
+        let facts = vec![&fact];
 
         let view = build_view(&facts, &taxonomy);
 

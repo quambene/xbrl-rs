@@ -493,6 +493,50 @@ impl TaxonomySet {
             .find(|e| e.id.as_deref() == Some(id))
     }
 
+    /// Find the tuple element that directly contains the given concept, if any.
+    ///
+    /// A concept belongs to a tuple when its `substitutionGroup` points to an abstract
+    /// head element that is listed as an `xs:element[@ref]` inside the tuple's inline
+    /// `xs:complexType`. Only one level of indirection is resolved (direct parent tuple).
+    pub fn find_parent_tuple(&self, concept_id: &str) -> Option<&ElementDefinition> {
+        let element = self.find_element_by_id(concept_id)?;
+        let parent_qname = element.substitution_group.as_deref()?;
+
+        // Skip standard XBRL substitution groups — those don't belong to a custom tuple
+        let local = parent_qname.rsplit(':').next().unwrap_or(parent_qname);
+        if local == "item" || local == "tuple" {
+            return None;
+        }
+
+        // Find a tuple whose xs:complexType references this abstract head QName
+        self.schemas
+            .values()
+            .flat_map(|s| &s.elements)
+            .find(|e| e.is_tuple() && e.tuple_children.iter().any(|c| c == parent_qname))
+    }
+
+    /// Find all tuple ancestor IDs from root tuple to direct parent tuple.
+    pub fn tuple_ancestor_ids(&self, concept_id: &str) -> Vec<String> {
+        let mut ancestors = Vec::new();
+        let mut current = concept_id.to_string();
+        let mut seen = HashSet::new();
+
+        while seen.insert(current.clone()) {
+            let Some(parent_tuple) = self.find_parent_tuple(&current) else {
+                break;
+            };
+            let Some(parent_id) = parent_tuple.id.as_ref() else {
+                break;
+            };
+
+            ancestors.push(parent_id.clone());
+            current = parent_id.clone();
+        }
+
+        ancestors.reverse();
+        ancestors
+    }
+
     pub fn is_type_derived_from(&self, type_name: &str, target_base_local_name: &str) -> bool {
         let mut current = type_name.to_string();
         let mut seen = HashSet::new();

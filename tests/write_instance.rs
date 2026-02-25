@@ -1,6 +1,10 @@
 use roxmltree::Document;
-use std::{path::PathBuf, str::FromStr};
-use xbrl_rs::{InstanceDocument, TaxonomySet, XmlWriter};
+use std::{
+    io::Cursor,
+    path::{Path, PathBuf},
+    str::FromStr,
+};
+use xbrl_rs::{Fact, InstanceDocument, TaxonomySet, XmlReader, XmlWriter};
 
 const TAXONOMY_ENTRY_POINT: &str = "test_data/taxonomies";
 
@@ -36,4 +40,30 @@ fn write_empty_instance() {
     let doc = Document::parse(&xml);
 
     assert!(doc.is_ok());
+}
+
+#[test]
+fn write_roundtrip_preserves_tuple_children() {
+    let path = Path::new("test_data/examples/HandelsbilanzLandwirt_GmbH.xml");
+    let source = std::fs::read_to_string(path).unwrap();
+
+    let mut reader = XmlReader::from_str(&source);
+    let instance = InstanceDocument::from_xml(&mut reader).unwrap();
+
+    let original_item_count = instance.item_fact_count();
+
+    let mut writer: XmlWriter<Vec<u8>> = XmlWriter::new(Vec::new());
+    instance.to_xml(&mut writer).unwrap();
+    let xml = writer.into_inner();
+
+    let mut reparsed_reader = XmlReader::from_reader(Cursor::new(xml));
+    let reparsed = InstanceDocument::from_xml(&mut reparsed_reader).unwrap();
+
+    assert_eq!(reparsed.item_fact_count(), original_item_count);
+
+    let has_shareholder_tuple = reparsed
+        .facts()
+        .iter()
+        .any(|fact| matches!(fact, Fact::Tuple(tuple) if tuple.concept() == "de-gcd:genInfo.company.id.shareholder"));
+    assert!(has_shareholder_tuple);
 }

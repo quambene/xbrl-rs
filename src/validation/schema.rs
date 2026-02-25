@@ -3,7 +3,7 @@
 
 use super::{Severity, ValidationResult};
 use crate::{
-    Fact, InstanceDocument, Period, TaxonomySet,
+    InstanceDocument, ItemFact, Period, TaxonomySet,
     taxonomy::{ElementDefinition, PeriodType},
 };
 use std::collections::{HashMap, HashSet};
@@ -27,7 +27,7 @@ pub(super) fn validate_schema(
     validate_instance_refs(instance, result);
     validate_essence_alias_units(instance, taxonomy, result);
 
-    for fact in instance.facts() {
+    for fact in instance.item_facts() {
         validate_fact(fact, instance, taxonomy, result);
     }
 }
@@ -78,8 +78,8 @@ fn validate_essence_alias_units(
         return;
     }
 
-    let mut facts_by_element_id: HashMap<String, Vec<&Fact>> = HashMap::new();
-    for fact in instance.facts() {
+    let mut facts_by_element_id: HashMap<String, Vec<&ItemFact>> = HashMap::new();
+    for fact in instance.item_facts() {
         if let Some(element) = taxonomy.find_element(fact.local_name())
             && let Some(id) = element.id.as_ref()
         {
@@ -208,7 +208,11 @@ fn validate_footnotes(instance: &InstanceDocument, result: &mut ValidationResult
 
     let context_ids: HashSet<&str> = instance.contexts().keys().map(|id| id.as_str()).collect();
     let unit_ids: HashSet<&str> = instance.units().keys().map(|id| id.as_str()).collect();
-    let fact_ids: HashSet<&str> = instance.facts().iter().filter_map(Fact::id).collect();
+    let fact_ids: HashSet<&str> = instance
+        .item_facts()
+        .iter()
+        .filter_map(|fact| fact.id())
+        .collect();
 
     for footnote_link in instance.footnote_links() {
         if footnote_link.role.as_deref() == Some(ROLE_FOOTNOTE) {
@@ -420,7 +424,7 @@ fn href_target_id(href: &str) -> Option<(Option<&str>, &str)> {
 }
 
 fn validate_fact(
-    fact: &Fact,
+    fact: &ItemFact,
     instance: &InstanceDocument,
     taxonomy: &TaxonomySet,
     result: &mut ValidationResult,
@@ -645,7 +649,7 @@ fn validate_contexts(
 }
 
 fn validate_unit_constraints(
-    fact: &Fact,
+    fact: &ItemFact,
     element: &ElementDefinition,
     unit: &crate::instance::Unit,
     taxonomy: &TaxonomySet,

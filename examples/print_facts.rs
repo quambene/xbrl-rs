@@ -8,7 +8,7 @@
 
 use quick_xml::Reader;
 use std::{fs::File, io::BufReader, path::PathBuf};
-use xbrl_rs::{Fact, InstanceDocument, TaxonomySet, TreeNode};
+use xbrl_rs::{InstanceDocument, ItemFact, TaxonomySet, TreeNode};
 
 const INSTANCE_PATH: &str = "test_data/instances/balance_sheet_v64.xml";
 const TAXONOMY_ENTRY_POINT: &str = "test_data/taxonomies";
@@ -46,7 +46,7 @@ fn resolve_label<'a>(node: &'a TreeNode<'a>, lang: &str) -> &'a str {
 
 fn print_node(
     node: &TreeNode,
-    facts: &[Fact],
+    facts: &[&ItemFact],
     lang: &str,
     w_label: usize,
     w_concept: usize,
@@ -99,6 +99,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Build document view
     let view = instance.view(&taxonomy);
+    let item_facts = instance.item_facts();
 
     let w_concept = 40;
     let w_level = 5;
@@ -120,12 +121,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
 
         for node in &section.nodes {
-            print_node(node, instance.facts(), LANG, w_label, w_concept, w_value);
+            print_node(node, &item_facts, LANG, w_label, w_concept, w_value);
         }
     }
 
-    let total_facts = instance.facts().len();
-    let nil_facts = instance.facts().iter().filter(|f| f.is_nil()).count();
+    let total_facts = item_facts.len();
+    let nil_facts = item_facts.iter().filter(|f| f.is_nil()).count();
     println!("\n{} facts total ({} nil)", total_facts, nil_facts);
 
     Ok(())

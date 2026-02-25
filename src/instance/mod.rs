@@ -12,7 +12,7 @@ use crate::{
     TaxonomySet, error::Result, taxonomy::PeriodType, validation, validation::ValidationResult,
 };
 pub use context::{Context, ContextId, EntityIdentifier, Period};
-pub use fact::{Decimals, Fact};
+pub use fact::{Decimals, Fact, ItemFact, TupleFact};
 pub use footnote::{FootnoteArc, FootnoteLink, FootnoteLocator, FootnoteResource};
 use quick_xml::{Reader, Writer};
 use std::{
@@ -85,7 +85,7 @@ pub struct InstanceDocument {
     contexts: HashMap<ContextId, Context>,
     /// All units in the instance
     units: HashMap<UnitId, Unit>,
-    /// All facts in the instance
+    /// Top-level facts in the instance (item and tuple facts)
     facts: Vec<Fact>,
     /// Namespace prefixes used in the document (e.g. "xbrli" ->
     /// "http://www.xbrl.org/2003/instance")
@@ -128,7 +128,8 @@ impl InstanceDocument {
     ///
     /// - Registers all schema refs and role refs from the taxonomy
     /// - Adds both contexts and the unit
-    /// - Pre-populates nil facts for every concept in the presentation linkbase
+    /// - Pre-populates nil facts for concepts in the presentation linkbase,
+    ///   preserving tuple nesting with explicit tuple placeholder nodes
     ///
     /// Build the [`DocumentView`] once after this call, then fill values
     /// in-place via [`set_fact_value`] without rebuilding the view.
@@ -155,36 +156,69 @@ impl InstanceDocument {
         let unit_ref = &unit.id;
         instance.add_unit(unit.clone());
 
-        // Collect unique element IDs from all presentation arcs across all roles
-        let concept_ids: HashSet<&str> = taxonomy
+        // Build a lookup set of element IDs that appear in any presentation arc.
+        // Used to filter out elements that are not referenced in the presentation linkbase.
+        let in_presentation: HashSet<&str> = taxonomy
             .presentations()
             .values()
             .flat_map(|arcs| arcs.iter())
             .flat_map(|arc| [arc.from.as_str(), arc.to.as_str()])
             .collect();
 
-        for concept_id in concept_ids {
-            if let Some(element) = taxonomy.find_element_by_id(concept_id)
-                && let Some(ref period_type) = element.period_type
-            {
+        // Iterate schemas in stable (file path) order so that output is
+        // deterministic. Elements within each schema follow their declaration
+        // order in the XSD file.
+        let mut schema_paths: Vec<&std::path::PathBuf> = taxonomy.schemas().keys().collect();
+        schema_paths.sort();
+
+        let mut seen: HashSet<&str> = HashSet::new();
+        for schema_path in schema_paths {
+            let schema = &taxonomy.schemas()[schema_path];
+            for element in &schema.elements {
+                let Some(concept_id) = element.id.as_deref() else {
+                    continue;
+                };
+                // Only emit concepts referenced in the presentation linkbase
+                if !in_presentation.contains(concept_id) {
+                    continue;
+                }
+                // Deduplicate concepts that appear in multiple schemas or arc positions
+                if !seen.insert(concept_id) {
+                    continue;
+                }
+                // Only concrete (non-abstract) items with a period type become facts
+                let Some(ref period_type) = element.period_type else {
+                    continue;
+                };
+                if element.is_abstract {
+                    continue;
+                }
+
                 let context_ref = match period_type {
                     PeriodType::Duration => duration_context_ref,
                     PeriodType::Instant => instant_context_ref,
                 };
 
-                // arc from/to are element IDs — convert to QName for the fact concept field
+                // Element IDs use '_' as namespace separator; convert to QName for the fact
                 let concept = taxonomy
                     .qualified_name(concept_id)
                     .unwrap_or_else(|| concept_id.replacen('_', ":", 1));
 
-                let mut fact = Fact::new(
+                let mut fact = ItemFact::new(
                     concept,
                     context_ref.to_string(),
                     Some(unit_ref.to_string()),
                     String::new(),
                 );
                 fact.set_nil(true);
-                instance.add_fact(fact);
+
+                let tuple_path = taxonomy
+                    .tuple_ancestor_ids(concept_id)
+                    .into_iter()
+                    .filter_map(|tuple_id| taxonomy.qualified_name(&tuple_id))
+                    .collect::<Vec<_>>();
+
+                Self::insert_item_with_tuple_path(&mut instance.facts, &tuple_path, fact);
             }
         }
 
@@ -207,9 +241,10 @@ impl InstanceDocument {
         validation::validate_all(self, taxonomy)
     }
 
-    /// Convenience wrapper for [`DocumentView::build`] using this instance's facts.
+    /// Convenience wrapper for [`DocumentView::build`] using this instance's item facts.
     pub fn view<'a>(&self, taxonomy: &'a TaxonomySet) -> DocumentView<'a> {
-        DocumentView::build(&self.facts, taxonomy)
+        let item_facts = self.item_facts();
+        DocumentView::build(&item_facts, taxonomy)
     }
 
     /// Serialize this instance to an XBRL XML document.
@@ -301,14 +336,28 @@ impl InstanceDocument {
         self.facts.push(fact);
     }
 
-    /// Get all facts
+    /// Get all top-level facts.
     pub fn facts(&self) -> &[Fact] {
         &self.facts
     }
 
-    /// Get all facts mutably
+    /// Get all top-level facts mutably.
     pub fn facts_mut(&mut self) -> &mut [Fact] {
         &mut self.facts
+    }
+
+    /// Get all item facts in depth-first order.
+    pub fn item_facts(&self) -> Vec<&ItemFact> {
+        let mut out = Vec::new();
+        for fact in &self.facts {
+            fact.walk_items(&mut out);
+        }
+        out
+    }
+
+    /// Number of item facts in the instance (including nested tuple descendants).
+    pub fn item_fact_count(&self) -> usize {
+        self.item_facts().len()
     }
 
     /// Set the value of a fact by its index (from [`DocumentView`] fact_indices).
@@ -317,7 +366,14 @@ impl InstanceDocument {
     /// # Panics
     /// Panics if `index` is out of bounds.
     pub fn set_fact_value(&mut self, index: usize, value: String) {
-        self.facts[index].set_value(value);
+        let mut current_index = 0usize;
+        for fact in &mut self.facts {
+            if Self::set_item_value_by_index(fact, index, &value, &mut current_index) {
+                return;
+            }
+        }
+
+        panic!("fact index out of bounds: {index}");
     }
 
     /// Add a namespace prefix mapping
@@ -367,6 +423,61 @@ impl InstanceDocument {
     /// Get all units
     pub fn units(&self) -> &HashMap<UnitId, Unit> {
         &self.units
+    }
+
+    fn insert_item_with_tuple_path(facts: &mut Vec<Fact>, tuple_path: &[String], item: ItemFact) {
+        if tuple_path.is_empty() {
+            facts.push(Fact::Item(item));
+            return;
+        }
+
+        let tuple_concept = &tuple_path[0];
+        let tuple_index = facts.iter().position(
+            |fact| matches!(fact, Fact::Tuple(tuple) if tuple.concept() == tuple_concept),
+        );
+
+        let tuple = if let Some(index) = tuple_index {
+            match &mut facts[index] {
+                Fact::Tuple(tuple) => tuple,
+                Fact::Item(_) => unreachable!("matched tuple index must be tuple"),
+            }
+        } else {
+            facts.push(Fact::Tuple(TupleFact::new(tuple_concept.clone())));
+            match facts.last_mut() {
+                Some(Fact::Tuple(tuple)) => tuple,
+                _ => unreachable!("newly inserted node must be tuple"),
+            }
+        };
+
+        Self::insert_item_with_tuple_path(tuple.children_mut(), &tuple_path[1..], item);
+    }
+
+    fn set_item_value_by_index(
+        fact: &mut Fact,
+        target_index: usize,
+        value: &str,
+        current_index: &mut usize,
+    ) -> bool {
+        match fact {
+            Fact::Item(item) => {
+                if *current_index == target_index {
+                    item.set_value(value.to_owned());
+                    item.set_nil(false);
+                    true
+                } else {
+                    *current_index += 1;
+                    false
+                }
+            }
+            Fact::Tuple(tuple) => {
+                for child in tuple.children_mut() {
+                    if Self::set_item_value_by_index(child, target_index, value, current_index) {
+                        return true;
+                    }
+                }
+                false
+            }
+        }
     }
 }
 
