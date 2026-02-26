@@ -43,23 +43,23 @@
     </de-gcd:genInfo.report.id.reportType>
     <de-gcd:genInfo.report.id.reportElement>
         <de-gcd:genInfo.report.id.reportElement.reportElements.BAL xsi:nil="true"
-            contextRef="D-AKTJAHR" />
+            contextRef="D-CURRENT-YEAR" />
         <de-gcd:genInfo.report.id.reportElement.reportElements.EB xsi:nil="true"
-            contextRef="D-AKTJAHR" />
+            contextRef="D-CURRENT-YEAR" />
         <de-gcd:genInfo.report.id.reportElement.reportElements.EV xsi:nil="true"
-            contextRef="D-AKTJAHR" />
+            contextRef="D-CURRENT-YEAR" />
         <de-gcd:genInfo.report.id.reportElement.reportElements.KKE xsi:nil="true"
-            contextRef="D-AKTJAHR" />
+            contextRef="D-CURRENT-YEAR" />
         <de-gcd:genInfo.report.id.reportElement.reportElements.SGE xsi:nil="true"
-            contextRef="D-AKTJAHR" />
+            contextRef="D-CURRENT-YEAR" />
         <de-gcd:genInfo.report.id.reportElement.reportElements.SGEP xsi:nil="true"
-            contextRef="D-AKTJAHR" />
-        <de-gcd:genInfo.report.id.reportElement.reportElements.B contextRef="D-AKTJAHR">Bilanz</de-gcd:genInfo.report.id.reportElement.reportElements.B>
-        <de-gcd:genInfo.report.id.reportElement.reportElements.BVV contextRef="D-AKTJAHR">
+            contextRef="D-CURRENT-YEAR" />
+        <de-gcd:genInfo.report.id.reportElement.reportElements.B contextRef="D-CURRENT-YEAR">Bilanz</de-gcd:genInfo.report.id.reportElement.reportElements.B>
+        <de-gcd:genInfo.report.id.reportElement.reportElements.BVV contextRef="D-CURRENT-YEAR">
             Betriebsvermögensvergleich</de-gcd:genInfo.report.id.reportElement.reportElements.BVV>
-        <de-gcd:genInfo.report.id.reportElement.reportElements.GuV contextRef="D-AKTJAHR">GuV</de-gcd:genInfo.report.id.reportElement.reportElements.GuV>
+        <de-gcd:genInfo.report.id.reportElement.reportElements.GuV contextRef="D-CURRENT-YEAR">GuV</de-gcd:genInfo.report.id.reportElement.reportElements.GuV>
         <de-gcd:genInfo.report.id.reportElement.reportElements.STU
-            contextRef="D-AKTJAHR">steuerliche Überleitungsrechnung</de-gcd:genInfo.report.id.reportElement.reportElements.STU>
+            contextRef="D-CURRENT-YEAR">steuerliche Überleitungsrechnung</de-gcd:genInfo.report.id.reportElement.reportElements.STU>
     </de-gcd:genInfo.report.id.reportElement>
     <!-- base asset facts -->
     <de-gaap-ci:bs.ass decimals="2" contextRef="I-CURRENT-YEAR" unitRef="EUR">150000.00</de-gaap-ci:bs.ass>
