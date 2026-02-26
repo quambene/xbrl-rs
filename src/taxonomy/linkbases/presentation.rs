@@ -1,4 +1,5 @@
 use crate::error::{LinkbaseType, Result, XbrlError};
+use indexmap::IndexMap;
 use quick_xml::{
     Reader,
     events::{Event, attributes::Attributes},
@@ -22,11 +23,11 @@ pub struct PresentationArc {
 /// to a list of [`PresentationArc`]s.
 pub fn parse_presentation_linkbase(
     reader: &mut Reader<impl io::BufRead>,
-) -> Result<HashMap<String, Vec<PresentationArc>>> {
+) -> Result<IndexMap<String, Vec<PresentationArc>>> {
     reader.config_mut().trim_text_start = true;
     reader.config_mut().trim_text_end = true;
 
-    let mut result: HashMap<String, Vec<PresentationArc>> = HashMap::new();
+    let mut result: IndexMap<String, Vec<PresentationArc>> = IndexMap::new();
     let mut current_role = String::new();
     let mut locators: HashMap<String, String> = HashMap::new();
     let mut arcs: Vec<RawArc> = Vec::new();

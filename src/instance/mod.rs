@@ -17,6 +17,7 @@ pub use footnote::{FootnoteArc, FootnoteLink, FootnoteLocator, FootnoteResource}
 use quick_xml::{Reader, Writer};
 use std::{
     borrow::Borrow,
+    cmp::Ordering,
     collections::{HashMap, HashSet},
     fmt, io,
     ops::Deref,
@@ -129,7 +130,7 @@ impl InstanceDocument {
     /// - Registers all schema refs and role refs from the taxonomy
     /// - Adds both contexts and the unit
     /// - Pre-populates nil facts for concepts in the presentation linkbase,
-    ///   preserving tuple nesting with explicit tuple placeholder nodes
+    ///   preserving tuple nesting derived directly from the presentation tree
     ///
     /// Build the [`DocumentView`] once after this call, then fill values
     /// in-place via [`set_fact_value`] without rebuilding the view.
@@ -148,81 +149,127 @@ impl InstanceDocument {
             instance.add_role_ref(role.role_uri.to_string());
         }
 
-        let instant_context_ref = &instant_context.id;
-        let duration_context_ref = &duration_context.id;
-        instance.add_context(instant_context.clone());
-        instance.add_context(duration_context.clone());
+        let instant_context_ref = instant_context.id.clone();
+        let duration_context_ref = duration_context.id.clone();
+        instance.add_context(instant_context);
+        instance.add_context(duration_context);
 
-        let unit_ref = &unit.id;
-        instance.add_unit(unit.clone());
+        let unit_ref = unit.id.clone();
+        instance.add_unit(unit);
 
-        // Build a lookup set of element IDs that appear in any presentation arc.
-        // Used to filter out elements that are not referenced in the presentation linkbase.
-        let in_presentation: HashSet<&str> = taxonomy
-            .presentations()
-            .values()
-            .flat_map(|arcs| arcs.iter())
-            .flat_map(|arc| [arc.from.as_str(), arc.to.as_str()])
-            .collect();
-
-        // Iterate schemas in stable (file path) order so that output is
-        // deterministic. Elements within each schema follow their declaration
-        // order in the XSD file.
-        let mut schema_paths: Vec<&std::path::PathBuf> = taxonomy.schemas().keys().collect();
-        schema_paths.sort();
-
-        let mut seen: HashSet<&str> = HashSet::new();
-        for schema_path in schema_paths {
-            let schema = &taxonomy.schemas()[schema_path];
-            for element in &schema.elements {
-                let Some(concept_id) = element.id.as_deref() else {
-                    continue;
-                };
-                // Only emit concepts referenced in the presentation linkbase
-                if !in_presentation.contains(concept_id) {
-                    continue;
-                }
-                // Deduplicate concepts that appear in multiple schemas or arc positions
-                if !seen.insert(concept_id) {
-                    continue;
-                }
-                // Only concrete (non-abstract) items with a period type become facts
-                let Some(ref period_type) = element.period_type else {
-                    continue;
-                };
-                if element.is_abstract {
-                    continue;
-                }
-
-                let context_ref = match period_type {
-                    PeriodType::Duration => duration_context_ref,
-                    PeriodType::Instant => instant_context_ref,
-                };
-
-                // Element IDs use '_' as namespace separator; convert to QName for the fact
-                let concept = taxonomy
-                    .qualified_name(concept_id)
-                    .unwrap_or_else(|| concept_id.replacen('_', ":", 1));
-
-                let mut fact = ItemFact::new(
-                    concept,
-                    context_ref.to_string(),
-                    Some(unit_ref.to_string()),
-                    String::new(),
+        // Walk the presentation tree in section order, depth-first within each section.
+        // The tree structure gives both the fact order and the tuple nesting directly,
+        // without needing to consult schema substitution groups.
+        let mut seen: HashSet<String> = HashSet::new();
+        for arcs in taxonomy.presentations().values() {
+            let roots = view::find_roots(arcs);
+            for root_id in roots {
+                Self::populate_from_tree(
+                    arcs,
+                    root_id,
+                    taxonomy,
+                    &instant_context_ref,
+                    &duration_context_ref,
+                    &unit_ref,
+                    &mut instance.facts,
+                    &mut seen,
                 );
-                fact.set_nil(true);
-
-                let tuple_path = taxonomy
-                    .tuple_ancestor_ids(concept_id)
-                    .into_iter()
-                    .filter_map(|tuple_id| taxonomy.qualified_name(&tuple_id))
-                    .collect::<Vec<_>>();
-
-                Self::insert_item_with_tuple_path(&mut instance.facts, &tuple_path, fact);
             }
         }
 
         instance
+    }
+
+    /// Recursively walk one node of the presentation tree and emit facts.
+    ///
+    /// - Concrete tuple → push a [`TupleFact`] and recurse into its children.
+    /// - Concrete item  → push an [`ItemFact`] (nil placeholder).
+    /// - Abstract / grouping → recurse into children at the same level.
+    fn populate_from_tree(
+        arcs: &[crate::taxonomy::PresentationArc],
+        concept_id: &str,
+        taxonomy: &TaxonomySet,
+        instant_ctx: &ContextId,
+        duration_ctx: &ContextId,
+        unit: &UnitId,
+        facts: &mut Vec<Fact>,
+        seen: &mut HashSet<String>,
+    ) {
+        if !seen.insert(concept_id.to_string()) {
+            return; // already emitted in an earlier section
+        }
+
+        let mut children: Vec<&crate::taxonomy::PresentationArc> = arcs
+            .iter()
+            .filter(|a| a.from.as_str() == concept_id)
+            .collect();
+        children.sort_by(|a, b| match (a.order, b.order) {
+            (Some(x), Some(y)) => x.partial_cmp(&y).unwrap_or(Ordering::Equal),
+            (Some(_), None) => Ordering::Less,
+            (None, Some(_)) => Ordering::Greater,
+            (None, None) => Ordering::Equal,
+        });
+
+        if let Some(element) = taxonomy.find_element_by_id(concept_id) {
+            if element.is_tuple() && !element.is_abstract {
+                let qname = taxonomy
+                    .qualified_name(concept_id)
+                    .unwrap_or_else(|| concept_id.replacen('_', ":", 1));
+                facts.push(Fact::Tuple(TupleFact::new(qname)));
+                let tuple_children = match facts.last_mut() {
+                    Some(Fact::Tuple(t)) => t.children_mut(),
+                    _ => unreachable!(),
+                };
+                for arc in &children {
+                    Self::populate_from_tree(
+                        arcs,
+                        arc.to.as_str(),
+                        taxonomy,
+                        instant_ctx,
+                        duration_ctx,
+                        unit,
+                        tuple_children,
+                        seen,
+                    );
+                }
+                return;
+            }
+
+            if !element.is_abstract {
+                if let Some(ref period_type) = element.period_type {
+                    let context_ref = match period_type {
+                        PeriodType::Duration => duration_ctx,
+                        PeriodType::Instant => instant_ctx,
+                    };
+                    let qname = taxonomy
+                        .qualified_name(concept_id)
+                        .unwrap_or_else(|| concept_id.replacen('_', ":", 1));
+                    let mut fact = ItemFact::new(
+                        qname,
+                        context_ref.to_string(),
+                        Some(unit.to_string()),
+                        String::new(),
+                    );
+                    fact.set_nil(true);
+                    facts.push(Fact::Item(fact));
+                    return; // leaf node
+                }
+            }
+        }
+
+        // Abstract concept or concept not in any schema: recurse children at same level.
+        for arc in &children {
+            Self::populate_from_tree(
+                arcs,
+                arc.to.as_str(),
+                taxonomy,
+                instant_ctx,
+                duration_ctx,
+                unit,
+                facts,
+                seen,
+            );
+        }
     }
 
     /// Parse an XBRL instance document from XML.
@@ -423,33 +470,6 @@ impl InstanceDocument {
     /// Get all units
     pub fn units(&self) -> &HashMap<UnitId, Unit> {
         &self.units
-    }
-
-    fn insert_item_with_tuple_path(facts: &mut Vec<Fact>, tuple_path: &[String], item: ItemFact) {
-        if tuple_path.is_empty() {
-            facts.push(Fact::Item(item));
-            return;
-        }
-
-        let tuple_concept = &tuple_path[0];
-        let tuple_index = facts.iter().position(
-            |fact| matches!(fact, Fact::Tuple(tuple) if tuple.concept() == tuple_concept),
-        );
-
-        let tuple = if let Some(index) = tuple_index {
-            match &mut facts[index] {
-                Fact::Tuple(tuple) => tuple,
-                Fact::Item(_) => unreachable!("matched tuple index must be tuple"),
-            }
-        } else {
-            facts.push(Fact::Tuple(TupleFact::new(tuple_concept.clone())));
-            match facts.last_mut() {
-                Some(Fact::Tuple(tuple)) => tuple,
-                _ => unreachable!("newly inserted node must be tuple"),
-            }
-        };
-
-        Self::insert_item_with_tuple_path(tuple.children_mut(), &tuple_path[1..], item);
     }
 
     fn set_item_value_by_index(

@@ -71,13 +71,11 @@ pub fn build_view<'a>(facts: &[&ItemFact], taxonomy: &'a TaxonomySet) -> Documen
         fact_index.entry(fact.concept_id()).or_default().push(i);
     }
 
-    // Sort roles for deterministic output.
-    let mut roles: Vec<(&'a str, &'a Vec<PresentationArc>)> = taxonomy
+    let roles = taxonomy
         .presentations()
         .iter()
         .map(|(role, arcs)| (role.as_str(), arcs))
-        .collect();
-    roles.sort_by_key(|(role, _)| *role);
+        .collect::<Vec<_>>();
 
     let mut sections = Vec::with_capacity(roles.len());
 
@@ -96,7 +94,7 @@ pub fn build_view<'a>(facts: &[&ItemFact], taxonomy: &'a TaxonomySet) -> Documen
 }
 
 /// Find root concept IDs: those that appear as `from` but never as `to`.
-fn find_roots<'a>(arcs: &'a [PresentationArc]) -> Vec<&'a str> {
+pub(super) fn find_roots<'a>(arcs: &'a [PresentationArc]) -> Vec<&'a str> {
     let to_set: HashSet<&str> = arcs.iter().map(|a| a.to.as_str()).collect();
     let mut seen: HashSet<&str> = HashSet::new();
     let mut roots: Vec<&'a str> = Vec::new();
