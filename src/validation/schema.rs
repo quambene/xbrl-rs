@@ -3,7 +3,7 @@
 
 use super::{Severity, ValidationResult};
 use crate::{
-    InstanceDocument, ItemFact, Period, TaxonomySet,
+    Fact, InstanceDocument, ItemFact, Period, TaxonomySet, TupleFact,
     taxonomy::{ElementDefinition, PeriodType},
 };
 use std::collections::{HashMap, HashSet};
@@ -27,8 +27,8 @@ pub(super) fn validate_schema(
     validate_instance_refs(instance, result);
     validate_essence_alias_units(instance, taxonomy, result);
 
-    for fact in instance.item_facts() {
-        validate_fact(fact, instance, taxonomy, result);
+    for fact in instance.facts() {
+        validate_fact(fact, None, instance, taxonomy, result);
     }
 }
 
@@ -424,6 +424,179 @@ fn href_target_id(href: &str) -> Option<(Option<&str>, &str)> {
 }
 
 fn validate_fact(
+    fact: &Fact,
+    parent_tuple: Option<&ElementDefinition>,
+    instance: &InstanceDocument,
+    taxonomy: &TaxonomySet,
+    result: &mut ValidationResult,
+) {
+    match fact {
+        Fact::Item(item_fact) => {
+            if let Some(parent) = parent_tuple {
+                validate_tuple_child(
+                    item_fact.concept(),
+                    item_fact.local_name(),
+                    parent,
+                    taxonomy,
+                    result,
+                );
+            }
+            validate_item_fact(item_fact, instance, taxonomy, result);
+        }
+        Fact::Tuple(tuple_fact) => {
+            let tuple_element = validate_tuple_fact(tuple_fact, parent_tuple, taxonomy, result);
+
+            for child in tuple_fact.children() {
+                validate_fact(child, tuple_element, instance, taxonomy, result);
+            }
+        }
+    }
+}
+
+fn validate_tuple_fact<'a>(
+    fact: &TupleFact,
+    parent_tuple: Option<&'a ElementDefinition>,
+    taxonomy: &'a TaxonomySet,
+    result: &mut ValidationResult,
+) -> Option<&'a ElementDefinition> {
+    let local_name = fact.concept().split(':').nth(1).unwrap_or(fact.concept());
+    let concept = fact.concept();
+
+    let Some(element) = taxonomy.find_element(local_name) else {
+        result.add(
+            Severity::Error,
+            "schema.concept_not_found",
+            format!("Fact concept '{local_name}' not found in taxonomy"),
+            Some(concept),
+            None,
+        );
+        return None;
+    };
+
+    if let Some(parent) = parent_tuple {
+        validate_tuple_child(concept, local_name, parent, taxonomy, result);
+    }
+
+    if !is_tuple_element(element, taxonomy) {
+        result.add(
+            Severity::Error,
+            "schema.tuple_requires_tuple_concept",
+            format!("Tuple fact reports non-tuple concept '{local_name}'"),
+            Some(concept),
+            None,
+        );
+        return None;
+    }
+
+    if element.is_abstract {
+        result.add(
+            Severity::Error,
+            "schema.abstract_concept",
+            format!("Fact reports abstract concept '{local_name}'"),
+            Some(concept),
+            None,
+        );
+    }
+
+    Some(element)
+}
+
+fn is_tuple_element(element: &ElementDefinition, taxonomy: &TaxonomySet) -> bool {
+    if element.is_tuple() {
+        return true;
+    }
+
+    let mut seen = HashSet::new();
+    let mut current = element
+        .substitution_group
+        .as_deref()
+        .and_then(|substitution_group| substitution_group.rsplit(':').next());
+
+    while let Some(local) = current {
+        if !seen.insert(local) {
+            break;
+        }
+
+        if local == "tuple" {
+            return true;
+        }
+
+        current = taxonomy
+            .find_element(local)
+            .and_then(|parent| parent.substitution_group.as_deref())
+            .and_then(|substitution_group| substitution_group.rsplit(':').next());
+    }
+
+    false
+}
+
+fn validate_tuple_child(
+    child_concept: &str,
+    child_local_name: &str,
+    parent_tuple: &ElementDefinition,
+    taxonomy: &TaxonomySet,
+    result: &mut ValidationResult,
+) {
+    if parent_tuple.tuple_children.is_empty() {
+        return;
+    }
+
+    let Some(child_element) = taxonomy.find_element(child_local_name) else {
+        return;
+    };
+
+    if tuple_allows_child(parent_tuple, child_element, taxonomy) {
+        return;
+    }
+
+    result.add(
+        Severity::Error,
+        "schema.tuple_child_not_allowed",
+        format!(
+            "Fact '{}' is not allowed as child of tuple '{}'",
+            child_concept, parent_tuple.name
+        ),
+        Some(child_concept),
+        None,
+    );
+}
+
+fn tuple_allows_child(
+    parent_tuple: &ElementDefinition,
+    child_element: &ElementDefinition,
+    taxonomy: &TaxonomySet,
+) -> bool {
+    parent_tuple.tuple_children.iter().any(|allowed_qname| {
+        let allowed_local = allowed_qname.rsplit(':').next().unwrap_or(allowed_qname);
+        if child_element.name == allowed_local {
+            return true;
+        }
+
+        let mut seen = HashSet::new();
+        let mut current = child_element
+            .substitution_group
+            .as_deref()
+            .and_then(|substitution_group| substitution_group.rsplit(':').next());
+
+        while let Some(local) = current {
+            if !seen.insert(local) {
+                break;
+            }
+            if local == allowed_local {
+                return true;
+            }
+
+            current = taxonomy
+                .find_element(local)
+                .and_then(|element| element.substitution_group.as_deref())
+                .and_then(|substitution_group| substitution_group.rsplit(':').next());
+        }
+
+        false
+    })
+}
+
+fn validate_item_fact(
     fact: &ItemFact,
     instance: &InstanceDocument,
     taxonomy: &TaxonomySet,
@@ -832,4 +1005,254 @@ fn is_numeric_type(element: &ElementDefinition, taxonomy: &TaxonomySet) -> bool 
         || t.contains("pure")
         || t.contains("percent")
         || t.contains("pershare")
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::TaxonomySchema;
+    use quick_xml::Reader;
+    use std::path::{Path, PathBuf};
+
+    use crate::{Fact, InstanceDocument, TaxonomySet};
+
+    const TEST_SCHEMA_REF: &str = "test-taxonomy.xsd";
+
+    const TUPLE_TAXONOMY_XSD: &str = r#"
+<xsd:schema
+     xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+     xmlns:xbrli="http://www.xbrl.org/2003/instance"
+     elementFormDefault="qualified"
+     targetNamespace="http://www.example.com/test"
+     xmlns:my="http://www.example.com/test">
+    <xsd:import
+             namespace="http://www.xbrl.org/2003/instance"
+             schemaLocation="http://www.xbrl.org/2003/xbrl-instance-2003-12-31.xsd"/>
+
+    <xsd:element name="address"
+                             type="my:addressTupleType"
+                             substitutionGroup="xbrli:tuple"
+                             id="address"/>
+
+    <xsd:complexType name="addressTupleType">
+        <xsd:complexContent>
+            <xsd:restriction base="xsd:anyType">
+                <xsd:choice maxOccurs="unbounded">
+                    <xsd:element ref="my:street" minOccurs="0"/>
+                    <xsd:element ref="my:city" minOccurs="0"/>
+                    <xsd:element ref="my:country" minOccurs="0"/>
+                </xsd:choice>
+            </xsd:restriction>
+        </xsd:complexContent>
+    </xsd:complexType>
+
+    <xsd:element name="shortAddress"
+                             type="my:shortAddressTupleType"
+                             substitutionGroup="my:address"
+                             id="shortAddress"/>
+
+    <xsd:complexType name="shortAddressTupleType">
+        <xsd:complexContent>
+            <xsd:restriction base="my:addressTupleType">
+                <xsd:choice maxOccurs="unbounded">
+                    <xsd:element ref="my:city" minOccurs="0"/>
+                    <xsd:element ref="my:country" minOccurs="0"/>
+                </xsd:choice>
+            </xsd:restriction>
+        </xsd:complexContent>
+    </xsd:complexType>
+
+    <xsd:element name="street"
+                             type="xbrli:stringItemType"
+                             substitutionGroup="xbrli:item"
+                             id="street"
+                             xbrli:periodType="instant"/>
+
+    <xsd:element name="city"
+                             type="xbrli:stringItemType"
+                             substitutionGroup="xbrli:item"
+                             id="city"
+                             xbrli:periodType="instant"/>
+
+    <xsd:element name="country"
+                             type="xbrli:stringItemType"
+                             substitutionGroup="xbrli:item"
+                             id="country"
+                             xbrli:periodType="instant"/>
+</xsd:schema>
+"#;
+
+    const BASE_INSTANCE_XML: &str = r#"
+<xbrl
+     xmlns="http://www.xbrl.org/2003/instance"
+     xmlns:xbrli="http://www.xbrl.org/2003/instance"
+     xmlns:link="http://www.xbrl.org/2003/linkbase"
+     xmlns:xlink="http://www.w3.org/1999/xlink"
+     xmlns:my="http://www.example.com/test"
+     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+     xsi:schemaLocation="http://www.example.com/test test-taxonomy.xsd">
+
+    <link:schemaRef xlink:href="test-taxonomy.xsd" xlink:type="simple"/>
+
+    <context id="ci">
+        <entity>
+            <identifier scheme="http://www.un.org/">Example Corp</identifier>
+        </entity>
+        <period>
+            <instant>2001-08-16</instant>
+        </period>
+    </context>
+
+    <my:shortAddress>
+        <my:city contextRef="ci">New York</my:city>
+        <my:country contextRef="ci">United States</my:country>
+    </my:shortAddress>
+</xbrl>
+"#;
+
+    const STRICT_TUPLE_TAXONOMY_XSD: &str = r#"
+<xsd:schema
+     xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+     xmlns:xbrli="http://www.xbrl.org/2003/instance"
+     elementFormDefault="qualified"
+     targetNamespace="http://www.example.com/strict"
+     xmlns:my="http://www.example.com/strict">
+    <xsd:import
+             namespace="http://www.xbrl.org/2003/instance"
+             schemaLocation="http://www.xbrl.org/2003/xbrl-instance-2003-12-31.xsd"/>
+
+    <xsd:element name="address"
+                             substitutionGroup="xbrli:tuple"
+                             id="address">
+        <xsd:complexType>
+            <xsd:complexContent>
+                <xsd:restriction base="xsd:anyType">
+                    <xsd:sequence>
+                        <xsd:element ref="my:city" minOccurs="0" maxOccurs="unbounded"/>
+                    </xsd:sequence>
+                </xsd:restriction>
+            </xsd:complexContent>
+        </xsd:complexType>
+    </xsd:element>
+
+    <xsd:element name="city"
+                             type="xbrli:stringItemType"
+                             substitutionGroup="xbrli:item"
+                             id="city"
+                             xbrli:periodType="instant"/>
+
+    <xsd:element name="country"
+                             type="xbrli:stringItemType"
+                             substitutionGroup="xbrli:item"
+                             id="country"
+                             xbrli:periodType="instant"/>
+</xsd:schema>
+"#;
+
+    const STRICT_TUPLE_INSTANCE_XML: &str = r#"
+<xbrl
+     xmlns="http://www.xbrl.org/2003/instance"
+     xmlns:xbrli="http://www.xbrl.org/2003/instance"
+     xmlns:link="http://www.xbrl.org/2003/linkbase"
+     xmlns:xlink="http://www.w3.org/1999/xlink"
+     xmlns:my="http://www.example.com/strict"
+     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+     xsi:schemaLocation="http://www.example.com/strict test-taxonomy.xsd">
+
+    <link:schemaRef xlink:href="test-taxonomy.xsd" xlink:type="simple"/>
+
+    <context id="ci">
+        <entity>
+            <identifier scheme="http://www.un.org/">Example Corp</identifier>
+        </entity>
+        <period>
+            <instant>2001-08-16</instant>
+        </period>
+    </context>
+
+    <my:address>
+        <my:country contextRef="ci">United States</my:country>
+    </my:address>
+</xbrl>
+"#;
+
+    fn parse_instance(xml: &str) -> InstanceDocument {
+        let mut reader = Reader::from_str(xml);
+        InstanceDocument::from_xml(&mut reader).expect("failed to parse instance XML")
+    }
+
+    fn taxonomy_from_xml(schema_xml: &str) -> TaxonomySet {
+        let mut reader = Reader::from_str(schema_xml);
+        let schema = TaxonomySchema::from_xml_unchecked(Path::new(TEST_SCHEMA_REF), &mut reader)
+            .expect("failed to parse taxonomy schema XML");
+        TaxonomySet::from_test_schemas(
+            PathBuf::from("."),
+            vec![TEST_SCHEMA_REF.to_string()],
+            vec![schema],
+        )
+    }
+
+    #[test]
+    fn validates_unknown_tuple_concept() {
+        let mut instance = parse_instance(BASE_INSTANCE_XML);
+        let taxonomy = taxonomy_from_xml(TUPLE_TAXONOMY_XSD);
+
+        instance.add_fact(Fact::tuple("de-gcd:doesNotExistTuple".to_string()));
+
+        let result = instance.validate(&taxonomy);
+        assert!(
+            result
+                .errors()
+                .iter()
+                .any(|error| error.code == "schema.concept_not_found")
+        );
+    }
+
+    #[test]
+    fn validates_non_tuple_concept_used_as_tuple() {
+        let mut instance = parse_instance(BASE_INSTANCE_XML);
+        let taxonomy = taxonomy_from_xml(TUPLE_TAXONOMY_XSD);
+
+        let item_concept = "my:city".to_string();
+
+        instance.add_fact(Fact::tuple(item_concept));
+
+        let result = instance.validate(&taxonomy);
+        assert!(
+            result
+                .errors()
+                .iter()
+                .any(|error| error.code == "schema.tuple_requires_tuple_concept")
+        );
+    }
+
+    #[test]
+    fn validates_tuple_child_not_allowed() {
+        let instance = parse_instance(STRICT_TUPLE_INSTANCE_XML);
+        let taxonomy = taxonomy_from_xml(STRICT_TUPLE_TAXONOMY_XSD);
+
+        let result = instance.validate(&taxonomy);
+        assert!(
+            result
+                .errors()
+                .iter()
+                .any(|error| error.code == "schema.tuple_child_not_allowed")
+        );
+    }
+
+    #[test]
+    fn accepts_tuple_concept_derived_by_substitution_group() {
+        let instance = parse_instance(BASE_INSTANCE_XML);
+        let taxonomy = taxonomy_from_xml(TUPLE_TAXONOMY_XSD);
+
+        let result = instance.validate(&taxonomy);
+
+        assert!(
+            !result
+                .errors()
+                .iter()
+                .any(|error| error.code == "schema.tuple_requires_tuple_concept"),
+            "unexpected tuple classification errors: {:#?}",
+            result.errors()
+        );
+    }
 }

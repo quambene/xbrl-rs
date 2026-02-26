@@ -15,17 +15,17 @@
   - Add `precision` to `Fact`
   - Validate `Context`
   - Parse and validate `FootnoteLink`
-  - Add `root_xml_lang`, `role_refs`, and `arcrole_refs` to `XbrlInstance`
+  - Add `root_xml_lang`, `role_refs`, and `arcrole_refs` to `InstanceDocument`
   - Add `type_bases` and `type_declared_accuracy` to `TaxonomySchema`
   - Add `Period::Forever`
   - Validate context, instance refs, and essence alias units
   - Add `SchemaRefUrl`, `ConceptId`, `RoleUri`, `ContextId`, `NamespacePrefix`,
     `UnitId`, `Decimals`, `Balance`, `CyclesAllowed`, `PeriodType`, and `DeclaredAccuracy`
   - Add `TaxonomySchema::from_xml_unchecked` and `TaxonomySchema::validate`
-  - Add `DocumentView` and implement `XbrlInstance::view`
+  - Add `DocumentView` and implement `InstanceDocument::view`
   - Add `example/print_facts.rs`
-  - Implement `XbrlInstance::from_taxonomy`
-  - Parse `TupleFact`s
+  - Implement `InstanceDocument::from_taxonomy`
+  - Parse and validate `TupleFact`s
 - changed
   - Rename `TaxonomySchema::parse` to `TaxonomySchema::from_xml`
   - Use `BufReader` for parsing schemas and linkbases
