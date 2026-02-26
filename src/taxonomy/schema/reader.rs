@@ -114,10 +114,8 @@ pub(crate) fn read_schema<R: io::BufRead>(
                         }
                         let children =
                             skip_to_end_with_tuple_checks(reader, &name, tuple_decl, path)?;
-                        if tuple_decl {
-                            if let Some(elem) = schema.elements.last_mut() {
-                                elem.tuple_children = children;
-                            }
+                        if tuple_decl && let Some(elem) = schema.elements.last_mut() {
+                            elem.tuple_children = children;
                         }
                     }
                     "complexType" | "simpleType" => {
@@ -430,10 +428,10 @@ fn skip_to_end_with_tuple_checks<R: io::BufRead>(
                         });
                     }
 
-                    if local == "element" {
-                        if let Some(ref_val) = attr_by_local_name(e.attributes(), "ref") {
-                            children.push(ref_val);
-                        }
+                    if local == "element"
+                        && let Some(ref_val) = attr_by_local_name(e.attributes(), "ref")
+                    {
+                        children.push(ref_val);
                     }
 
                     if local == "attribute"

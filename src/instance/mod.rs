@@ -185,6 +185,7 @@ impl InstanceDocument {
     /// - Concrete tuple → push a [`TupleFact`] and recurse into its children.
     /// - Concrete item  → push an [`ItemFact`] (nil placeholder).
     /// - Abstract / grouping → recurse into children at the same level.
+    #[allow(clippy::too_many_arguments)]
     fn populate_from_tree(
         arcs: &[crate::taxonomy::PresentationArc],
         concept_id: &str,
@@ -235,25 +236,25 @@ impl InstanceDocument {
                 return;
             }
 
-            if !element.is_abstract {
-                if let Some(ref period_type) = element.period_type {
-                    let context_ref = match period_type {
-                        PeriodType::Duration => duration_ctx,
-                        PeriodType::Instant => instant_ctx,
-                    };
-                    let qname = taxonomy
-                        .qualified_name(concept_id)
-                        .unwrap_or_else(|| concept_id.replacen('_', ":", 1));
-                    let mut fact = ItemFact::new(
-                        qname,
-                        context_ref.to_string(),
-                        Some(unit.to_string()),
-                        String::new(),
-                    );
-                    fact.set_nil(true);
-                    facts.push(Fact::Item(fact));
-                    return; // leaf node
-                }
+            if !element.is_abstract
+                && let Some(ref period_type) = element.period_type
+            {
+                let context_ref = match period_type {
+                    PeriodType::Duration => duration_ctx,
+                    PeriodType::Instant => instant_ctx,
+                };
+                let qname = taxonomy
+                    .qualified_name(concept_id)
+                    .unwrap_or_else(|| concept_id.replacen('_', ":", 1));
+                let mut fact = ItemFact::new(
+                    qname,
+                    context_ref.to_string(),
+                    Some(unit.to_string()),
+                    String::new(),
+                );
+                fact.set_nil(true);
+                facts.push(Fact::Item(fact));
+                return; // leaf node
             }
         }
 
