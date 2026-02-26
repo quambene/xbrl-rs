@@ -1,4 +1,7 @@
-use crate::error::{LinkbaseType, Result, XbrlError};
+use crate::{
+    error::{LinkbaseType, Result, XbrlError},
+    taxonomy::split_qname,
+};
 use quick_xml::{
     Reader,
     events::{Event, attributes::Attributes},
@@ -16,6 +19,24 @@ pub struct CalculationArc {
     pub order: Option<f64>,
     /// Weight factor (typically 1.0 or -1.0).
     pub weight: f64,
+}
+
+enum CalculationTag {
+    CalculationLink,
+    Loc,
+    CalculationArc,
+    Unknown,
+}
+
+impl CalculationTag {
+    fn from_name(name: &[u8]) -> Self {
+        match split_qname(name).local_name {
+            "calculationLink" => Self::CalculationLink,
+            "loc" => Self::Loc,
+            "calculationArc" => Self::CalculationArc,
+            _ => Self::Unknown,
+        }
+    }
 }
 
 /// Parse a calculation linkbase XML file.
@@ -38,24 +59,22 @@ pub fn parse_calculation_linkbase(
     loop {
         match reader.read_event_into(&mut buf) {
             Ok(Event::Start(ref e)) => {
-                let name = String::from_utf8_lossy(e.name().as_ref()).to_string();
-                let local = local_name(&name);
+                let tag = CalculationTag::from_name(e.name().as_ref());
 
-                if local == "calculationLink" {
+                if matches!(tag, CalculationTag::CalculationLink) {
                     current_role = extract_role(e.attributes());
                     locators.clear();
                     arcs.clear();
                 }
             }
             Ok(Event::Empty(ref e)) => {
-                let name = String::from_utf8_lossy(e.name().as_ref()).to_string();
-                let local = local_name(&name);
+                let tag = CalculationTag::from_name(e.name().as_ref());
 
-                match local {
-                    "loc" => {
+                match tag {
+                    CalculationTag::Loc => {
                         parse_loc(e.attributes(), &mut locators);
                     }
-                    "calculationArc" => {
+                    CalculationTag::CalculationArc => {
                         if let Some(arc) = parse_arc(e.attributes()) {
                             arcs.push(arc);
                         }
@@ -64,10 +83,9 @@ pub fn parse_calculation_linkbase(
                 }
             }
             Ok(Event::End(ref e)) => {
-                let name = String::from_utf8_lossy(e.name().as_ref()).to_string();
-                let local = local_name(&name);
+                let tag = CalculationTag::from_name(e.name().as_ref());
 
-                if local == "calculationLink" {
+                if matches!(tag, CalculationTag::CalculationLink) {
                     let resolved = resolve_arcs(&locators, &arcs);
                     result
                         .entry(current_role.clone())

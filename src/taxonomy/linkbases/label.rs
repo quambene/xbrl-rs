@@ -1,4 +1,7 @@
-use crate::error::{LinkbaseType, Result, XbrlError};
+use crate::{
+    error::{LinkbaseType, Result, XbrlError},
+    taxonomy::split_qname,
+};
 use quick_xml::{Reader, events::Event};
 use std::{collections::HashMap, io};
 
@@ -26,6 +29,24 @@ struct LabelArc {
     to: String,
 }
 
+enum LabelTag {
+    Loc,
+    LabelArc,
+    Label,
+    Unknown,
+}
+
+impl LabelTag {
+    fn from_name(name: &[u8]) -> Self {
+        match split_qname(name).local_name {
+            "loc" => Self::Loc,
+            "labelArc" => Self::LabelArc,
+            "label" => Self::Label,
+            _ => Self::Unknown,
+        }
+    }
+}
+
 /// Parse a label linkbase XML file and return concept labels.
 ///
 /// Returns a map from concept element ID (the `xlink:href` fragment from `<loc>`)
@@ -51,14 +72,13 @@ pub fn parse_label_linkbase(
     loop {
         match reader.read_event_into(&mut buf) {
             Ok(Event::Empty(ref e)) => {
-                let name = String::from_utf8_lossy(e.name().as_ref()).to_string();
-                let local = local_name(&name);
+                let tag = LabelTag::from_name(e.name().as_ref());
 
-                match local {
-                    "loc" => {
+                match tag {
+                    LabelTag::Loc => {
                         parse_loc(e.attributes(), &mut locators);
                     }
-                    "labelArc" => {
+                    LabelTag::LabelArc => {
                         if let Some(arc) = parse_label_arc(e.attributes()) {
                             arcs.push(arc);
                         }
@@ -67,19 +87,18 @@ pub fn parse_label_linkbase(
                 }
             }
             Ok(Event::Start(ref e)) => {
-                let name = String::from_utf8_lossy(e.name().as_ref()).to_string();
-                let local = local_name(&name);
+                let tag = LabelTag::from_name(e.name().as_ref());
 
-                match local {
-                    "loc" => {
+                match tag {
+                    LabelTag::Loc => {
                         parse_loc(e.attributes(), &mut locators);
                     }
-                    "labelArc" => {
+                    LabelTag::LabelArc => {
                         if let Some(arc) = parse_label_arc(e.attributes()) {
                             arcs.push(arc);
                         }
                     }
-                    "label" => {
+                    LabelTag::Label => {
                         parse_label_resource(reader, e.attributes(), &mut resources);
                     }
                     _ => {}

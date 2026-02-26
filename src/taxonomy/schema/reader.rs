@@ -1,9 +1,12 @@
 use crate::{
     error::{Result, XbrlError},
     instance::Decimals,
-    taxonomy::schema::{
-        ArcroleType, CyclesAllowed, DeclaredAccuracy, ElementDefinition, LinkbaseRef, RoleType,
-        SchemaImport, SchemaInclude, TaxonomySchema,
+    taxonomy::{
+        schema::{
+            ArcroleType, CyclesAllowed, DeclaredAccuracy, ElementDefinition, LinkbaseRef, RoleType,
+            SchemaImport, SchemaInclude, TaxonomySchema,
+        },
+        split_qname,
     },
 };
 use quick_xml::{
@@ -28,6 +31,123 @@ struct NamedTypeBase {
     declared_precision: Option<Decimals>,
     /// Whether the named type declares local element content.
     has_local_element_content: bool,
+}
+
+enum SchemaTag {
+    Schema,
+    Appinfo,
+    RoleType,
+    ArcroleType,
+    Element,
+    ComplexType,
+    SimpleType,
+    Redefine,
+    IntegerElement,
+    Linkbase,
+    RoleRef,
+    ArcroleRef,
+    PresentationLink,
+    CalculationLink,
+    DefinitionLink,
+    LabelLink,
+    ReferenceLink,
+    FootnoteLink,
+    Loc,
+    Label,
+    Reference,
+    Footnote,
+    PresentationArc,
+    CalculationArc,
+    DefinitionArc,
+    LabelArc,
+    ReferenceArc,
+    FootnoteArc,
+    LinkbaseRef,
+    Import,
+    Include,
+    Unknown(String),
+}
+
+impl SchemaTag {
+    fn from_name(name: &[u8]) -> Self {
+        let qname = split_qname(name);
+        let _namespace = qname.namespace;
+        Self::from_local_name(qname.local_name)
+    }
+
+    fn from_local_name(local: &str) -> Self {
+        match local {
+            "schema" => Self::Schema,
+            "appinfo" => Self::Appinfo,
+            "roleType" => Self::RoleType,
+            "arcroleType" => Self::ArcroleType,
+            "element" => Self::Element,
+            "complexType" => Self::ComplexType,
+            "simpleType" => Self::SimpleType,
+            "redefine" => Self::Redefine,
+            "integerElement" => Self::IntegerElement,
+            "linkbase" => Self::Linkbase,
+            "roleRef" => Self::RoleRef,
+            "arcroleRef" => Self::ArcroleRef,
+            "presentationLink" => Self::PresentationLink,
+            "calculationLink" => Self::CalculationLink,
+            "definitionLink" => Self::DefinitionLink,
+            "labelLink" => Self::LabelLink,
+            "referenceLink" => Self::ReferenceLink,
+            "footnoteLink" => Self::FootnoteLink,
+            "loc" => Self::Loc,
+            "label" => Self::Label,
+            "reference" => Self::Reference,
+            "footnote" => Self::Footnote,
+            "presentationArc" => Self::PresentationArc,
+            "calculationArc" => Self::CalculationArc,
+            "definitionArc" => Self::DefinitionArc,
+            "labelArc" => Self::LabelArc,
+            "referenceArc" => Self::ReferenceArc,
+            "footnoteArc" => Self::FootnoteArc,
+            "linkbaseRef" => Self::LinkbaseRef,
+            "import" => Self::Import,
+            "include" => Self::Include,
+            _ => Self::Unknown(local.to_string()),
+        }
+    }
+
+    fn local_name(&self) -> &str {
+        match self {
+            Self::Schema => "schema",
+            Self::Appinfo => "appinfo",
+            Self::RoleType => "roleType",
+            Self::ArcroleType => "arcroleType",
+            Self::Element => "element",
+            Self::ComplexType => "complexType",
+            Self::SimpleType => "simpleType",
+            Self::Redefine => "redefine",
+            Self::IntegerElement => "integerElement",
+            Self::Linkbase => "linkbase",
+            Self::RoleRef => "roleRef",
+            Self::ArcroleRef => "arcroleRef",
+            Self::PresentationLink => "presentationLink",
+            Self::CalculationLink => "calculationLink",
+            Self::DefinitionLink => "definitionLink",
+            Self::LabelLink => "labelLink",
+            Self::ReferenceLink => "referenceLink",
+            Self::FootnoteLink => "footnoteLink",
+            Self::Loc => "loc",
+            Self::Label => "label",
+            Self::Reference => "reference",
+            Self::Footnote => "footnote",
+            Self::PresentationArc => "presentationArc",
+            Self::CalculationArc => "calculationArc",
+            Self::DefinitionArc => "definitionArc",
+            Self::LabelArc => "labelArc",
+            Self::ReferenceArc => "referenceArc",
+            Self::FootnoteArc => "footnoteArc",
+            Self::LinkbaseRef => "linkbaseRef",
+            Self::Import => "import",
+            Self::Include => "include",
+            Self::Unknown(local) => local,
+        }
+    }
 }
 
 /// Parse a taxonomy schema from an XML reader.
@@ -66,25 +186,24 @@ pub(crate) fn read_schema<R: io::BufRead>(
             Ok(Event::Start(ref e)) => {
                 collect_schema_location_refs(e.attributes(), &mut schema.schema_location_refs);
 
-                let name = String::from_utf8_lossy(e.name().as_ref()).to_string();
-                let local = local_name(&name);
+                let tag = SchemaTag::from_name(e.name().as_ref());
 
-                if local == "redefine" {
+                if matches!(tag, SchemaTag::Redefine) {
                     return Err(XbrlError::InvalidSchemaDocument {
                         path: path.to_path_buf(),
                         reason: "xsd:redefine is not allowed in taxonomy schemas".to_string(),
                     });
                 }
 
-                match local {
-                    "schema" => {
+                match &tag {
+                    SchemaTag::Schema => {
                         has_schema_root = true;
                         extract_schema_attrs(e.attributes(), &mut schema);
                     }
-                    "appinfo" => {
+                    SchemaTag::Appinfo => {
                         inside_appinfo = true;
                     }
-                    "roleType" if inside_appinfo => {
+                    SchemaTag::RoleType if inside_appinfo => {
                         schema.role_types.push(parse_role_type(
                             reader,
                             e.attributes(),
@@ -92,7 +211,7 @@ pub(crate) fn read_schema<R: io::BufRead>(
                             &schema.namespaces,
                         )?);
                     }
-                    "arcroleType" if inside_appinfo => {
+                    SchemaTag::ArcroleType if inside_appinfo => {
                         schema.arcrole_types.push(parse_arcrole_type(
                             reader,
                             e.attributes(),
@@ -100,7 +219,7 @@ pub(crate) fn read_schema<R: io::BufRead>(
                             &schema.namespaces,
                         )?);
                     }
-                    "element" => {
+                    SchemaTag::Element => {
                         let elem = parse_element_def(e.attributes());
                         let tuple_decl = elem
                             .as_ref()
@@ -112,20 +231,22 @@ pub(crate) fn read_schema<R: io::BufRead>(
                         if let Some(element) = elem {
                             schema.elements.push(element);
                         }
+                        let tag_name = String::from_utf8_lossy(e.name().as_ref()).to_string();
                         let children =
-                            skip_to_end_with_tuple_checks(reader, &name, tuple_decl, path)?;
+                            skip_to_end_with_tuple_checks(reader, &tag_name, tuple_decl, path)?;
                         if tuple_decl && let Some(elem) = schema.elements.last_mut() {
                             elem.tuple_children = children;
                         }
                     }
-                    "complexType" | "simpleType" => {
+                    SchemaTag::ComplexType | SchemaTag::SimpleType => {
+                        let tag_name = String::from_utf8_lossy(e.name().as_ref()).to_string();
                         if let Some(NamedTypeBase {
                             type_name,
                             base,
                             declared_decimals,
                             declared_precision,
                             has_local_element_content,
-                        }) = parse_named_type_base(reader, e.attributes(), &name, path)?
+                        }) = parse_named_type_base(reader, e.attributes(), &tag_name, path)?
                         {
                             if has_local_element_content {
                                 complex_types_with_local_elements.insert(type_name.clone());
@@ -154,7 +275,7 @@ pub(crate) fn read_schema<R: io::BufRead>(
                     });
                 }
 
-                if local == "integerElement" {
+                if matches!(tag, SchemaTag::IntegerElement) {
                     if let Some(value) = attr_by_local_name(e.attributes(), "value")
                         && value.parse::<i64>().is_err()
                     {
@@ -176,23 +297,23 @@ pub(crate) fn read_schema<R: io::BufRead>(
                     }
                 }
 
-                if inside_appinfo && local == "linkbase" {
+                if inside_appinfo && matches!(tag, SchemaTag::Linkbase) {
                     inside_linkbase_depth = 1;
                     linkbase_role_refs.clear();
                     linkbase_arcrole_refs.clear();
                 } else if inside_linkbase_depth > 0 {
                     inside_linkbase_depth += 1;
-                    if !is_allowed_embedded_linkbase_element(local) {
+                    if !is_allowed_embedded_linkbase_element(&tag) {
                         return Err(XbrlError::InvalidSchemaDocument {
                             path: path.to_path_buf(),
                             reason: format!(
                                 "embedded linkbase contains invalid element '{}'",
-                                local
+                                tag.local_name()
                             ),
                         });
                     }
 
-                    if local == "roleRef"
+                    if matches!(tag, SchemaTag::RoleRef)
                         && let Some(uri) = attr_by_local_name(e.attributes(), "roleURI")
                         && !linkbase_role_refs.insert(uri.clone())
                     {
@@ -202,7 +323,7 @@ pub(crate) fn read_schema<R: io::BufRead>(
                         });
                     }
 
-                    if local == "arcroleRef"
+                    if matches!(tag, SchemaTag::ArcroleRef)
                         && let Some(uri) = attr_by_local_name(e.attributes(), "arcroleURI")
                         && !linkbase_arcrole_refs.insert(uri.clone())
                     {
@@ -216,33 +337,32 @@ pub(crate) fn read_schema<R: io::BufRead>(
             Ok(Event::Empty(ref e)) => {
                 collect_schema_location_refs(e.attributes(), &mut schema.schema_location_refs);
 
-                let name = String::from_utf8_lossy(e.name().as_ref()).to_string();
-                let local = local_name(&name);
+                let tag = SchemaTag::from_name(e.name().as_ref());
 
-                if local == "redefine" {
+                if matches!(tag, SchemaTag::Redefine) {
                     return Err(XbrlError::InvalidSchemaDocument {
                         path: path.to_path_buf(),
                         reason: "xsd:redefine is not allowed in taxonomy schemas".to_string(),
                     });
                 }
 
-                match local {
-                    "linkbaseRef" if inside_appinfo => {
+                match &tag {
+                    SchemaTag::LinkbaseRef if inside_appinfo => {
                         schema
                             .linkbase_refs
                             .push(parse_linkbase_ref(e.attributes()));
                     }
-                    "import" => {
+                    SchemaTag::Import => {
                         if let Some(imp) = parse_import(e.attributes()) {
                             schema.imports.push(imp);
                         }
                     }
-                    "include" => {
+                    SchemaTag::Include => {
                         if let Some(inc) = parse_include(e.attributes()) {
                             schema.includes.push(inc);
                         }
                     }
-                    "element" => {
+                    SchemaTag::Element => {
                         if let Some(elem) = parse_element_def(e.attributes()) {
                             schema.elements.push(elem);
                         }
@@ -259,7 +379,7 @@ pub(crate) fn read_schema<R: io::BufRead>(
                     });
                 }
 
-                if local == "integerElement"
+                if matches!(tag, SchemaTag::IntegerElement)
                     && attr_by_local_name(e.attributes(), "value")
                         .is_some_and(|value| value.parse::<i64>().is_err())
                 {
@@ -270,17 +390,17 @@ pub(crate) fn read_schema<R: io::BufRead>(
                 }
 
                 if inside_linkbase_depth > 0 {
-                    if !is_allowed_embedded_linkbase_element(local) {
+                    if !is_allowed_embedded_linkbase_element(&tag) {
                         return Err(XbrlError::InvalidSchemaDocument {
                             path: path.to_path_buf(),
                             reason: format!(
                                 "embedded linkbase contains invalid element '{}'",
-                                local
+                                tag.local_name()
                             ),
                         });
                     }
 
-                    if local == "roleRef"
+                    if matches!(tag, SchemaTag::RoleRef)
                         && let Some(uri) = attr_by_local_name(e.attributes(), "roleURI")
                         && !linkbase_role_refs.insert(uri.clone())
                     {
@@ -290,7 +410,7 @@ pub(crate) fn read_schema<R: io::BufRead>(
                         });
                     }
 
-                    if local == "arcroleRef"
+                    if matches!(tag, SchemaTag::ArcroleRef)
                         && let Some(uri) = attr_by_local_name(e.attributes(), "arcroleURI")
                         && !linkbase_arcrole_refs.insert(uri.clone())
                     {
@@ -302,9 +422,8 @@ pub(crate) fn read_schema<R: io::BufRead>(
                 }
             }
             Ok(Event::End(ref e)) => {
-                let name = String::from_utf8_lossy(e.name().as_ref()).to_string();
-                let local = local_name(&name);
-                if local == "appinfo" {
+                let tag = SchemaTag::from_name(e.name().as_ref());
+                if matches!(tag, SchemaTag::Appinfo) {
                     inside_appinfo = false;
                 }
 
@@ -509,28 +628,28 @@ fn collect_namespace_declarations(attrs: Attributes, namespaces: &mut HashMap<St
     }
 }
 
-fn is_allowed_embedded_linkbase_element(local: &str) -> bool {
+fn is_allowed_embedded_linkbase_element(tag: &SchemaTag) -> bool {
     matches!(
-        local,
-        "linkbase"
-            | "roleRef"
-            | "arcroleRef"
-            | "presentationLink"
-            | "calculationLink"
-            | "definitionLink"
-            | "labelLink"
-            | "referenceLink"
-            | "footnoteLink"
-            | "loc"
-            | "label"
-            | "reference"
-            | "footnote"
-            | "presentationArc"
-            | "calculationArc"
-            | "definitionArc"
-            | "labelArc"
-            | "referenceArc"
-            | "footnoteArc"
+        tag,
+        SchemaTag::Linkbase
+            | SchemaTag::RoleRef
+            | SchemaTag::ArcroleRef
+            | SchemaTag::PresentationLink
+            | SchemaTag::CalculationLink
+            | SchemaTag::DefinitionLink
+            | SchemaTag::LabelLink
+            | SchemaTag::ReferenceLink
+            | SchemaTag::FootnoteLink
+            | SchemaTag::Loc
+            | SchemaTag::Label
+            | SchemaTag::Reference
+            | SchemaTag::Footnote
+            | SchemaTag::PresentationArc
+            | SchemaTag::CalculationArc
+            | SchemaTag::DefinitionArc
+            | SchemaTag::LabelArc
+            | SchemaTag::ReferenceArc
+            | SchemaTag::FootnoteArc
     )
 }
 

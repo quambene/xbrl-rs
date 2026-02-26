@@ -20,6 +20,7 @@
   - Add `Period::Forever`
   - Validate context, instance refs, and essence alias units
   - Add `SchemaRefUrl`, `ConceptId`, `RoleUri`, `ContextId`, `NamespacePrefix`,
+    `SchemaTag`, `ReferenceTag`, `PresentationTag`, `LabelTag`, `DefinitionTag`, `CalculationTag`
     `UnitId`, `Decimals`, `Balance`, `CyclesAllowed`, `PeriodType`, and `DeclaredAccuracy`
   - Add `TaxonomySchema::from_xml_unchecked` and `TaxonomySchema::validate`
   - Add `DocumentView` and implement `InstanceDocument::view`

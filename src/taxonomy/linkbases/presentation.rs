@@ -1,4 +1,7 @@
-use crate::error::{LinkbaseType, Result, XbrlError};
+use crate::{
+    error::{LinkbaseType, Result, XbrlError},
+    taxonomy::split_qname,
+};
 use indexmap::IndexMap;
 use quick_xml::{
     Reader,
@@ -15,6 +18,24 @@ pub struct PresentationArc {
     pub to: String,
     /// Display order among siblings.
     pub order: Option<f64>,
+}
+
+enum PresentationTag {
+    PresentationLink,
+    Loc,
+    PresentationArc,
+    Unknown,
+}
+
+impl PresentationTag {
+    fn from_name(name: &[u8]) -> Self {
+        match split_qname(name).local_name {
+            "presentationLink" => Self::PresentationLink,
+            "loc" => Self::Loc,
+            "presentationArc" => Self::PresentationArc,
+            _ => Self::Unknown,
+        }
+    }
 }
 
 /// Parse a presentation linkbase XML file.
@@ -37,10 +58,9 @@ pub fn parse_presentation_linkbase(
     loop {
         match reader.read_event_into(&mut buf) {
             Ok(Event::Start(ref e)) => {
-                let name = String::from_utf8_lossy(e.name().as_ref()).to_string();
-                let local = local_name(&name);
+                let tag = PresentationTag::from_name(e.name().as_ref());
 
-                if local == "presentationLink" {
+                if matches!(tag, PresentationTag::PresentationLink) {
                     // Start a new link group — reset per-link state
                     current_role = extract_role(e.attributes());
                     locators.clear();
@@ -48,14 +68,13 @@ pub fn parse_presentation_linkbase(
                 }
             }
             Ok(Event::Empty(ref e)) => {
-                let name = String::from_utf8_lossy(e.name().as_ref()).to_string();
-                let local = local_name(&name);
+                let tag = PresentationTag::from_name(e.name().as_ref());
 
-                match local {
-                    "loc" => {
+                match tag {
+                    PresentationTag::Loc => {
                         parse_loc(e.attributes(), &mut locators);
                     }
-                    "presentationArc" => {
+                    PresentationTag::PresentationArc => {
                         if let Some(arc) = parse_arc(e.attributes()) {
                             arcs.push(arc);
                         }
@@ -64,10 +83,9 @@ pub fn parse_presentation_linkbase(
                 }
             }
             Ok(Event::End(ref e)) => {
-                let name = String::from_utf8_lossy(e.name().as_ref()).to_string();
-                let local = local_name(&name);
+                let tag = PresentationTag::from_name(e.name().as_ref());
 
-                if local == "presentationLink" {
+                if matches!(tag, PresentationTag::PresentationLink) {
                     // Resolve and flush arcs for this link
                     let resolved = resolve_arcs(&locators, &arcs);
                     result
