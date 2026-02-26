@@ -31,7 +31,7 @@ The main concepts of XBRL are:
 - XBRL Instance: parse facts, contexts, units
 - XBRL Taxonomy: parse XSD schemas and linkbases (presentation, calculation, definition, labels, references)
 - XBRL Validation: validate XBRL instance against XBRL taxonomy
-- XBRL View: view facts of instance, based on the hierarchy of the presentation linkbase
+- XBRL View: view facts of instance in the hierarchy of the presentation linkbase
 
 ## Usage
 
