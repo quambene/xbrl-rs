@@ -209,40 +209,6 @@ pub struct TaxonomySet {
 }
 
 impl TaxonomySet {
-    #[cfg(test)]
-    pub(crate) fn from_test_schemas(
-        entry_point: PathBuf,
-        schema_refs: Vec<String>,
-        schemas: Vec<TaxonomySchema>,
-    ) -> Self {
-        let mut schema_refs_map: IndexMap<SchemaRefUrl, PathBuf> = IndexMap::new();
-        let mut schemas_map: HashMap<PathBuf, TaxonomySchema> = HashMap::new();
-
-        for schema in schemas {
-            let path = schema.file_path.clone();
-            schemas_map.insert(path, schema);
-        }
-
-        for schema_ref in schema_refs {
-            let resolved = entry_point.join(strip_prefix(&schema_ref));
-            schema_refs_map.insert(schema_ref.into(), resolved);
-        }
-
-        Self {
-            entry_point,
-            schema_refs: schema_refs_map,
-            schemas: schemas_map,
-            linkbase_paths: Vec::new(),
-            labels: HashMap::new(),
-            presentations: IndexMap::new(),
-            calculations: HashMap::new(),
-            definitions: HashMap::new(),
-            references: HashMap::new(),
-            role_source_schema: HashMap::new(),
-            version: None,
-        }
-    }
-
     /// Discover the DTS starting from one or more entry point schema files.
     ///
     /// Starts from the provided `entry_point` directory and follows the given
