@@ -41,9 +41,7 @@ fn parses_tuple_subtree_with_multiple_children() {
         .facts()
         .iter()
         .find_map(|fact| match fact {
-            Fact::Tuple(tuple)
-                if tuple.concept() == "de-gcd:genInfo.company.id.shareholder" =>
-            {
+            Fact::Tuple(tuple) if tuple.concept() == "de-gcd:genInfo.company.id.shareholder" => {
                 Some(tuple)
             }
             _ => None,
