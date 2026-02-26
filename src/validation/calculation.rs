@@ -4,28 +4,33 @@
 //! value equals the weighted sum of reported children values, within a
 //! rounding tolerance derived from the `decimals` attribute.
 
-use super::{Severity, ValidationResult};
+use super::{Severity, ValidationResult, value::PreparedFactValues};
 use crate::{
     Context, Decimals, DeclaredAccuracy, InstanceDocument, ItemFact, Period, TaxonomySet, Unit,
 };
-use std::collections::HashMap;
+use rust_decimal::{Decimal, RoundingStrategy};
+use std::{collections::HashMap, str::FromStr};
 
 /// Run calculation consistency checks for all roles.
 pub(super) fn validate_calculations(
     instance: &InstanceDocument,
     taxonomy: &TaxonomySet,
+    prepared: &PreparedFactValues,
     result: &mut ValidationResult,
 ) {
     let fact_index = build_fact_index(instance, taxonomy);
 
     for (role, arcs) in taxonomy.calculations() {
         // Group arcs by parent (from) to collect all children
-        let mut parent_children: HashMap<&str, Vec<(&str, f64)>> = HashMap::new();
+        let mut parent_children: HashMap<&str, Vec<(&str, Decimal)>> = HashMap::new();
         for arc in arcs {
+            let Ok(weight) = Decimal::from_str(&arc.weight.to_string()) else {
+                continue;
+            };
             parent_children
                 .entry(&arc.from)
                 .or_default()
-                .push((&arc.to, arc.weight));
+                .push((&arc.to, weight));
         }
 
         for (parent_id, children) in &parent_children {
@@ -39,7 +44,7 @@ pub(super) fn validate_calculations(
                 }
 
                 let parent_fact = parent_fact_entry.fact;
-                let Some(parent_value) = parse_numeric(parent_fact.value()) else {
+                let Some(parent_value) = prepared.numeric_value(parent_fact) else {
                     continue;
                 };
 
@@ -51,7 +56,7 @@ pub(super) fn validate_calculations(
                     parent_acc.precision.as_ref(),
                 );
 
-                let mut weighted_sum = 0.0;
+                let mut weighted_sum = Decimal::ZERO;
                 let mut any_child_found = false;
                 let mut duplicate_child_found = false;
 
@@ -65,7 +70,7 @@ pub(super) fn validate_calculations(
                         }
 
                         let child_fact = child_fact_entry.fact;
-                        let Some(child_value) = parse_numeric(child_fact.value()) else {
+                        let Some(child_value) = prepared.numeric_value(child_fact) else {
                             continue;
                         };
 
@@ -94,7 +99,7 @@ pub(super) fn validate_calculations(
                 );
                 let diff = (parent_effective_value - weighted_sum_effective).abs();
 
-                if diff > 1e-9 {
+                if diff > Decimal::new(1, 9) {
                     result.add(
                         Severity::Error,
                         "calc.summation_inconsistency",
@@ -279,15 +284,6 @@ fn unit_key(unit: &Unit) -> UnitKey {
     }
 }
 
-/// Parse a string as f64, returning None for empty or non-numeric values.
-fn parse_numeric(value: &str) -> Option<f64> {
-    let trimmed = value.trim();
-    if trimmed.is_empty() {
-        return None;
-    }
-    trimmed.parse::<f64>().ok()
-}
-
 /// Compute rounding tolerance from `decimals` or inferred from `precision`.
 ///
 /// - `decimals="2"` → tolerance 0.005
@@ -296,10 +292,10 @@ fn parse_numeric(value: &str) -> Option<f64> {
 /// - `decimals="INF"` → tolerance 0 (exact)
 fn apply_effective_accuracy(
     raw_value: &str,
-    parsed_value: f64,
+    parsed_value: Decimal,
     decimals: Option<&Decimals>,
     precision: Option<&Decimals>,
-) -> f64 {
+) -> Decimal {
     if let Some(dec) = decimals {
         return match dec {
             Decimals::Infinite => parsed_value,
@@ -317,23 +313,51 @@ fn apply_effective_accuracy(
         };
     }
 
-    if let Some(parsed_again) = parse_numeric(raw_value) {
+    if let Ok(parsed_again) = Decimal::from_str(raw_value.trim()) {
+        return parsed_again;
+    }
+
+    if let Ok(parsed_again) = Decimal::from_scientific(raw_value.trim()) {
         return parsed_again;
     }
 
     parsed_value
 }
 
-fn infer_decimals_from_precision(value: f64, precision: i32) -> i32 {
-    if value == 0.0 {
+fn infer_decimals_from_precision(value: Decimal, precision: i32) -> i32 {
+    if value.is_zero() {
         precision - 1
     } else {
-        let magnitude = value.abs().log10().floor() as i32;
+        let normalized = value.abs().normalize().to_string();
+        let unsigned = normalized.strip_prefix('-').unwrap_or(&normalized);
+        let (integer_part, fraction_part) = unsigned.split_once('.').unwrap_or((unsigned, ""));
+
+        let integer_no_leading = integer_part.trim_start_matches('0');
+        let magnitude = if !integer_no_leading.is_empty() {
+            integer_no_leading.len() as i32 - 1
+        } else {
+            let leading_zeros = fraction_part.chars().take_while(|ch| *ch == '0').count() as i32;
+            -(leading_zeros + 1)
+        };
+
         precision - magnitude - 1
     }
 }
 
-fn round_to_decimals_ties_even(value: f64, decimals: i32) -> f64 {
-    let factor = 10.0_f64.powi(decimals);
-    (value * factor).round_ties_even() / factor
+fn round_to_decimals_ties_even(value: Decimal, decimals: i32) -> Decimal {
+    if decimals >= 0 {
+        return value
+            .round_dp_with_strategy(decimals as u32, RoundingStrategy::MidpointNearestEven);
+    }
+
+    let shift = decimal_power_of_ten((-decimals) as u32);
+    (value / shift).round_dp_with_strategy(0, RoundingStrategy::MidpointNearestEven) * shift
+}
+
+fn decimal_power_of_ten(exp: u32) -> Decimal {
+    let mut value = Decimal::ONE;
+    for _ in 0..exp {
+        value *= Decimal::TEN;
+    }
+    value
 }

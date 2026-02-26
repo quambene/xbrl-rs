@@ -1,3 +1,4 @@
+use rust_decimal::Decimal;
 use std::{path::PathBuf, str::FromStr};
 use xbrl_rs::{Label, PeriodType, TaxonomySet};
 
@@ -126,7 +127,7 @@ fn parse_calculation_linkbase() {
         .iter()
         .find(|a| a.from == "de-gaap-ci_bs.ass" && a.to == "de-gaap-ci_bs.ass.fixAss")
         .expect("Expected bs.ass -> bs.ass.fixAss calculation arc");
-    assert_eq!(child_arc.weight, 1.0);
+    assert_eq!(child_arc.weight, Decimal::ONE);
 }
 
 #[test]

@@ -6,7 +6,8 @@ use quick_xml::{
     Reader,
     events::{Event, attributes::Attributes},
 };
-use std::{collections::HashMap, io};
+use rust_decimal::Decimal;
+use std::{collections::HashMap, io, str::FromStr};
 
 /// A summation-item relationship from a calculation linkbase.
 #[derive(Debug, Clone, PartialEq)]
@@ -16,9 +17,9 @@ pub struct CalculationArc {
     /// Child (contributing item) concept element ID.
     pub to: String,
     /// Display order among siblings.
-    pub order: Option<f64>,
+    pub order: Option<Decimal>,
     /// Weight factor (typically 1.0 or -1.0).
-    pub weight: f64,
+    pub weight: Decimal,
 }
 
 enum CalculationTag {
@@ -112,8 +113,8 @@ pub fn parse_calculation_linkbase(
 struct RawCalcArc {
     from: String,
     to: String,
-    order: Option<f64>,
-    weight: f64,
+    order: Option<Decimal>,
+    weight: Decimal,
 }
 
 fn resolve_arcs(locators: &HashMap<String, String>, arcs: &[RawCalcArc]) -> Vec<CalculationArc> {
@@ -209,7 +210,7 @@ fn parse_arc(attrs: Attributes) -> Option<RawCalcArc> {
     let mut from = None;
     let mut to = None;
     let mut order = None;
-    let mut weight = 1.0;
+    let mut weight = Decimal::ONE;
 
     for attr in attrs.flatten() {
         let key = String::from_utf8_lossy(attr.key.as_ref());
@@ -222,14 +223,18 @@ fn parse_arc(attrs: Attributes) -> Option<RawCalcArc> {
                 to = attr.unescape_value().ok().map(|v| v.to_string());
             }
             "order" => {
-                order = attr
-                    .unescape_value()
-                    .ok()
-                    .and_then(|v| v.parse::<f64>().ok());
+                order = attr.unescape_value().ok().and_then(|v| {
+                    Decimal::from_str(&v)
+                        .ok()
+                        .or_else(|| Decimal::from_scientific(&v).ok())
+                });
             }
             "weight" => {
                 if let Ok(val) = attr.unescape_value() {
-                    weight = val.parse::<f64>().unwrap_or(1.0);
+                    weight = Decimal::from_str(&val)
+                        .ok()
+                        .or_else(|| Decimal::from_scientific(&val).ok())
+                        .unwrap_or(Decimal::ONE);
                 }
             }
             _ => {}

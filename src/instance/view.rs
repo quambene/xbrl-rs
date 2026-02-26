@@ -108,15 +108,18 @@ pub(super) fn find_roots<'a>(arcs: &'a [PresentationArc]) -> Vec<&'a str> {
 
     // Order roots by their minimum outgoing arc order.
     roots.sort_by(|a, b| {
-        let min_order = |id: &&str| -> f64 {
+        let min_order = |id: &&str| {
             arcs.iter()
                 .filter(|arc| arc.from.as_str() == *id)
                 .filter_map(|arc| arc.order)
-                .fold(f64::INFINITY, f64::min)
+                .min()
         };
-        min_order(a)
-            .partial_cmp(&min_order(b))
-            .unwrap_or(std::cmp::Ordering::Equal)
+        match (min_order(a), min_order(b)) {
+            (Some(x), Some(y)) => x.cmp(&y),
+            (Some(_), None) => Ordering::Less,
+            (None, Some(_)) => Ordering::Greater,
+            (None, None) => Ordering::Equal,
+        }
     });
 
     roots
@@ -141,7 +144,7 @@ fn build_nodes<'a>(
         .filter(|a| a.from.as_str() == parent_id)
         .collect();
     children_arcs.sort_by(|a, b| match (a.order, b.order) {
-        (Some(x), Some(y)) => x.partial_cmp(&y).unwrap_or(Ordering::Equal),
+        (Some(x), Some(y)) => x.cmp(&y),
         (Some(_), None) => Ordering::Less,
         (None, Some(_)) => Ordering::Greater,
         (None, None) => Ordering::Equal,
@@ -176,6 +179,7 @@ mod tests {
         ItemFact,
         taxonomy::{Label, PresentationArc, TaxonomySet},
     };
+    use rust_decimal::Decimal;
 
     fn create_taxonomy(
         arcs: Vec<(String, PresentationArc)>,
@@ -207,7 +211,7 @@ mod tests {
                 PresentationArc {
                     from: "root".to_string(),
                     to: "child_a".to_string(),
-                    order: Some(1.0),
+                    order: Some(Decimal::new(1, 0)),
                 },
             ),
             (
@@ -215,7 +219,7 @@ mod tests {
                 PresentationArc {
                     from: "root".to_string(),
                     to: "child_b".to_string(),
-                    order: Some(2.0),
+                    order: Some(Decimal::new(2, 0)),
                 },
             ),
             (
@@ -223,7 +227,7 @@ mod tests {
                 PresentationArc {
                     from: "child_a".to_string(),
                     to: "grandchild".to_string(),
-                    order: Some(1.0),
+                    order: Some(Decimal::new(1, 0)),
                 },
             ),
         ];
@@ -286,7 +290,7 @@ mod tests {
                 PresentationArc {
                     from: "a".to_string(),
                     to: "b".to_string(),
-                    order: Some(1.0),
+                    order: Some(Decimal::new(1, 0)),
                 },
             ),
             (
@@ -294,7 +298,7 @@ mod tests {
                 PresentationArc {
                     from: "b".to_string(),
                     to: "a".to_string(),
-                    order: Some(1.0),
+                    order: Some(Decimal::new(1, 0)),
                 },
             ),
         ];
@@ -313,7 +317,7 @@ mod tests {
                 PresentationArc {
                     from: "root".to_string(),
                     to: "b".to_string(),
-                    order: Some(2.0),
+                    order: Some(Decimal::new(2, 0)),
                 },
             ),
             (
@@ -321,7 +325,7 @@ mod tests {
                 PresentationArc {
                     from: "root".to_string(),
                     to: "a".to_string(),
-                    order: Some(1.0),
+                    order: Some(Decimal::new(1, 0)),
                 },
             ),
         ];

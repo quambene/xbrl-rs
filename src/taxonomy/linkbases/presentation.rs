@@ -7,7 +7,8 @@ use quick_xml::{
     Reader,
     events::{Event, attributes::Attributes},
 };
-use std::{collections::HashMap, io};
+use rust_decimal::Decimal;
+use std::{collections::HashMap, io, str::FromStr};
 
 /// A parent-child relationship from a presentation linkbase.
 #[derive(Debug, Clone, PartialEq)]
@@ -17,7 +18,7 @@ pub struct PresentationArc {
     /// Child concept element ID.
     pub to: String,
     /// Display order among siblings.
-    pub order: Option<f64>,
+    pub order: Option<Decimal>,
 }
 
 enum PresentationTag {
@@ -113,7 +114,7 @@ pub fn parse_presentation_linkbase(
 struct RawArc {
     from: String,
     to: String,
-    order: Option<f64>,
+    order: Option<Decimal>,
 }
 
 fn resolve_arcs(locators: &HashMap<String, String>, arcs: &[RawArc]) -> Vec<PresentationArc> {
@@ -189,10 +190,11 @@ fn parse_arc(attrs: Attributes) -> Option<RawArc> {
                 to = attr.unescape_value().ok().map(|v| v.to_string());
             }
             "order" => {
-                order = attr
-                    .unescape_value()
-                    .ok()
-                    .and_then(|v| v.parse::<f64>().ok());
+                order = attr.unescape_value().ok().and_then(|v| {
+                    Decimal::from_str(&v)
+                        .ok()
+                        .or_else(|| Decimal::from_scientific(&v).ok())
+                });
             }
             _ => {}
         }
