@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xsd:schema
+    xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+    xmlns:link="http://www.xbrl.org/2003/linkbase"
+    targetNamespace="http://xbrl.org/conformance">
+    <xsd:annotation>
+        <xsd:appinfo>
+            <link:arcroleType
+                arcroleURI="http://xbrl.org/role/conformance"
+                cyclesAllowed="any"
+                id="conformance">
+                <link:usedOn>link:someArc</link:usedOn>
+                <link:usedOn xmlns="http://www.xbrl.org/2003/linkbase">someArc</link:usedOn>
+            </link:arcroleType>
+        </xsd:appinfo>
+    </xsd:annotation>
+</xsd:schema>

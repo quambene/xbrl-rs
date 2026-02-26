@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xs:schema
+    xmlns:xs="http://www.w3.org/2001/XMLSchema"
+    xmlns:xbrli="http://www.xbrl.org/2003/instance"
+    targetNamespace="http://example.com/taxonomy">
+    <xs:import
+        namespace="http://www.xbrl.org/2003/instance"
+        schemaLocation="xbrl-instance-2003-12-31.xsd"/>
+    <xs:element
+        name="Cash"
+        id="ex_Cash"
+        type="xbrli:monetaryItemType"
+        substitutionGroup="xbrli:item"
+        xbrli:periodType="instant"/>
+</xs:schema>
