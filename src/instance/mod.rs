@@ -180,99 +180,6 @@ impl InstanceDocument {
         instance
     }
 
-    /// Recursively walk one node of the presentation tree and emit facts.
-    ///
-    /// - Concrete tuple → push a [`TupleFact`] and recurse into its children.
-    /// - Concrete item  → push an [`ItemFact`] (nil placeholder).
-    /// - Abstract / grouping → recurse into children at the same level.
-    #[allow(clippy::too_many_arguments)]
-    fn populate_from_tree(
-        arcs: &[crate::taxonomy::PresentationArc],
-        concept_id: &str,
-        taxonomy: &TaxonomySet,
-        instant_ctx: &ContextId,
-        duration_ctx: &ContextId,
-        unit: &UnitId,
-        facts: &mut Vec<Fact>,
-        seen: &mut HashSet<String>,
-    ) {
-        if !seen.insert(concept_id.to_string()) {
-            return; // already emitted in an earlier section
-        }
-
-        let mut children: Vec<&crate::taxonomy::PresentationArc> = arcs
-            .iter()
-            .filter(|a| a.from.as_str() == concept_id)
-            .collect();
-        children.sort_by(|a, b| match (a.order, b.order) {
-            (Some(x), Some(y)) => x.partial_cmp(&y).unwrap_or(Ordering::Equal),
-            (Some(_), None) => Ordering::Less,
-            (None, Some(_)) => Ordering::Greater,
-            (None, None) => Ordering::Equal,
-        });
-
-        if let Some(element) = taxonomy.find_element_by_id(concept_id) {
-            if element.is_tuple() && !element.is_abstract {
-                let qname = taxonomy
-                    .qualified_name(concept_id)
-                    .unwrap_or_else(|| concept_id.replacen('_', ":", 1));
-                facts.push(Fact::Tuple(TupleFact::new(qname)));
-                let tuple_children = match facts.last_mut() {
-                    Some(Fact::Tuple(t)) => t.children_mut(),
-                    _ => unreachable!(),
-                };
-                for arc in &children {
-                    Self::populate_from_tree(
-                        arcs,
-                        arc.to.as_str(),
-                        taxonomy,
-                        instant_ctx,
-                        duration_ctx,
-                        unit,
-                        tuple_children,
-                        seen,
-                    );
-                }
-                return;
-            }
-
-            if !element.is_abstract
-                && let Some(ref period_type) = element.period_type
-            {
-                let context_ref = match period_type {
-                    PeriodType::Duration => duration_ctx,
-                    PeriodType::Instant => instant_ctx,
-                };
-                let qname = taxonomy
-                    .qualified_name(concept_id)
-                    .unwrap_or_else(|| concept_id.replacen('_', ":", 1));
-                let mut fact = ItemFact::new(
-                    qname,
-                    context_ref.to_string(),
-                    Some(unit.to_string()),
-                    String::new(),
-                );
-                fact.set_nil(true);
-                facts.push(Fact::Item(fact));
-                return; // leaf node
-            }
-        }
-
-        // Abstract concept or concept not in any schema: recurse children at same level.
-        for arc in &children {
-            Self::populate_from_tree(
-                arcs,
-                arc.to.as_str(),
-                taxonomy,
-                instant_ctx,
-                duration_ctx,
-                unit,
-                facts,
-                seen,
-            );
-        }
-    }
-
     /// Parse an XBRL instance document from XML.
     ///
     /// Automatically extracts the `<xbrli:xbrl>` element if the input
@@ -471,6 +378,99 @@ impl InstanceDocument {
     /// Get all units
     pub fn units(&self) -> &HashMap<UnitId, Unit> {
         &self.units
+    }
+
+    /// Recursively walk one node of the presentation tree and emit facts.
+    ///
+    /// - Concrete tuple → push a [`TupleFact`] and recurse into its children.
+    /// - Concrete item  → push an [`ItemFact`] (nil placeholder).
+    /// - Abstract / grouping → recurse into children at the same level.
+    #[allow(clippy::too_many_arguments)]
+    fn populate_from_tree(
+        arcs: &[crate::taxonomy::PresentationArc],
+        concept_id: &str,
+        taxonomy: &TaxonomySet,
+        instant_ctx: &ContextId,
+        duration_ctx: &ContextId,
+        unit: &UnitId,
+        facts: &mut Vec<Fact>,
+        seen: &mut HashSet<String>,
+    ) {
+        if !seen.insert(concept_id.to_string()) {
+            return; // already emitted in an earlier section
+        }
+
+        let mut children: Vec<&crate::taxonomy::PresentationArc> = arcs
+            .iter()
+            .filter(|a| a.from.as_str() == concept_id)
+            .collect();
+        children.sort_by(|a, b| match (a.order, b.order) {
+            (Some(x), Some(y)) => x.partial_cmp(&y).unwrap_or(Ordering::Equal),
+            (Some(_), None) => Ordering::Less,
+            (None, Some(_)) => Ordering::Greater,
+            (None, None) => Ordering::Equal,
+        });
+
+        if let Some(element) = taxonomy.find_element_by_id(concept_id) {
+            if element.is_tuple() && !element.is_abstract {
+                let qname = taxonomy
+                    .qualified_name(concept_id)
+                    .unwrap_or_else(|| concept_id.replacen('_', ":", 1));
+                facts.push(Fact::Tuple(TupleFact::new(qname)));
+                let tuple_children = match facts.last_mut() {
+                    Some(Fact::Tuple(t)) => t.children_mut(),
+                    _ => unreachable!(),
+                };
+                for arc in &children {
+                    Self::populate_from_tree(
+                        arcs,
+                        arc.to.as_str(),
+                        taxonomy,
+                        instant_ctx,
+                        duration_ctx,
+                        unit,
+                        tuple_children,
+                        seen,
+                    );
+                }
+                return;
+            }
+
+            if !element.is_abstract
+                && let Some(ref period_type) = element.period_type
+            {
+                let context_ref = match period_type {
+                    PeriodType::Duration => duration_ctx,
+                    PeriodType::Instant => instant_ctx,
+                };
+                let qname = taxonomy
+                    .qualified_name(concept_id)
+                    .unwrap_or_else(|| concept_id.replacen('_', ":", 1));
+                let mut fact = ItemFact::new(
+                    qname,
+                    context_ref.to_string(),
+                    Some(unit.to_string()),
+                    String::new(),
+                );
+                fact.set_nil(true);
+                facts.push(Fact::Item(fact));
+                return; // leaf node
+            }
+        }
+
+        // Abstract concept or concept not in any schema: recurse children at same level.
+        for arc in &children {
+            Self::populate_from_tree(
+                arcs,
+                arc.to.as_str(),
+                taxonomy,
+                instant_ctx,
+                duration_ctx,
+                unit,
+                facts,
+                seen,
+            );
+        }
     }
 
     fn set_item_value_by_index(
