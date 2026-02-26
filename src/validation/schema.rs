@@ -1009,11 +1009,9 @@ fn is_numeric_type(element: &ElementDefinition, taxonomy: &TaxonomySet) -> bool 
 
 #[cfg(test)]
 mod tests {
-    use crate::TaxonomySchema;
+    use crate::{Fact, InstanceDocument, TaxonomySchema, TaxonomySet};
     use quick_xml::Reader;
     use std::path::{Path, PathBuf};
-
-    use crate::{Fact, InstanceDocument, TaxonomySet};
 
     const TEST_SCHEMA_REF: &str = "test-taxonomy.xsd";
 
