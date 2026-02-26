@@ -28,6 +28,7 @@ logger = ["dep:env_logger"]
 [dependencies]
 thiserror = "2.0"
 log = "0.4.29"
+indexmap = "2"
 quick-xml = "0.39.0"
 env_logger = { version = "0.11.8", optional = true }
 reqwest = { version = "0.12", optional = true, default-features = false, features = ["blocking", "rustls-tls"] }

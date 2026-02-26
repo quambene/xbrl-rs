@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xsd:schema
+    xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+    xmlns:link="http://www.xbrl.org/2003/linkbase"
+    targetNamespace="http://xbrl.org/conformance">
+    <xsd:annotation>
+        <xsd:appinfo>
+            <link:roleType
+                roleURI="http://xbrl.org/role/conformance"
+                id="conformance">
+                <link:usedOn xmlns:this="http://example.com/this">this:definitionLink</link:usedOn>
+                <link:usedOn xmlns:this="http://example.com/that">this:definitionLink</link:usedOn>
+            </link:roleType>
+        </xsd:appinfo>
+    </xsd:annotation>
+</xsd:schema>

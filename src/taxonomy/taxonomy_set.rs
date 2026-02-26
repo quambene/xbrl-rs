@@ -9,6 +9,7 @@ use crate::{
         reference::{self, Reference},
     },
 };
+use indexmap::IndexMap;
 use log::warn;
 use quick_xml::Reader;
 use std::{
@@ -178,8 +179,9 @@ pub struct TaxonomySet {
     /// The directory of the taxonomy files, used to resolve relative
     /// references.
     entry_point: PathBuf,
-    /// Entry point schema URLs mapped to their resolved local paths.
-    schema_refs: HashMap<SchemaRefUrl, PathBuf>,
+    /// Entry point schema URLs mapped to their resolved local paths, in the
+    /// order they were passed to [`TaxonomySet::discover`].
+    schema_refs: IndexMap<SchemaRefUrl, PathBuf>,
     /// All schemas in the DTS, keyed by their canonical absolute path.
     schemas: HashMap<PathBuf, TaxonomySchema>,
     /// All linkbase file paths discovered (canonical absolute paths).
@@ -187,8 +189,9 @@ pub struct TaxonomySet {
     /// Concept labels parsed from label linkbase files.
     /// Keyed by concept element ID (e.g., "de-gaap-ci_bs.ass").
     labels: HashMap<ConceptId, Vec<Label>>,
-    /// Presentation arcs grouped by role URI.
-    presentations: HashMap<RoleUri, Vec<PresentationArc>>,
+    /// Presentation arcs grouped by role URI, in the order roles were first
+    /// encountered during schema discovery.
+    presentations: IndexMap<RoleUri, Vec<PresentationArc>>,
     /// Calculation arcs grouped by role URI.
     calculations: HashMap<RoleUri, Vec<CalculationArc>>,
     /// Definition arcs grouped by role URI.
@@ -196,6 +199,8 @@ pub struct TaxonomySet {
     /// Concept references parsed from reference linkbase files.
     /// Keyed by concept element ID.
     references: HashMap<ConceptId, Vec<Reference>>,
+    /// Maps each role URI to the schema file that defines it (`link:roleType`).
+    role_source_schema: HashMap<RoleUri, PathBuf>,
     /// Taxonomy version extracted from the schema ref URLs.
     /// German-style taxonomies yield a date (e.g. `"2020-04-01"`); US GAAP
     /// taxonomies yield a year (e.g. `"2023"`). `None` if neither pattern
@@ -235,6 +240,7 @@ impl TaxonomySet {
         let mut visited: HashSet<PathBuf> = HashSet::new();
         let mut queue: VecDeque<PathBuf> = VecDeque::new();
         let mut schemas: HashMap<PathBuf, TaxonomySchema> = HashMap::new();
+        let mut schema_order: Vec<PathBuf> = Vec::new(); // BFS discovery order
         let mut linkbase_set: HashSet<PathBuf> = HashSet::new();
 
         let canonical_entry_point =
@@ -244,7 +250,7 @@ impl TaxonomySet {
                 source: err,
             })?;
 
-        let mut schema_refs_map: HashMap<SchemaRefUrl, PathBuf> = HashMap::new();
+        let mut schema_refs_map: IndexMap<SchemaRefUrl, PathBuf> = IndexMap::new();
         for url in &schema_refs {
             let canonical = canonical_entry_point.join(strip_prefix(url));
             schema_refs_map.insert(url.clone().into(), canonical.clone());
@@ -299,41 +305,48 @@ impl TaxonomySet {
                 }
             }
 
+            schema_order.push(path.clone());
             schemas.insert(path, schema);
         }
 
         let linkbase_paths: Vec<PathBuf> = linkbase_set.into_iter().collect();
 
-        // Collect linkbase paths by type from LinkbaseRef entries.
+        // Collect linkbase paths by type from LinkbaseRef entries, iterating schemas
+        // in BFS discovery order so that linkbases are parsed in entry-point order.
         let mut label_paths: HashSet<PathBuf> = HashSet::new();
-        let mut presentation_paths: HashSet<PathBuf> = HashSet::new();
+        let mut presentation_paths: Vec<PathBuf> = Vec::new();
+        let mut presentation_paths_seen: HashSet<PathBuf> = HashSet::new();
         let mut calculation_paths: HashSet<PathBuf> = HashSet::new();
         let mut definition_paths: HashSet<PathBuf> = HashSet::new();
         let mut reference_paths: HashSet<PathBuf> = HashSet::new();
 
-        for schema in schemas.values() {
+        for schema_path in &schema_order {
+            let schema = &schemas[schema_path];
             let schema_dir = schema.file_path.parent().unwrap_or(Path::new("."));
             for lbref in &schema.linkbase_refs {
                 let role = lbref.role.as_deref().unwrap_or("");
-                let set = if role.contains("labelLinkbaseRef") {
-                    &mut label_paths
-                } else if role.contains("presentationLinkbaseRef") {
-                    &mut presentation_paths
-                } else if role.contains("calculationLinkbaseRef") {
-                    &mut calculation_paths
-                } else if role.contains("definitionLinkbaseRef") {
-                    &mut definition_paths
-                } else if role.contains("referenceLinkbaseRef") {
-                    &mut reference_paths
-                } else {
+                let Some(resolved) = resolve_local_path(schema_dir, &lbref.href) else {
+                    continue;
+                };
+                if !resolved.exists() {
+                    continue;
+                }
+                let Ok(canonical) = std::fs::canonicalize(&resolved) else {
                     continue;
                 };
 
-                if let Some(resolved) = resolve_local_path(schema_dir, &lbref.href)
-                    && resolved.exists()
-                    && let Ok(canonical) = std::fs::canonicalize(&resolved)
-                {
-                    set.insert(canonical);
+                if role.contains("presentationLinkbaseRef") {
+                    if presentation_paths_seen.insert(canonical.clone()) {
+                        presentation_paths.push(canonical);
+                    }
+                } else if role.contains("labelLinkbaseRef") {
+                    label_paths.insert(canonical);
+                } else if role.contains("calculationLinkbaseRef") {
+                    calculation_paths.insert(canonical);
+                } else if role.contains("definitionLinkbaseRef") {
+                    definition_paths.insert(canonical);
+                } else if role.contains("referenceLinkbaseRef") {
+                    reference_paths.insert(canonical);
                 }
             }
         }
@@ -353,8 +366,8 @@ impl TaxonomySet {
             }
         }
 
-        // Parse presentation linkbases
-        let mut presentations: HashMap<RoleUri, Vec<PresentationArc>> = HashMap::new();
+        // Parse presentation linkbases in BFS schema order (entry-point order preserved)
+        let mut presentations: IndexMap<RoleUri, Vec<PresentationArc>> = IndexMap::new();
         for path in &presentation_paths {
             let xml_file = fs::File::open(path).map_err(|err| XbrlError::FileRead {
                 path: path.clone(),
@@ -409,6 +422,16 @@ impl TaxonomySet {
             }
         }
 
+        // Build role → source schema map
+        let mut role_source_schema: HashMap<RoleUri, PathBuf> = HashMap::new();
+        for (path, schema) in &schemas {
+            for role_type in &schema.role_types {
+                role_source_schema
+                    .entry(role_type.role_uri.clone().into())
+                    .or_insert_with(|| path.clone());
+            }
+        }
+
         // Parse reference linkbases
         let mut references: HashMap<ConceptId, Vec<Reference>> = HashMap::new();
         for path in &reference_paths {
@@ -435,6 +458,7 @@ impl TaxonomySet {
             calculations,
             definitions,
             references,
+            role_source_schema,
             version,
         })
     }
@@ -452,9 +476,14 @@ impl TaxonomySet {
         self.version.as_deref()
     }
 
-    /// Get the entry point schema URLs and their resolved local paths.
-    pub fn schema_refs(&self) -> &HashMap<SchemaRefUrl, PathBuf> {
+    /// Get the entry point schema URLs and their resolved local paths, in declaration order.
+    pub fn schema_refs(&self) -> &IndexMap<SchemaRefUrl, PathBuf> {
         &self.schema_refs
+    }
+
+    /// Get the resolved local path of the schema file that defines the given role URI.
+    pub fn role_source_path(&self, role: &str) -> Option<&Path> {
+        self.role_source_schema.get(role).map(PathBuf::as_path)
     }
 
     /// Get all schemas in the DTS.
@@ -491,6 +520,50 @@ impl TaxonomySet {
             .values()
             .flat_map(|s| &s.elements)
             .find(|e| e.id.as_deref() == Some(id))
+    }
+
+    /// Find the tuple element that directly contains the given concept, if any.
+    ///
+    /// A concept belongs to a tuple when its `substitutionGroup` points to an abstract
+    /// head element that is listed as an `xs:element[@ref]` inside the tuple's inline
+    /// `xs:complexType`. Only one level of indirection is resolved (direct parent tuple).
+    pub fn find_parent_tuple(&self, concept_id: &str) -> Option<&ElementDefinition> {
+        let element = self.find_element_by_id(concept_id)?;
+        let parent_qname = element.substitution_group.as_deref()?;
+
+        // Skip standard XBRL substitution groups — those don't belong to a custom tuple
+        let local = parent_qname.rsplit(':').next().unwrap_or(parent_qname);
+        if local == "item" || local == "tuple" {
+            return None;
+        }
+
+        // Find a tuple whose xs:complexType references this abstract head QName
+        self.schemas
+            .values()
+            .flat_map(|s| &s.elements)
+            .find(|e| e.is_tuple() && e.tuple_children.iter().any(|c| c == parent_qname))
+    }
+
+    /// Find all tuple ancestor IDs from root tuple to direct parent tuple.
+    pub fn tuple_ancestor_ids(&self, concept_id: &str) -> Vec<String> {
+        let mut ancestors = Vec::new();
+        let mut current = concept_id.to_string();
+        let mut seen = HashSet::new();
+
+        while seen.insert(current.clone()) {
+            let Some(parent_tuple) = self.find_parent_tuple(&current) else {
+                break;
+            };
+            let Some(parent_id) = parent_tuple.id.as_ref() else {
+                break;
+            };
+
+            ancestors.push(parent_id.clone());
+            current = parent_id.clone();
+        }
+
+        ancestors.reverse();
+        ancestors
     }
 
     pub fn is_type_derived_from(&self, type_name: &str, target_base_local_name: &str) -> bool {
@@ -588,8 +661,8 @@ impl TaxonomySet {
         self.labels.get(concept_id).map(|v| v.as_slice())
     }
 
-    /// Get all presentation arcs grouped by role URI.
-    pub fn presentations(&self) -> &HashMap<RoleUri, Vec<PresentationArc>> {
+    /// Get all presentation arcs grouped by role URI, in entry-point discovery order.
+    pub fn presentations(&self) -> &IndexMap<RoleUri, Vec<PresentationArc>> {
         &self.presentations
     }
 

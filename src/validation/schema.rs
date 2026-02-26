@@ -3,7 +3,7 @@
 
 use super::{Severity, ValidationResult};
 use crate::{
-    Fact, InstanceDocument, Period, TaxonomySet,
+    Fact, InstanceDocument, ItemFact, Period, TaxonomySet, TupleFact,
     taxonomy::{ElementDefinition, PeriodType},
 };
 use std::collections::{HashMap, HashSet};
@@ -28,7 +28,7 @@ pub(super) fn validate_schema(
     validate_essence_alias_units(instance, taxonomy, result);
 
     for fact in instance.facts() {
-        validate_fact(fact, instance, taxonomy, result);
+        validate_fact(fact, None, instance, taxonomy, result);
     }
 }
 
@@ -78,8 +78,8 @@ fn validate_essence_alias_units(
         return;
     }
 
-    let mut facts_by_element_id: HashMap<String, Vec<&Fact>> = HashMap::new();
-    for fact in instance.facts() {
+    let mut facts_by_element_id: HashMap<String, Vec<&ItemFact>> = HashMap::new();
+    for fact in instance.item_facts() {
         if let Some(element) = taxonomy.find_element(fact.local_name())
             && let Some(id) = element.id.as_ref()
         {
@@ -208,7 +208,11 @@ fn validate_footnotes(instance: &InstanceDocument, result: &mut ValidationResult
 
     let context_ids: HashSet<&str> = instance.contexts().keys().map(|id| id.as_str()).collect();
     let unit_ids: HashSet<&str> = instance.units().keys().map(|id| id.as_str()).collect();
-    let fact_ids: HashSet<&str> = instance.facts().iter().filter_map(Fact::id).collect();
+    let fact_ids: HashSet<&str> = instance
+        .item_facts()
+        .iter()
+        .filter_map(|fact| fact.id())
+        .collect();
 
     for footnote_link in instance.footnote_links() {
         if footnote_link.role.as_deref() == Some(ROLE_FOOTNOTE) {
@@ -421,6 +425,179 @@ fn href_target_id(href: &str) -> Option<(Option<&str>, &str)> {
 
 fn validate_fact(
     fact: &Fact,
+    parent_tuple: Option<&ElementDefinition>,
+    instance: &InstanceDocument,
+    taxonomy: &TaxonomySet,
+    result: &mut ValidationResult,
+) {
+    match fact {
+        Fact::Item(item_fact) => {
+            if let Some(parent) = parent_tuple {
+                validate_tuple_child(
+                    item_fact.concept(),
+                    item_fact.local_name(),
+                    parent,
+                    taxonomy,
+                    result,
+                );
+            }
+            validate_item_fact(item_fact, instance, taxonomy, result);
+        }
+        Fact::Tuple(tuple_fact) => {
+            let tuple_element = validate_tuple_fact(tuple_fact, parent_tuple, taxonomy, result);
+
+            for child in tuple_fact.children() {
+                validate_fact(child, tuple_element, instance, taxonomy, result);
+            }
+        }
+    }
+}
+
+fn validate_tuple_fact<'a>(
+    fact: &TupleFact,
+    parent_tuple: Option<&'a ElementDefinition>,
+    taxonomy: &'a TaxonomySet,
+    result: &mut ValidationResult,
+) -> Option<&'a ElementDefinition> {
+    let local_name = fact.concept().split(':').nth(1).unwrap_or(fact.concept());
+    let concept = fact.concept();
+
+    let Some(element) = taxonomy.find_element(local_name) else {
+        result.add(
+            Severity::Error,
+            "schema.concept_not_found",
+            format!("Fact concept '{local_name}' not found in taxonomy"),
+            Some(concept),
+            None,
+        );
+        return None;
+    };
+
+    if let Some(parent) = parent_tuple {
+        validate_tuple_child(concept, local_name, parent, taxonomy, result);
+    }
+
+    if !is_tuple_element(element, taxonomy) {
+        result.add(
+            Severity::Error,
+            "schema.tuple_requires_tuple_concept",
+            format!("Tuple fact reports non-tuple concept '{local_name}'"),
+            Some(concept),
+            None,
+        );
+        return None;
+    }
+
+    if element.is_abstract {
+        result.add(
+            Severity::Error,
+            "schema.abstract_concept",
+            format!("Fact reports abstract concept '{local_name}'"),
+            Some(concept),
+            None,
+        );
+    }
+
+    Some(element)
+}
+
+fn is_tuple_element(element: &ElementDefinition, taxonomy: &TaxonomySet) -> bool {
+    if element.is_tuple() {
+        return true;
+    }
+
+    let mut seen = HashSet::new();
+    let mut current = element
+        .substitution_group
+        .as_deref()
+        .and_then(|substitution_group| substitution_group.rsplit(':').next());
+
+    while let Some(local) = current {
+        if !seen.insert(local) {
+            break;
+        }
+
+        if local == "tuple" {
+            return true;
+        }
+
+        current = taxonomy
+            .find_element(local)
+            .and_then(|parent| parent.substitution_group.as_deref())
+            .and_then(|substitution_group| substitution_group.rsplit(':').next());
+    }
+
+    false
+}
+
+fn validate_tuple_child(
+    child_concept: &str,
+    child_local_name: &str,
+    parent_tuple: &ElementDefinition,
+    taxonomy: &TaxonomySet,
+    result: &mut ValidationResult,
+) {
+    if parent_tuple.tuple_children.is_empty() {
+        return;
+    }
+
+    let Some(child_element) = taxonomy.find_element(child_local_name) else {
+        return;
+    };
+
+    if tuple_allows_child(parent_tuple, child_element, taxonomy) {
+        return;
+    }
+
+    result.add(
+        Severity::Error,
+        "schema.tuple_child_not_allowed",
+        format!(
+            "Fact '{}' is not allowed as child of tuple '{}'",
+            child_concept, parent_tuple.name
+        ),
+        Some(child_concept),
+        None,
+    );
+}
+
+fn tuple_allows_child(
+    parent_tuple: &ElementDefinition,
+    child_element: &ElementDefinition,
+    taxonomy: &TaxonomySet,
+) -> bool {
+    parent_tuple.tuple_children.iter().any(|allowed_qname| {
+        let allowed_local = allowed_qname.rsplit(':').next().unwrap_or(allowed_qname);
+        if child_element.name == allowed_local {
+            return true;
+        }
+
+        let mut seen = HashSet::new();
+        let mut current = child_element
+            .substitution_group
+            .as_deref()
+            .and_then(|substitution_group| substitution_group.rsplit(':').next());
+
+        while let Some(local) = current {
+            if !seen.insert(local) {
+                break;
+            }
+            if local == allowed_local {
+                return true;
+            }
+
+            current = taxonomy
+                .find_element(local)
+                .and_then(|element| element.substitution_group.as_deref())
+                .and_then(|substitution_group| substitution_group.rsplit(':').next());
+        }
+
+        false
+    })
+}
+
+fn validate_item_fact(
+    fact: &ItemFact,
     instance: &InstanceDocument,
     taxonomy: &TaxonomySet,
     result: &mut ValidationResult,
@@ -645,7 +822,7 @@ fn validate_contexts(
 }
 
 fn validate_unit_constraints(
-    fact: &Fact,
+    fact: &ItemFact,
     element: &ElementDefinition,
     unit: &crate::instance::Unit,
     taxonomy: &TaxonomySet,

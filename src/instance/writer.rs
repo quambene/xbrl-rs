@@ -1,6 +1,8 @@
 //! XBRL instance XML writer (serialization).
 
-use crate::{Context, Fact, InstanceDocument, Period, error::Result, instance::Unit};
+use crate::{
+    Context, Fact, InstanceDocument, ItemFact, Period, TupleFact, error::Result, instance::Unit,
+};
 use quick_xml::{
     Writer,
     events::{BytesDecl, BytesEnd, BytesStart, BytesText, Event},
@@ -57,7 +59,6 @@ pub(crate) fn write_xml<W: io::Write>(
         write_unit(writer, unit)?;
     }
 
-    // Fact elements
     for fact in instance.facts() {
         write_fact(writer, fact)?;
     }
@@ -143,6 +144,33 @@ fn write_unit<W: std::io::Write>(writer: &mut Writer<W>, unit: &Unit) -> Result<
 }
 
 fn write_fact<W: std::io::Write>(writer: &mut Writer<W>, fact: &Fact) -> Result<()> {
+    match fact {
+        Fact::Item(item) => write_item_fact(writer, item),
+        Fact::Tuple(tuple) => write_tuple_fact(writer, tuple),
+    }
+}
+
+fn write_tuple_fact<W: std::io::Write>(writer: &mut Writer<W>, fact: &TupleFact) -> Result<()> {
+    let concept = fact.concept();
+    let mut elem = BytesStart::new(concept);
+    if let Some(id) = fact.id() {
+        elem.push_attribute(("id", id));
+    }
+
+    if fact.children().is_empty() {
+        writer.write_event(Event::Empty(elem))?;
+        return Ok(());
+    }
+
+    writer.write_event(Event::Start(elem))?;
+    for child in fact.children() {
+        write_fact(writer, child)?;
+    }
+    writer.write_event(Event::End(BytesEnd::new(concept)))?;
+    Ok(())
+}
+
+fn write_item_fact<W: std::io::Write>(writer: &mut Writer<W>, fact: &ItemFact) -> Result<()> {
     let concept = fact.concept();
     let mut elem = BytesStart::new(concept);
     if let Some(id) = fact.id() {

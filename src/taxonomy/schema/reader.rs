@@ -112,7 +112,11 @@ pub(crate) fn read_schema<R: io::BufRead>(
                         if let Some(element) = elem {
                             schema.elements.push(element);
                         }
-                        skip_to_end_with_tuple_checks(reader, &name, tuple_decl, path)?;
+                        let children =
+                            skip_to_end_with_tuple_checks(reader, &name, tuple_decl, path)?;
+                        if tuple_decl && let Some(elem) = schema.elements.last_mut() {
+                            elem.tuple_children = children;
+                        }
                     }
                     "complexType" | "simpleType" => {
                         if let Some(NamedTypeBase {
@@ -362,9 +366,10 @@ fn skip_to_end_with_tuple_checks<R: io::BufRead>(
     tag_name: &str,
     tuple_decl: bool,
     path: &Path,
-) -> Result<()> {
+) -> Result<Vec<String>> {
     let mut buf = Vec::new();
     let mut depth = 1u32;
+    let mut children: Vec<String> = Vec::new();
 
     loop {
         match reader.read_event_into(&mut buf) {
@@ -423,6 +428,12 @@ fn skip_to_end_with_tuple_checks<R: io::BufRead>(
                         });
                     }
 
+                    if local == "element"
+                        && let Some(ref_val) = attr_by_local_name(e.attributes(), "ref")
+                    {
+                        children.push(ref_val);
+                    }
+
                     if local == "attribute"
                         && attr_by_local_name(e.attributes(), "ref").is_some_and(|reference| {
                             reference.starts_with("xbrli:") || reference.starts_with("xlink:")
@@ -455,7 +466,7 @@ fn skip_to_end_with_tuple_checks<R: io::BufRead>(
         buf.clear();
     }
 
-    Ok(())
+    Ok(children)
 }
 
 fn normalize_qname(value: &str, namespaces: Option<&HashMap<String, String>>) -> String {
@@ -1077,6 +1088,7 @@ fn parse_element_def(attrs: Attributes) -> Option<ElementDefinition> {
         is_abstract,
         period_type,
         balance,
+        tuple_children: Vec::new(),
     })
 }
 

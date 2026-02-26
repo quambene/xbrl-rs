@@ -1,6 +1,9 @@
 # Rust
 /target
 
+# Python
+.mypy_cache
+
 # Test data
 /test_data/taxonomies
 /test_data/conformance

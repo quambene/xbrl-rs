@@ -8,12 +8,20 @@ mod unit;
 mod view;
 mod writer;
 
-use crate::{TaxonomySet, error::Result, validation, validation::ValidationResult};
+use crate::{
+    TaxonomySet, error::Result, taxonomy::PeriodType, validation, validation::ValidationResult,
+};
 pub use context::{Context, ContextId, EntityIdentifier, Period};
-pub use fact::{Decimals, Fact};
+pub use fact::{Decimals, Fact, ItemFact, TupleFact};
 pub use footnote::{FootnoteArc, FootnoteLink, FootnoteLocator, FootnoteResource};
 use quick_xml::{Reader, Writer};
-use std::{borrow::Borrow, collections::HashMap, fmt, io, ops::Deref};
+use std::{
+    borrow::Borrow,
+    cmp::Ordering,
+    collections::{HashMap, HashSet},
+    fmt, io,
+    ops::Deref,
+};
 pub use unit::{Unit, UnitId};
 pub use view::{DocumentView, SectionView, TreeNode};
 
@@ -78,7 +86,7 @@ pub struct InstanceDocument {
     contexts: HashMap<ContextId, Context>,
     /// All units in the instance
     units: HashMap<UnitId, Unit>,
-    /// All facts in the instance
+    /// Top-level facts in the instance (item and tuple facts)
     facts: Vec<Fact>,
     /// Namespace prefixes used in the document (e.g. "xbrli" ->
     /// "http://www.xbrl.org/2003/instance")
@@ -117,6 +125,61 @@ impl InstanceDocument {
         }
     }
 
+    /// Create a new instance pre-wired to a known taxonomy.
+    ///
+    /// - Registers all schema refs and role refs from the taxonomy
+    /// - Adds both contexts and the unit
+    /// - Pre-populates nil facts for concepts in the presentation linkbase,
+    ///   preserving tuple nesting derived directly from the presentation tree
+    ///
+    /// Build the [`DocumentView`] once after this call, then fill values
+    /// in-place via [`set_fact_value`] without rebuilding the view.
+    pub fn from_taxonomy(
+        taxonomy: &TaxonomySet,
+        instant_context: Context,
+        duration_context: Context,
+        unit: Unit,
+    ) -> Self {
+        let mut instance = Self::default();
+
+        for schema_url in taxonomy.schema_refs().keys() {
+            instance.add_schema_ref(schema_url.to_string());
+        }
+        for role in taxonomy.role_types() {
+            instance.add_role_ref(role.role_uri.to_string());
+        }
+
+        let instant_context_ref = instant_context.id.clone();
+        let duration_context_ref = duration_context.id.clone();
+        instance.add_context(instant_context);
+        instance.add_context(duration_context);
+
+        let unit_ref = unit.id.clone();
+        instance.add_unit(unit);
+
+        // Walk the presentation tree in section order, depth-first within each section.
+        // The tree structure gives both the fact order and the tuple nesting directly,
+        // without needing to consult schema substitution groups.
+        let mut seen: HashSet<String> = HashSet::new();
+        for arcs in taxonomy.presentations().values() {
+            let roots = view::find_roots(arcs);
+            for root_id in roots {
+                Self::populate_from_tree(
+                    arcs,
+                    root_id,
+                    taxonomy,
+                    &instant_context_ref,
+                    &duration_context_ref,
+                    &unit_ref,
+                    &mut instance.facts,
+                    &mut seen,
+                );
+            }
+        }
+
+        instance
+    }
+
     /// Parse an XBRL instance document from XML.
     ///
     /// Automatically extracts the `<xbrli:xbrl>` element if the input
@@ -133,9 +196,10 @@ impl InstanceDocument {
         validation::validate_all(self, taxonomy)
     }
 
-    /// Convenience wrapper for [`DocumentView::build`] using this instance's facts.
+    /// Convenience wrapper for [`DocumentView::build`] using this instance's item facts.
     pub fn view<'a>(&self, taxonomy: &'a TaxonomySet) -> DocumentView<'a> {
-        DocumentView::build(&self.facts, taxonomy)
+        let item_facts = self.item_facts();
+        DocumentView::build(&item_facts, taxonomy)
     }
 
     /// Serialize this instance to an XBRL XML document.
@@ -227,14 +291,44 @@ impl InstanceDocument {
         self.facts.push(fact);
     }
 
-    /// Get all facts
+    /// Get all top-level facts.
     pub fn facts(&self) -> &[Fact] {
         &self.facts
     }
 
-    /// Get all facts mutably
+    /// Get all top-level facts mutably.
     pub fn facts_mut(&mut self) -> &mut [Fact] {
         &mut self.facts
+    }
+
+    /// Get all item facts in depth-first order.
+    pub fn item_facts(&self) -> Vec<&ItemFact> {
+        let mut out = Vec::new();
+        for fact in &self.facts {
+            fact.walk_items(&mut out);
+        }
+        out
+    }
+
+    /// Number of item facts in the instance (including nested tuple descendants).
+    pub fn item_fact_count(&self) -> usize {
+        self.item_facts().len()
+    }
+
+    /// Set the value of a fact by its index (from [`DocumentView`] fact_indices).
+    /// Clears nil status.
+    ///
+    /// # Panics
+    /// Panics if `index` is out of bounds.
+    pub fn set_fact_value(&mut self, index: usize, value: String) {
+        let mut current_index = 0usize;
+        for fact in &mut self.facts {
+            if Self::set_item_value_by_index(fact, index, &value, &mut current_index) {
+                return;
+            }
+        }
+
+        panic!("fact index out of bounds: {index}");
     }
 
     /// Add a namespace prefix mapping
@@ -284,6 +378,127 @@ impl InstanceDocument {
     /// Get all units
     pub fn units(&self) -> &HashMap<UnitId, Unit> {
         &self.units
+    }
+
+    /// Recursively walk one node of the presentation tree and emit facts.
+    ///
+    /// - Concrete tuple → push a [`TupleFact`] and recurse into its children.
+    /// - Concrete item  → push an [`ItemFact`] (nil placeholder).
+    /// - Abstract / grouping → recurse into children at the same level.
+    #[allow(clippy::too_many_arguments)]
+    fn populate_from_tree(
+        arcs: &[crate::taxonomy::PresentationArc],
+        concept_id: &str,
+        taxonomy: &TaxonomySet,
+        instant_ctx: &ContextId,
+        duration_ctx: &ContextId,
+        unit: &UnitId,
+        facts: &mut Vec<Fact>,
+        seen: &mut HashSet<String>,
+    ) {
+        if !seen.insert(concept_id.to_string()) {
+            return; // already emitted in an earlier section
+        }
+
+        let mut children: Vec<&crate::taxonomy::PresentationArc> = arcs
+            .iter()
+            .filter(|a| a.from.as_str() == concept_id)
+            .collect();
+        children.sort_by(|a, b| match (a.order, b.order) {
+            (Some(x), Some(y)) => x.partial_cmp(&y).unwrap_or(Ordering::Equal),
+            (Some(_), None) => Ordering::Less,
+            (None, Some(_)) => Ordering::Greater,
+            (None, None) => Ordering::Equal,
+        });
+
+        if let Some(element) = taxonomy.find_element_by_id(concept_id) {
+            if element.is_tuple() && !element.is_abstract {
+                let qname = taxonomy
+                    .qualified_name(concept_id)
+                    .unwrap_or_else(|| concept_id.replacen('_', ":", 1));
+                facts.push(Fact::Tuple(TupleFact::new(qname)));
+                let tuple_children = match facts.last_mut() {
+                    Some(Fact::Tuple(t)) => t.children_mut(),
+                    _ => unreachable!(),
+                };
+                for arc in &children {
+                    Self::populate_from_tree(
+                        arcs,
+                        arc.to.as_str(),
+                        taxonomy,
+                        instant_ctx,
+                        duration_ctx,
+                        unit,
+                        tuple_children,
+                        seen,
+                    );
+                }
+                return;
+            }
+
+            if !element.is_abstract
+                && let Some(ref period_type) = element.period_type
+            {
+                let context_ref = match period_type {
+                    PeriodType::Duration => duration_ctx,
+                    PeriodType::Instant => instant_ctx,
+                };
+                let qname = taxonomy
+                    .qualified_name(concept_id)
+                    .unwrap_or_else(|| concept_id.replacen('_', ":", 1));
+                let mut fact = ItemFact::new(
+                    qname,
+                    context_ref.to_string(),
+                    Some(unit.to_string()),
+                    String::new(),
+                );
+                fact.set_nil(true);
+                facts.push(Fact::Item(fact));
+                return; // leaf node
+            }
+        }
+
+        // Abstract concept or concept not in any schema: recurse children at same level.
+        for arc in &children {
+            Self::populate_from_tree(
+                arcs,
+                arc.to.as_str(),
+                taxonomy,
+                instant_ctx,
+                duration_ctx,
+                unit,
+                facts,
+                seen,
+            );
+        }
+    }
+
+    fn set_item_value_by_index(
+        fact: &mut Fact,
+        target_index: usize,
+        value: &str,
+        current_index: &mut usize,
+    ) -> bool {
+        match fact {
+            Fact::Item(item) => {
+                if *current_index == target_index {
+                    item.set_value(value.to_owned());
+                    item.set_nil(false);
+                    true
+                } else {
+                    *current_index += 1;
+                    false
+                }
+            }
+            Fact::Tuple(tuple) => {
+                for child in tuple.children_mut() {
+                    if Self::set_item_value_by_index(child, target_index, value, current_index) {
+                        return true;
+                    }
+                }
+                false
+            }
+        }
     }
 }
 

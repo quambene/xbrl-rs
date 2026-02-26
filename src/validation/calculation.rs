@@ -6,7 +6,7 @@
 
 use super::{Severity, ValidationResult};
 use crate::{
-    Context, Decimals, DeclaredAccuracy, Fact, InstanceDocument, Period, TaxonomySet, Unit,
+    Context, Decimals, DeclaredAccuracy, InstanceDocument, ItemFact, Period, TaxonomySet, Unit,
 };
 use std::collections::HashMap;
 
@@ -111,7 +111,7 @@ pub(super) fn validate_calculations(
     }
 }
 
-fn effective_accuracy(fact: &Fact, taxonomy: &TaxonomySet) -> DeclaredAccuracy {
+fn effective_accuracy(fact: &ItemFact, taxonomy: &TaxonomySet) -> DeclaredAccuracy {
     let decimals = fact.decimals().cloned();
     let precision = fact.precision().cloned();
     if decimals.is_some() || precision.is_some() {
@@ -136,7 +136,7 @@ type CtxUnitKey = (ContextKey, UnitKey);
 
 #[derive(Debug, Clone, Copy)]
 struct IndexedFact<'a> {
-    fact: &'a Fact,
+    fact: &'a ItemFact,
     is_duplicate: bool,
 }
 
@@ -172,7 +172,7 @@ fn build_fact_index<'a>(
 ) -> HashMap<String, HashMap<CtxUnitKey, IndexedFact<'a>>> {
     let mut index: HashMap<String, HashMap<CtxUnitKey, IndexedFact<'a>>> = HashMap::new();
 
-    for fact in instance.facts() {
+    for fact in instance.item_facts() {
         if fact.is_nil() {
             continue;
         }
@@ -204,7 +204,7 @@ fn build_fact_index<'a>(
 
 fn fact_semantic_key(
     instance: &InstanceDocument,
-    fact: &Fact,
+    fact: &ItemFact,
     context: &Context,
 ) -> Option<CtxUnitKey> {
     let context_key = context_key(context);

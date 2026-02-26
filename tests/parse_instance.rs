@@ -2,9 +2,10 @@
 
 use quick_xml::Reader;
 use std::{fs::File, io::BufReader, path::Path};
-use xbrl_rs::InstanceDocument;
+use xbrl_rs::{Fact, InstanceDocument};
 
 const INSTANCE_BASE: &str = "test_data/instances";
+const EXAMPLE_BASE: &str = "test_data/examples";
 
 fn parse_instance(path: &Path) -> InstanceDocument {
     let file = File::open(path).expect("failed to open instance file");
@@ -29,4 +30,35 @@ fn balance_sheet_v65() {
     assert!(!instance.facts().is_empty());
     assert!(!instance.contexts().is_empty());
     assert!(!instance.units().is_empty());
+}
+
+#[test]
+fn parses_tuple_subtree_with_multiple_children() {
+    let path = Path::new(EXAMPLE_BASE).join("HandelsbilanzLandwirt_GmbH.xml");
+    let instance = parse_instance(&path);
+
+    let shareholder = instance
+        .facts()
+        .iter()
+        .find_map(|fact| match fact {
+            Fact::Tuple(tuple) if tuple.concept() == "de-gcd:genInfo.company.id.shareholder" => {
+                Some(tuple)
+            }
+            _ => None,
+        })
+        .expect("shareholder tuple must be present");
+
+    assert!(
+        shareholder.children().len() >= 2,
+        "shareholder tuple should contain multiple children"
+    );
+
+    let has_nested_tuple = shareholder
+        .children()
+        .iter()
+        .any(|child| matches!(child, Fact::Tuple(_)));
+    assert!(
+        has_nested_tuple,
+        "shareholder tuple should contain nested tuple children"
+    );
 }

@@ -135,6 +135,24 @@ pub struct ElementDefinition {
     pub period_type: Option<PeriodType>,
     /// The XBRL balance type ("debit" or "credit").
     pub balance: Option<Balance>,
+    /// For tuple elements: the QNames of child elements declared via `xs:element[@ref]`
+    /// inside the tuple's inline `xs:complexType`. Empty for non-tuple elements.
+    pub tuple_children: Vec<String>,
+}
+
+impl ElementDefinition {
+    /// Returns `true` if this element is an XBRL tuple (`substitutionGroup="xbrli:tuple"`).
+    pub fn is_tuple(&self) -> bool {
+        self.substitution_group
+            .as_deref()
+            .is_some_and(|s| local_name(s) == "tuple")
+    }
+
+    /// Returns `true` if this element is a concrete (non-abstract) item fact.
+    /// Such elements are the only ones that should appear as facts in an instance document.
+    pub fn is_concrete_item(&self) -> bool {
+        !self.is_abstract && self.period_type.is_some()
+    }
 }
 
 /// A `link:roleType` definition from a taxonomy schema.
@@ -322,52 +340,7 @@ mod tests {
     use super::{Balance, ElementDefinition, PeriodType, RoleType, TaxonomySchema};
     use crate::XbrlError;
     use assert_matches::assert_matches;
-    use quick_xml::Reader;
-    use std::{collections::HashMap, path::Path};
-
-    #[test]
-    fn from_xml_unchecked_parses_minimal_valid_schema() {
-        let xml = r#"
-            <xs:schema
-                xmlns:xs="http://www.w3.org/2001/XMLSchema"
-                xmlns:xbrli="http://www.xbrl.org/2003/instance"
-                targetNamespace="http://example.com/taxonomy">
-                <xs:import
-                    namespace="http://www.xbrl.org/2003/instance"
-                    schemaLocation="xbrl-instance-2003-12-31.xsd"/>
-                <xs:element
-                    name="Cash"
-                    id="ex_Cash"
-                    type="xbrli:monetaryItemType"
-                    substitutionGroup="xbrli:item"
-                    xbrli:periodType="instant"/>
-            </xs:schema>
-        "#;
-
-        let mut reader = Reader::from_str(xml);
-        let schema = TaxonomySchema::from_xml_unchecked(Path::new("test.xsd"), &mut reader)
-            .expect("schema should parse");
-
-        assert_eq!(
-            schema.target_namespace.as_deref(),
-            Some("http://example.com/taxonomy")
-        );
-        assert_eq!(schema.imports.len(), 1);
-        assert_eq!(schema.elements.len(), 1);
-        assert_eq!(schema.elements[0].name, "Cash");
-    }
-
-    #[test]
-    fn from_xml_unchecked_requires_schema_root() {
-        let xml = r#"<root/>"#;
-        let mut reader = Reader::from_str(xml);
-
-        let res = TaxonomySchema::from_xml_unchecked(Path::new("test.xsd"), &mut reader);
-
-        assert_matches!(res, Err(XbrlError::InvalidSchemaDocument { reason, .. }) => {
-            assert!(reason.contains("missing <schema> root element"));
-        });
-    }
+    use std::collections::HashMap;
 
     #[test]
     fn validate_requires_period_type_on_items() {
@@ -390,6 +363,7 @@ mod tests {
                 is_abstract: false,
                 period_type: None,
                 balance: None,
+                tuple_children: Vec::new(),
             }],
             type_bases: HashMap::new(),
             type_declared_accuracy: HashMap::new(),
@@ -423,6 +397,7 @@ mod tests {
                 is_abstract: false,
                 period_type: Some(PeriodType::Duration),
                 balance: Some(Balance::Credit),
+                tuple_children: Vec::new(),
             }],
             type_bases: HashMap::new(),
             type_declared_accuracy: HashMap::new(),
@@ -456,6 +431,7 @@ mod tests {
                 is_abstract: false,
                 period_type: Some(PeriodType::Duration),
                 balance: None,
+                tuple_children: Vec::new(),
             }],
             type_bases: HashMap::new(),
             type_declared_accuracy: HashMap::new(),
@@ -489,6 +465,7 @@ mod tests {
                 is_abstract: false,
                 period_type: None,
                 balance: Some(Balance::Credit),
+                tuple_children: Vec::new(),
             }],
             type_bases: HashMap::new(),
             type_declared_accuracy: HashMap::new(),
@@ -552,121 +529,12 @@ mod tests {
                 is_abstract: false,
                 period_type: Some(PeriodType::Instant),
                 balance: Some(Balance::Debit),
+                tuple_children: Vec::new(),
             }],
             type_bases: HashMap::new(),
             type_declared_accuracy: HashMap::new(),
         };
 
         assert!(schema.validate().is_ok());
-    }
-
-    #[test]
-    fn from_xml_unchecked_accepts_arcrole_used_on_when_qnames_are_not_s_equal() {
-        let xml = r#"
-            <xsd:schema
-                xmlns:xsd="http://www.w3.org/2001/XMLSchema"
-                xmlns:link="http://www.xbrl.org/2003/linkbase"
-                targetNamespace="http://xbrl.org/conformance">
-                <xsd:annotation>
-                    <xsd:appinfo>
-                        <link:arcroleType
-                            arcroleURI="http://xbrl.org/role/conformance"
-                            cyclesAllowed="any"
-                            id="conformance">
-                            <link:usedOn xmlns:this="http://example.com/this">this:someArc</link:usedOn>
-                            <link:usedOn xmlns:this="http://example.com/that">this:someArc</link:usedOn>
-                        </link:arcroleType>
-                    </xsd:appinfo>
-                </xsd:annotation>
-            </xsd:schema>
-        "#;
-
-        let mut reader = Reader::from_str(xml);
-        let parsed = TaxonomySchema::from_xml_unchecked(Path::new("test.xsd"), &mut reader);
-
-        assert!(parsed.is_ok());
-    }
-
-    #[test]
-    fn from_xml_unchecked_rejects_arcrole_used_on_when_qnames_are_s_equal() {
-        let xml = r#"
-            <xsd:schema
-                xmlns:xsd="http://www.w3.org/2001/XMLSchema"
-                xmlns:link="http://www.xbrl.org/2003/linkbase"
-                targetNamespace="http://xbrl.org/conformance">
-                <xsd:annotation>
-                    <xsd:appinfo>
-                        <link:arcroleType
-                            arcroleURI="http://xbrl.org/role/conformance"
-                            cyclesAllowed="any"
-                            id="conformance">
-                            <link:usedOn>link:someArc</link:usedOn>
-                            <link:usedOn xmlns="http://www.xbrl.org/2003/linkbase">someArc</link:usedOn>
-                        </link:arcroleType>
-                    </xsd:appinfo>
-                </xsd:annotation>
-            </xsd:schema>
-        "#;
-
-        let mut reader = Reader::from_str(xml);
-        let parsed = TaxonomySchema::from_xml_unchecked(Path::new("test.xsd"), &mut reader);
-
-        assert_matches!(parsed, Err(XbrlError::InvalidSchemaDocument { reason, .. }) => {
-            assert!(reason.contains("duplicate s-equal usedOn"));
-        });
-    }
-
-    #[test]
-    fn from_xml_unchecked_accepts_role_used_on_when_qnames_are_not_s_equal() {
-        let xml = r#"
-            <xsd:schema
-                xmlns:xsd="http://www.w3.org/2001/XMLSchema"
-                xmlns:link="http://www.xbrl.org/2003/linkbase"
-                targetNamespace="http://xbrl.org/conformance">
-                <xsd:annotation>
-                    <xsd:appinfo>
-                        <link:roleType
-                            roleURI="http://xbrl.org/role/conformance"
-                            id="conformance">
-                            <link:usedOn xmlns:this="http://example.com/this">this:definitionLink</link:usedOn>
-                            <link:usedOn xmlns:this="http://example.com/that">this:definitionLink</link:usedOn>
-                        </link:roleType>
-                    </xsd:appinfo>
-                </xsd:annotation>
-            </xsd:schema>
-        "#;
-
-        let mut reader = Reader::from_str(xml);
-        let parsed = TaxonomySchema::from_xml_unchecked(Path::new("test.xsd"), &mut reader);
-
-        assert!(parsed.is_ok());
-    }
-
-    #[test]
-    fn from_xml_unchecked_rejects_role_used_on_when_qnames_are_s_equal() {
-        let xml = r#"
-            <xsd:schema
-                xmlns:xsd="http://www.w3.org/2001/XMLSchema"
-                xmlns:link="http://www.xbrl.org/2003/linkbase"
-                targetNamespace="http://xbrl.org/conformance">
-                <xsd:annotation>
-                    <xsd:appinfo>
-                        <link:roleType
-                            roleURI="http://xbrl.org/role/conformance"
-                            id="conformance">
-                            <link:usedOn>link:definitionLink</link:usedOn>
-                            <link:usedOn xmlns="http://www.xbrl.org/2003/linkbase">definitionLink</link:usedOn>
-                        </link:roleType>
-                    </xsd:appinfo>
-                </xsd:annotation>
-            </xsd:schema>
-        "#;
-
-        let mut reader = Reader::from_str(xml);
-        let parsed = TaxonomySchema::from_xml_unchecked(Path::new("test.xsd"), &mut reader);
-
-        assert_matches!(parsed, Err(XbrlError::InvalidSchemaDocument { reason, .. }) => {
-            assert!(reason.contains("duplicate s-equal usedOn"));
-        });
     }
 }
