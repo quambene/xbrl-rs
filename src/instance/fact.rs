@@ -46,7 +46,10 @@ impl fmt::Display for Decimals {
 /// Represents a single fact (data point) in an XBRL instance
 #[derive(Debug, Clone)]
 pub enum Fact {
+    /// An item fact with a value and optional unit reference.
     Item(ItemFact),
+    /// A tuple fact that can contain child facts (both item and tuple facts).
+    /// Needed to preserve the full document structure.
     Tuple(TupleFact),
 }
 
