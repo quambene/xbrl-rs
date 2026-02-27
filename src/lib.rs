@@ -20,8 +20,8 @@ pub use quick_xml::{Reader as XmlReader, Writer as XmlWriter};
 pub use taxonomy::TaxonomyLoader;
 pub use taxonomy::{
     ArcroleType, Balance, CalculationArc, ConceptId, CyclesAllowed, DeclaredAccuracy,
-    DefinitionArc, ElementDefinition, Label, LinkbaseLocator, LinkbaseRef, PeriodType,
+    DefinitionArc, ElementDefinition, Label, LinkbaseLocator, LinkbaseRef, MaxOccurs, PeriodType,
     PresentationArc, Reference, ReferencePart, RoleType, RoleUri, SchemaImport, SchemaInclude,
-    MaxOccurs, SchemaRefUrl, TaxonomySchema, TaxonomySet, TupleChildRef,
+    SchemaRefUrl, TaxonomySchema, TaxonomySet, TupleChildRef,
 };
 pub use validation::{Severity, ValidationMessage, ValidationResult};

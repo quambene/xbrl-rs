@@ -577,7 +577,11 @@ fn skip_to_end_with_tuple_checks<R: io::BufRead>(
                                 }
                             })
                             .unwrap_or(MaxOccurs::Bounded(1));
-                        children.push(TupleChildRef { qname, min_occurs, max_occurs });
+                        children.push(TupleChildRef {
+                            qname,
+                            min_occurs,
+                            max_occurs,
+                        });
                     }
 
                     if local == "attribute"
