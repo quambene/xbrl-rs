@@ -1,4 +1,7 @@
-use crate::error::{LinkbaseType, Result, XbrlError};
+use crate::{
+    error::{LinkbaseType, Result, XbrlError},
+    taxonomy::split_qname,
+};
 use quick_xml::{
     Reader,
     events::{Event, attributes::Attributes},
@@ -23,6 +26,24 @@ pub struct ReferencePart {
     pub value: String,
 }
 
+enum ReferenceTag {
+    Loc,
+    Reference,
+    ReferenceArc,
+    Unknown,
+}
+
+impl ReferenceTag {
+    fn from_name(name: &[u8]) -> Self {
+        match split_qname(name).local_name {
+            "loc" => Self::Loc,
+            "reference" => Self::Reference,
+            "referenceArc" => Self::ReferenceArc,
+            _ => Self::Unknown,
+        }
+    }
+}
+
 /// Parse a reference linkbase XML file.
 ///
 /// Returns a map from concept element ID to a list of [`Reference`]s.
@@ -42,28 +63,26 @@ pub fn parse_reference_linkbase(
     loop {
         match reader.read_event_into(&mut buf) {
             Ok(Event::Start(ref e)) => {
-                let name = String::from_utf8_lossy(e.name().as_ref()).to_string();
-                let local = local_name(&name);
+                let tag = ReferenceTag::from_name(e.name().as_ref());
 
-                match local {
-                    "loc" => {
+                match tag {
+                    ReferenceTag::Loc => {
                         parse_loc(e.attributes(), &mut locators);
                     }
-                    "reference" => {
+                    ReferenceTag::Reference => {
                         parse_reference_resource(reader, e.attributes(), &mut resources);
                     }
                     _ => {}
                 }
             }
             Ok(Event::Empty(ref e)) => {
-                let name = String::from_utf8_lossy(e.name().as_ref()).to_string();
-                let local = local_name(&name);
+                let tag = ReferenceTag::from_name(e.name().as_ref());
 
-                match local {
-                    "loc" => {
+                match tag {
+                    ReferenceTag::Loc => {
                         parse_loc(e.attributes(), &mut locators);
                     }
-                    "referenceArc" => {
+                    ReferenceTag::ReferenceArc => {
                         if let Some(arc) = parse_arc(e.attributes()) {
                             arcs.push(arc);
                         }

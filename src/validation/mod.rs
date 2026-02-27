@@ -3,6 +3,7 @@
 mod calculation;
 mod dimension;
 mod schema;
+mod value;
 
 use crate::{InstanceDocument, TaxonomySet};
 
@@ -84,29 +85,11 @@ impl ValidationResult {
 /// Run all validation checks: schema, calculation, and dimension.
 pub fn validate_all(instance: &InstanceDocument, taxonomy: &TaxonomySet) -> ValidationResult {
     let mut result = ValidationResult::new();
-    validate_schema(instance, taxonomy, &mut result);
-    validate_calculations(instance, taxonomy, &mut result);
+    let prepared = value::prepare_fact_values(instance, taxonomy, &mut result);
+    schema::validate_schema(instance, taxonomy, &prepared, &mut result);
+    calculation::validate_calculations(instance, taxonomy, &prepared, &mut result);
     validate_dimensions(instance, taxonomy, &mut result);
     result
-}
-
-/// Check that facts conform to the DTS element definitions and XBRL
-/// specification structural rules.
-pub fn validate_schema(
-    instance: &InstanceDocument,
-    taxonomy: &TaxonomySet,
-    result: &mut ValidationResult,
-) {
-    schema::validate_schema(instance, taxonomy, result);
-}
-
-/// Check calculation linkbase consistency (summation-item relationships).
-pub fn validate_calculations(
-    instance: &InstanceDocument,
-    taxonomy: &TaxonomySet,
-    result: &mut ValidationResult,
-) {
-    calculation::validate_calculations(instance, taxonomy, result);
 }
 
 /// Check that dimension members in contexts are valid per the definition

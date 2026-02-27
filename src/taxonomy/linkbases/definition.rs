@@ -1,9 +1,13 @@
-use crate::error::{LinkbaseType, Result, XbrlError};
+use crate::{
+    error::{LinkbaseType, Result, XbrlError},
+    taxonomy::split_qname,
+};
 use quick_xml::{
     Reader,
     events::{Event, attributes::Attributes},
 };
-use std::{collections::HashMap, io};
+use rust_decimal::Decimal;
+use std::{collections::HashMap, io, str::FromStr};
 
 /// A dimensional relationship from a definition linkbase.
 #[derive(Debug, Clone, PartialEq)]
@@ -13,9 +17,27 @@ pub struct DefinitionArc {
     /// Target concept element ID.
     pub to: String,
     /// Display/processing order.
-    pub order: Option<f64>,
+    pub order: Option<Decimal>,
     /// The arc role URI (e.g., `http://xbrl.org/int/dim/arcrole/domain-member`).
     pub arcrole: String,
+}
+
+enum DefinitionTag {
+    DefinitionLink,
+    Loc,
+    DefinitionArc,
+    Unknown,
+}
+
+impl DefinitionTag {
+    fn from_name(name: &[u8]) -> Self {
+        match split_qname(name).local_name {
+            "definitionLink" => Self::DefinitionLink,
+            "loc" => Self::Loc,
+            "definitionArc" => Self::DefinitionArc,
+            _ => Self::Unknown,
+        }
+    }
 }
 
 /// Parse a definition linkbase XML file.
@@ -38,24 +60,22 @@ pub fn parse_definition_linkbase(
     loop {
         match reader.read_event_into(&mut buf) {
             Ok(Event::Start(ref e)) => {
-                let name = String::from_utf8_lossy(e.name().as_ref()).to_string();
-                let local = local_name(&name);
+                let tag = DefinitionTag::from_name(e.name().as_ref());
 
-                if local == "definitionLink" {
+                if matches!(tag, DefinitionTag::DefinitionLink) {
                     current_role = extract_role(e.attributes());
                     locators.clear();
                     arcs.clear();
                 }
             }
             Ok(Event::Empty(ref e)) => {
-                let name = String::from_utf8_lossy(e.name().as_ref()).to_string();
-                let local = local_name(&name);
+                let tag = DefinitionTag::from_name(e.name().as_ref());
 
-                match local {
-                    "loc" => {
+                match tag {
+                    DefinitionTag::Loc => {
                         parse_loc(e.attributes(), &mut locators);
                     }
-                    "definitionArc" => {
+                    DefinitionTag::DefinitionArc => {
                         if let Some(arc) = parse_arc(e.attributes()) {
                             arcs.push(arc);
                         }
@@ -64,10 +84,9 @@ pub fn parse_definition_linkbase(
                 }
             }
             Ok(Event::End(ref e)) => {
-                let name = String::from_utf8_lossy(e.name().as_ref()).to_string();
-                let local = local_name(&name);
+                let tag = DefinitionTag::from_name(e.name().as_ref());
 
-                if local == "definitionLink" {
+                if matches!(tag, DefinitionTag::DefinitionLink) {
                     let resolved = resolve_arcs(&locators, &arcs);
                     result
                         .entry(current_role.clone())
@@ -94,7 +113,7 @@ pub fn parse_definition_linkbase(
 struct RawDefArc {
     from: String,
     to: String,
-    order: Option<f64>,
+    order: Option<Decimal>,
     arcrole: String,
 }
 
@@ -173,10 +192,11 @@ fn parse_arc(attrs: Attributes) -> Option<RawDefArc> {
                 to = attr.unescape_value().ok().map(|v| v.to_string());
             }
             "order" => {
-                order = attr
-                    .unescape_value()
-                    .ok()
-                    .and_then(|v| v.parse::<f64>().ok());
+                order = attr.unescape_value().ok().and_then(|v| {
+                    Decimal::from_str(&v)
+                        .ok()
+                        .or_else(|| Decimal::from_scientific(&v).ok())
+                });
             }
             "arcrole" => {
                 if let Ok(val) = attr.unescape_value() {

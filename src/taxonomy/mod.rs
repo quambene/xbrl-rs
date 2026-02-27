@@ -1,3 +1,23 @@
+pub(crate) struct QName<'a> {
+    pub namespace: &'a str,
+    pub local_name: &'a str,
+}
+
+pub(crate) fn split_qname(name: &[u8]) -> QName<'_> {
+    let decoded = std::str::from_utf8(name).unwrap_or("");
+    if let Some((namespace, local_name)) = decoded.split_once(':') {
+        return QName {
+            namespace,
+            local_name,
+        };
+    }
+
+    QName {
+        namespace: "",
+        local_name: decoded,
+    }
+}
+
 mod linkbases;
 #[cfg(feature = "download")]
 mod loader;

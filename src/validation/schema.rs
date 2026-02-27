@@ -1,7 +1,7 @@
 //! Schema validation: checks that facts conform to the DTS element definitions
 //! and XBRL specification structural rules.
 
-use super::{Severity, ValidationResult};
+use super::{Severity, ValidationResult, value::PreparedFactValues};
 use crate::{
     Fact, InstanceDocument, ItemFact, Period, TaxonomySet, TupleFact,
     taxonomy::{ElementDefinition, PeriodType},
@@ -20,6 +20,7 @@ const ARCROLE_ESSENCE_ALIAS: &str = "http://www.xbrl.org/2003/arcrole/essence-al
 pub(super) fn validate_schema(
     instance: &InstanceDocument,
     taxonomy: &TaxonomySet,
+    _prepared: &PreparedFactValues,
     result: &mut ValidationResult,
 ) {
     validate_contexts(instance, taxonomy, result);

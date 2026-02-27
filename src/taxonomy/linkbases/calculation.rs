@@ -1,9 +1,13 @@
-use crate::error::{LinkbaseType, Result, XbrlError};
+use crate::{
+    error::{LinkbaseType, Result, XbrlError},
+    taxonomy::split_qname,
+};
 use quick_xml::{
     Reader,
     events::{Event, attributes::Attributes},
 };
-use std::{collections::HashMap, io};
+use rust_decimal::Decimal;
+use std::{collections::HashMap, io, str::FromStr};
 
 /// A summation-item relationship from a calculation linkbase.
 #[derive(Debug, Clone, PartialEq)]
@@ -13,9 +17,27 @@ pub struct CalculationArc {
     /// Child (contributing item) concept element ID.
     pub to: String,
     /// Display order among siblings.
-    pub order: Option<f64>,
+    pub order: Option<Decimal>,
     /// Weight factor (typically 1.0 or -1.0).
-    pub weight: f64,
+    pub weight: Decimal,
+}
+
+enum CalculationTag {
+    CalculationLink,
+    Loc,
+    CalculationArc,
+    Unknown,
+}
+
+impl CalculationTag {
+    fn from_name(name: &[u8]) -> Self {
+        match split_qname(name).local_name {
+            "calculationLink" => Self::CalculationLink,
+            "loc" => Self::Loc,
+            "calculationArc" => Self::CalculationArc,
+            _ => Self::Unknown,
+        }
+    }
 }
 
 /// Parse a calculation linkbase XML file.
@@ -38,24 +60,22 @@ pub fn parse_calculation_linkbase(
     loop {
         match reader.read_event_into(&mut buf) {
             Ok(Event::Start(ref e)) => {
-                let name = String::from_utf8_lossy(e.name().as_ref()).to_string();
-                let local = local_name(&name);
+                let tag = CalculationTag::from_name(e.name().as_ref());
 
-                if local == "calculationLink" {
+                if matches!(tag, CalculationTag::CalculationLink) {
                     current_role = extract_role(e.attributes());
                     locators.clear();
                     arcs.clear();
                 }
             }
             Ok(Event::Empty(ref e)) => {
-                let name = String::from_utf8_lossy(e.name().as_ref()).to_string();
-                let local = local_name(&name);
+                let tag = CalculationTag::from_name(e.name().as_ref());
 
-                match local {
-                    "loc" => {
+                match tag {
+                    CalculationTag::Loc => {
                         parse_loc(e.attributes(), &mut locators);
                     }
-                    "calculationArc" => {
+                    CalculationTag::CalculationArc => {
                         if let Some(arc) = parse_arc(e.attributes()) {
                             arcs.push(arc);
                         }
@@ -64,10 +84,9 @@ pub fn parse_calculation_linkbase(
                 }
             }
             Ok(Event::End(ref e)) => {
-                let name = String::from_utf8_lossy(e.name().as_ref()).to_string();
-                let local = local_name(&name);
+                let tag = CalculationTag::from_name(e.name().as_ref());
 
-                if local == "calculationLink" {
+                if matches!(tag, CalculationTag::CalculationLink) {
                     let resolved = resolve_arcs(&locators, &arcs);
                     result
                         .entry(current_role.clone())
@@ -94,8 +113,8 @@ pub fn parse_calculation_linkbase(
 struct RawCalcArc {
     from: String,
     to: String,
-    order: Option<f64>,
-    weight: f64,
+    order: Option<Decimal>,
+    weight: Decimal,
 }
 
 fn resolve_arcs(locators: &HashMap<String, String>, arcs: &[RawCalcArc]) -> Vec<CalculationArc> {
@@ -191,7 +210,7 @@ fn parse_arc(attrs: Attributes) -> Option<RawCalcArc> {
     let mut from = None;
     let mut to = None;
     let mut order = None;
-    let mut weight = 1.0;
+    let mut weight = Decimal::ONE;
 
     for attr in attrs.flatten() {
         let key = String::from_utf8_lossy(attr.key.as_ref());
@@ -204,14 +223,18 @@ fn parse_arc(attrs: Attributes) -> Option<RawCalcArc> {
                 to = attr.unescape_value().ok().map(|v| v.to_string());
             }
             "order" => {
-                order = attr
-                    .unescape_value()
-                    .ok()
-                    .and_then(|v| v.parse::<f64>().ok());
+                order = attr.unescape_value().ok().and_then(|v| {
+                    Decimal::from_str(&v)
+                        .ok()
+                        .or_else(|| Decimal::from_scientific(&v).ok())
+                });
             }
             "weight" => {
                 if let Ok(val) = attr.unescape_value() {
-                    weight = val.parse::<f64>().unwrap_or(1.0);
+                    weight = Decimal::from_str(&val)
+                        .ok()
+                        .or_else(|| Decimal::from_scientific(&val).ok())
+                        .unwrap_or(Decimal::ONE);
                 }
             }
             _ => {}

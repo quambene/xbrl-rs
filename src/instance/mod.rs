@@ -405,7 +405,7 @@ impl InstanceDocument {
             .filter(|a| a.from.as_str() == concept_id)
             .collect();
         children.sort_by(|a, b| match (a.order, b.order) {
-            (Some(x), Some(y)) => x.partial_cmp(&y).unwrap_or(Ordering::Equal),
+            (Some(x), Some(y)) => x.cmp(&y),
             (Some(_), None) => Ordering::Less,
             (None, Some(_)) => Ordering::Greater,
             (None, None) => Ordering::Equal,
