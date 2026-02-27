@@ -116,6 +116,28 @@ impl fmt::Display for CyclesAllowed {
     }
 }
 
+/// Maximum occurrences of a child element in a tuple's content model.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MaxOccurs {
+    /// A finite upper bound (e.g., `maxOccurs="1"`).
+    Bounded(u32),
+    /// No upper bound (`maxOccurs="unbounded"`).
+    Unbounded,
+}
+
+/// A child element reference declared inside a tuple's `xs:complexType`.
+#[derive(Debug, Clone, PartialEq)]
+pub struct TupleChildRef {
+    /// The qualified name of the referenced element (e.g., `"my:street"`).
+    pub qname: String,
+    /// Minimum occurrences from the `minOccurs` attribute; defaults to `1` per
+    /// the XSD spec.
+    pub min_occurs: u32,
+    /// Maximum occurrences from the `maxOccurs` attribute; defaults to
+    /// `MaxOccurs::Bounded(1)` per the XSD spec.
+    pub max_occurs: MaxOccurs,
+}
+
 /// An `xs:element` definition from a taxonomy schema.
 #[derive(Debug, Clone)]
 pub struct ElementDefinition {
@@ -135,9 +157,9 @@ pub struct ElementDefinition {
     pub period_type: Option<PeriodType>,
     /// The XBRL balance type ("debit" or "credit").
     pub balance: Option<Balance>,
-    /// For tuple elements: the QNames of child elements declared via `xs:element[@ref]`
+    /// For tuple elements: the child elements declared via `xs:element[@ref]`
     /// inside the tuple's inline `xs:complexType`. Empty for non-tuple elements.
-    pub tuple_children: Vec<String>,
+    pub tuple_children: Vec<TupleChildRef>,
 }
 
 impl ElementDefinition {

@@ -109,6 +109,82 @@ fn validates_tuple_child_not_allowed() {
 }
 
 #[test]
+fn validates_tuple_missing_required_child() {
+    let path = Path::new(INSTANCE_BASE).join("validation_tuple_missing_required_child.xml");
+    let instance = parse_instance(&path);
+    let taxonomy = discover_taxonomy(&instance, SCHEMA_ENTRY_POINT);
+
+    let result = instance.validate(&taxonomy);
+    assert!(
+        result
+            .errors()
+            .iter()
+            .any(|error| error.code == "schema.tuple_missing_required_child"),
+        "expected schema.tuple_missing_required_child error, got: {:?}",
+        result.errors()
+    );
+}
+
+#[test]
+fn validates_tuple_min_occurs_underflow() {
+    let path = Path::new(INSTANCE_BASE).join("validation_tuple_cardinality_min_violation.xml");
+    let instance = parse_instance(&path);
+    let taxonomy = discover_taxonomy(&instance, SCHEMA_ENTRY_POINT);
+
+    let result = instance.validate(&taxonomy);
+    assert!(
+        result
+            .errors()
+            .iter()
+            .any(|error| error.code == "schema.tuple_missing_required_child"),
+        "expected schema.tuple_missing_required_child error, got: {:?}",
+        result.errors()
+    );
+}
+
+#[test]
+fn validates_tuple_max_occurs_exceeded() {
+    let path = Path::new(INSTANCE_BASE).join("validation_tuple_cardinality_max_violation.xml");
+    let instance = parse_instance(&path);
+    let taxonomy = discover_taxonomy(&instance, SCHEMA_ENTRY_POINT);
+
+    let result = instance.validate(&taxonomy);
+    assert!(
+        result
+            .errors()
+            .iter()
+            .any(|error| error.code == "schema.tuple_child_not_allowed"),
+        "expected schema.tuple_child_not_allowed error, got: {:?}",
+        result.errors()
+    );
+}
+
+#[test]
+fn accepts_tuple_children_within_cardinality_bounds() {
+    let path = Path::new(INSTANCE_BASE).join("validation_tuple_cardinality_valid.xml");
+    let instance = parse_instance(&path);
+    let taxonomy = discover_taxonomy(&instance, SCHEMA_ENTRY_POINT);
+
+    let result = instance.validate(&taxonomy);
+    assert!(
+        !result
+            .errors()
+            .iter()
+            .any(|error| error.code == "schema.tuple_missing_required_child"),
+        "unexpected min-occurs errors: {:#?}",
+        result.errors()
+    );
+    assert!(
+        !result
+            .errors()
+            .iter()
+            .any(|error| error.code == "schema.tuple_child_not_allowed"),
+        "unexpected max-occurs errors: {:#?}",
+        result.errors()
+    );
+}
+
+#[test]
 fn accepts_tuple_concept_derived_by_substitution_group() {
     let path = Path::new(INSTANCE_BASE).join("validation_tuple_base.xml");
     let instance = parse_instance(&path);

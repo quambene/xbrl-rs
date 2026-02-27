@@ -36,6 +36,6 @@ pub use linkbases::{
 pub use loader::TaxonomyLoader;
 pub use schema::{
     ArcroleType, Balance, CyclesAllowed, DeclaredAccuracy, ElementDefinition, LinkbaseRef,
-    PeriodType, RoleType, SchemaImport, SchemaInclude, TaxonomySchema,
+    MaxOccurs, PeriodType, RoleType, SchemaImport, SchemaInclude, TaxonomySchema, TupleChildRef,
 };
 pub use taxonomy_set::{ConceptId, RoleUri, SchemaRefUrl, TaxonomySet};

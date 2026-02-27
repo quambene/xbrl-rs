@@ -28,6 +28,7 @@
   - Add `example/print_facts.rs`
   - Implement `InstanceDocument::from_taxonomy`
   - Parse and validate `TupleFact`s
+  - Parse and validate `TupleChildRef`
 - changed
   - Rename `TaxonomySchema::parse` to `TaxonomySchema::from_xml`
   - Use `BufReader` for parsing schemas and linkbases

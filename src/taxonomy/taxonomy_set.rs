@@ -541,7 +541,7 @@ impl TaxonomySet {
         self.schemas
             .values()
             .flat_map(|s| &s.elements)
-            .find(|e| e.is_tuple() && e.tuple_children.iter().any(|c| c == parent_qname))
+            .find(|e| e.is_tuple() && e.tuple_children.iter().any(|c| c.qname == parent_qname))
     }
 
     /// Find all tuple ancestor IDs from root tuple to direct parent tuple.

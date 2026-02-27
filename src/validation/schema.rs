@@ -4,7 +4,7 @@
 use super::{Severity, ValidationResult, value::PreparedFactValues};
 use crate::{
     Fact, InstanceDocument, ItemFact, Period, TaxonomySet, TupleFact,
-    taxonomy::{ElementDefinition, PeriodType},
+    taxonomy::{ElementDefinition, MaxOccurs, PeriodType, TupleChildRef},
 };
 use std::collections::{HashMap, HashSet};
 
@@ -499,6 +499,8 @@ fn validate_tuple_fact<'a>(
         );
     }
 
+    validate_required_tuple_children(fact, element, taxonomy, result);
+
     Some(element)
 }
 
@@ -567,34 +569,118 @@ fn tuple_allows_child(
     child_element: &ElementDefinition,
     taxonomy: &TaxonomySet,
 ) -> bool {
-    parent_tuple.tuple_children.iter().any(|allowed_qname| {
-        let allowed_local = allowed_qname.rsplit(':').next().unwrap_or(allowed_qname);
-        if child_element.name == allowed_local {
+    parent_tuple
+        .tuple_children
+        .iter()
+        .any(|child_ref| tuple_child_ref_matches_element(child_ref, child_element, taxonomy))
+}
+
+fn validate_required_tuple_children(
+    fact: &TupleFact,
+    element: &ElementDefinition,
+    taxonomy: &TaxonomySet,
+    result: &mut ValidationResult,
+) {
+    // A nil tuple has no content; content model constraints do not apply.
+    if fact.is_nil() {
+        return;
+    }
+
+    for child_ref in &element.tuple_children {
+        let count = fact
+            .children()
+            .iter()
+            .filter(|child| tuple_child_ref_matches_concept(child_ref, child.concept(), taxonomy))
+            .count() as u32;
+
+        if count < child_ref.min_occurs {
+            result.add(
+                Severity::Error,
+                "schema.tuple_missing_required_child",
+                format!(
+                    "Tuple '{}' requires at least {} occurrence(s) of child '{}' but found {}",
+                    fact.concept(),
+                    child_ref.min_occurs,
+                    child_ref.qname,
+                    count
+                ),
+                Some(fact.concept()),
+                None,
+            );
+        }
+
+        let has_ambiguous_choice_default =
+            child_ref.min_occurs == 0 && matches!(child_ref.max_occurs, MaxOccurs::Bounded(1));
+
+        if !has_ambiguous_choice_default
+            && let MaxOccurs::Bounded(max_occurs) = child_ref.max_occurs
+            && count > max_occurs
+        {
+            result.add(
+                Severity::Error,
+                "schema.tuple_child_not_allowed",
+                format!(
+                    "Tuple '{}' allows at most {} occurrence(s) of child '{}' but found {}",
+                    fact.concept(),
+                    max_occurs,
+                    child_ref.qname,
+                    count
+                ),
+                Some(fact.concept()),
+                None,
+            );
+        }
+    }
+}
+
+fn tuple_child_ref_matches_concept(
+    child_ref: &TupleChildRef,
+    child_concept: &str,
+    taxonomy: &TaxonomySet,
+) -> bool {
+    let child_local = child_concept.rsplit(':').next().unwrap_or(child_concept);
+    let Some(child_element) = taxonomy.find_element(child_local) else {
+        return false;
+    };
+
+    tuple_child_ref_matches_element(child_ref, child_element, taxonomy)
+}
+
+fn tuple_child_ref_matches_element(
+    child_ref: &TupleChildRef,
+    child_element: &ElementDefinition,
+    taxonomy: &TaxonomySet,
+) -> bool {
+    let allowed_local = child_ref
+        .qname
+        .rsplit(':')
+        .next()
+        .unwrap_or(&child_ref.qname);
+    if child_element.name == allowed_local {
+        return true;
+    }
+
+    let mut seen = HashSet::new();
+    let mut current = child_element
+        .substitution_group
+        .as_deref()
+        .and_then(|substitution_group| substitution_group.rsplit(':').next());
+
+    while let Some(local) = current {
+        if !seen.insert(local) {
+            break;
+        }
+        if local == allowed_local {
             return true;
         }
 
-        let mut seen = HashSet::new();
-        let mut current = child_element
-            .substitution_group
-            .as_deref()
+        current = taxonomy
+            .find_element(local)
+            .and_then(|element| element.substitution_group.as_deref())
             .and_then(|substitution_group| substitution_group.rsplit(':').next());
+    }
 
-        while let Some(local) = current {
-            if !seen.insert(local) {
-                break;
-            }
-            if local == allowed_local {
-                return true;
-            }
-
-            current = taxonomy
-                .find_element(local)
-                .and_then(|element| element.substitution_group.as_deref())
-                .and_then(|substitution_group| substitution_group.rsplit(':').next());
-        }
-
-        false
-    })
+    false
 }
 
 fn validate_item_fact(
