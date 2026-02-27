@@ -33,7 +33,7 @@
   - Rename `TaxonomySchema::parse` to `TaxonomySchema::from_xml`
   - Use `BufReader` for parsing schemas and linkbases
   - Put `TaxonomyLoader` behind feature flag `download`
-  - Put `env:logger` behind feature flag `logger`
+  - Put `env::logger` behind feature flag `logger`
   - Rename `XbrlInstance` to `InstanceDocument`
 
 ## v0.1.1 (2026-02-18)
