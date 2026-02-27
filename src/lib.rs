@@ -22,6 +22,6 @@ pub use taxonomy::{
     ArcroleType, Balance, CalculationArc, ConceptId, CyclesAllowed, DeclaredAccuracy,
     DefinitionArc, ElementDefinition, Label, LinkbaseLocator, LinkbaseRef, PeriodType,
     PresentationArc, Reference, ReferencePart, RoleType, RoleUri, SchemaImport, SchemaInclude,
-    SchemaRefUrl, TaxonomySchema, TaxonomySet,
+    MaxOccurs, SchemaRefUrl, TaxonomySchema, TaxonomySet, TupleChildRef,
 };
 pub use validation::{Severity, ValidationMessage, ValidationResult};

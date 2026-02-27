@@ -3,8 +3,8 @@ use crate::{
     instance::Decimals,
     taxonomy::{
         schema::{
-            ArcroleType, CyclesAllowed, DeclaredAccuracy, ElementDefinition, LinkbaseRef, RoleType,
-            SchemaImport, SchemaInclude, TaxonomySchema,
+            ArcroleType, CyclesAllowed, DeclaredAccuracy, ElementDefinition, LinkbaseRef,
+            MaxOccurs, RoleType, SchemaImport, SchemaInclude, TaxonomySchema, TupleChildRef,
         },
         split_qname,
     },
@@ -485,10 +485,14 @@ fn skip_to_end_with_tuple_checks<R: io::BufRead>(
     tag_name: &str,
     tuple_decl: bool,
     path: &Path,
-) -> Result<Vec<String>> {
+) -> Result<Vec<TupleChildRef>> {
     let mut buf = Vec::new();
     let mut depth = 1u32;
-    let mut children: Vec<String> = Vec::new();
+    let mut children: Vec<TupleChildRef> = Vec::new();
+    // Stack that tracks, for each open Start element, whether it is an `xs:choice`.
+    // Used to suppress `min_occurs` for element refs inside a choice group, because
+    // a choice requires only one of its alternatives — not all of them.
+    let mut choice_stack: Vec<bool> = Vec::new();
 
     loop {
         match reader.read_event_into(&mut buf) {
@@ -498,6 +502,8 @@ fn skip_to_end_with_tuple_checks<R: io::BufRead>(
                 if tuple_decl {
                     let name = String::from_utf8_lossy(e.name().as_ref()).to_string();
                     let local = local_name(&name);
+
+                    choice_stack.push(local == "choice");
 
                     if (local == "complexType" || local == "complexContent")
                         && attr_by_local_name(e.attributes(), "mixed")
@@ -548,9 +554,30 @@ fn skip_to_end_with_tuple_checks<R: io::BufRead>(
                     }
 
                     if local == "element"
-                        && let Some(ref_val) = attr_by_local_name(e.attributes(), "ref")
+                        && let Some(qname) = attr_by_local_name(e.attributes(), "ref")
                     {
-                        children.push(ref_val);
+                        // Inside xs:choice only one alternative is required; using min_occurs=0
+                        // for individual elements avoids false "missing required child" errors.
+                        let in_choice = choice_stack.iter().any(|&c| c);
+                        let min_occurs = if in_choice {
+                            0
+                        } else {
+                            attr_by_local_name(e.attributes(), "minOccurs")
+                                .and_then(|v| v.parse::<u32>().ok())
+                                .unwrap_or(1)
+                        };
+                        let max_occurs = attr_by_local_name(e.attributes(), "maxOccurs")
+                            .map(|v| {
+                                if v == "unbounded" {
+                                    MaxOccurs::Unbounded
+                                } else {
+                                    v.parse::<u32>()
+                                        .map(MaxOccurs::Bounded)
+                                        .unwrap_or(MaxOccurs::Bounded(1))
+                                }
+                            })
+                            .unwrap_or(MaxOccurs::Bounded(1));
+                        children.push(TupleChildRef { qname, min_occurs, max_occurs });
                     }
 
                     if local == "attribute"
@@ -567,6 +594,9 @@ fn skip_to_end_with_tuple_checks<R: io::BufRead>(
                 }
             }
             Ok(Event::End(_)) => {
+                if tuple_decl {
+                    choice_stack.pop();
+                }
                 depth -= 1;
                 if depth == 0 {
                     break;

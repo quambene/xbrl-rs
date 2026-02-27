@@ -723,6 +723,7 @@ fn parse_empty_fact(start_element: &quick_xml::events::BytesStart, concept: &str
     if let Some(id) = id {
         tuple.set_id(id);
     }
+    tuple.set_nil(is_nil);
     Ok(Fact::Tuple(tuple))
 }
 

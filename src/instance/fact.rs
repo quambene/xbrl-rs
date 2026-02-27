@@ -81,6 +81,9 @@ pub struct TupleFact {
     id: Option<String>,
     /// The concept name (e.g. "de-gcd:genInfo.company.id.shareholder")
     concept: String,
+    /// Whether the tuple is nil (xsi:nil="true"). A nil tuple has no children
+    /// and its content model constraints (e.g. minOccurs) do not apply.
+    is_nil: bool,
     /// Nested child facts (item and tuple facts)
     children: Vec<Fact>,
 }
@@ -181,6 +184,7 @@ impl TupleFact {
         Self {
             id: None,
             concept,
+            is_nil: false,
             children: Vec::new(),
         }
     }
@@ -195,6 +199,14 @@ impl TupleFact {
 
     pub fn set_id(&mut self, id: String) {
         self.id = Some(id);
+    }
+
+    pub fn is_nil(&self) -> bool {
+        self.is_nil
+    }
+
+    pub fn set_nil(&mut self, is_nil: bool) {
+        self.is_nil = is_nil;
     }
 
     pub fn children(&self) -> &[Fact] {
