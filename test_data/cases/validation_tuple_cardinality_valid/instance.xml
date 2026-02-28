@@ -12,7 +12,7 @@
 
     <context id="ci">
         <entity>
-            <identifier scheme="http://www.un.org/">Example Corp</identifier>
+            <identifier scheme="http://www.example.com/id">Example Corp</identifier>
         </entity>
         <period>
             <instant>2001-08-16</instant>
@@ -22,6 +22,6 @@
     <my:address>
         <my:city contextRef="ci">Berlin</my:city>
         <my:city contextRef="ci">Hamburg</my:city>
-        <my:city contextRef="ci">Munich</my:city>
+        <my:country contextRef="ci">Germany</my:country>
     </my:address>
 </xbrl>

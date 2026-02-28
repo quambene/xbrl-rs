@@ -10,13 +10,12 @@ use crate::{
     },
 };
 use indexmap::IndexMap;
-use log::warn;
 use quick_xml::Reader;
 use std::{
     borrow::Borrow,
     collections::{HashMap, HashSet, VecDeque},
     fmt, fs,
-    io::BufReader,
+    io::{self, BufReader},
     ops::Deref,
     path::{Path, PathBuf},
 };
@@ -272,13 +271,23 @@ impl TaxonomySet {
             // Collect linkbase refs
             for lbref in &schema.linkbase_refs {
                 if let Some(resolved) = resolve_local_path(schema_dir, &lbref.href) {
-                    if resolved.exists() {
-                        if let Ok(canonical) = std::fs::canonicalize(&resolved) {
-                            linkbase_set.insert(canonical);
-                        }
-                    } else {
-                        warn!("Linkbase not found: {}", resolved.display());
+                    if !resolved.exists() {
+                        return Err(XbrlError::FileRead {
+                            path: resolved,
+                            context: "linkbase referenced from schema".to_string(),
+                            source: io::Error::new(
+                                io::ErrorKind::NotFound,
+                                "referenced linkbase file does not exist",
+                            ),
+                        });
                     }
+                    let canonical =
+                        std::fs::canonicalize(&resolved).map_err(|err| XbrlError::FileRead {
+                            path: resolved.clone(),
+                            context: "linkbase referenced from schema".to_string(),
+                            source: err,
+                        })?;
+                    linkbase_set.insert(canonical);
                 }
             }
 
@@ -329,11 +338,21 @@ impl TaxonomySet {
                     continue;
                 };
                 if !resolved.exists() {
-                    continue;
+                    return Err(XbrlError::FileRead {
+                        path: resolved,
+                        context: "linkbase referenced from schema".to_string(),
+                        source: io::Error::new(
+                            io::ErrorKind::NotFound,
+                            "referenced linkbase file does not exist",
+                        ),
+                    });
                 }
-                let Ok(canonical) = std::fs::canonicalize(&resolved) else {
-                    continue;
-                };
+                let canonical =
+                    std::fs::canonicalize(&resolved).map_err(|err| XbrlError::FileRead {
+                        path: resolved.clone(),
+                        context: "linkbase referenced from schema".to_string(),
+                        source: err,
+                    })?;
 
                 if role.contains("presentationLinkbaseRef") {
                     if presentation_paths_seen.insert(canonical.clone()) {

@@ -1,0 +1,6 @@
+{
+  "name": "validation_schema_invalid_unit_ref_invalid",
+  "type": "schema",
+  "expected": "fail",
+  "instance": "instance.xml"
+}

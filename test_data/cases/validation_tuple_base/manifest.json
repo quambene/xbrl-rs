@@ -1,0 +1,6 @@
+{
+  "name": "validation_tuple_base",
+  "type": "tuple",
+  "expected": "pass",
+  "instance": "instance.xml"
+}

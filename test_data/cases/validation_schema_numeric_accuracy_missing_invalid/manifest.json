@@ -1,0 +1,6 @@
+{
+  "name": "validation_schema_numeric_accuracy_missing_invalid",
+  "type": "schema",
+  "expected": "fail",
+  "instance": "instance.xml"
+}

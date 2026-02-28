@@ -1,0 +1,6 @@
+{
+  "name": "validation_calc_summation_inconsistency_invalid",
+  "type": "calculation",
+  "expected": "fail",
+  "instance": "instance.xml"
+}

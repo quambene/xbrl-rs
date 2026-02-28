@@ -1,0 +1,6 @@
+{
+  "name": "validation_schema_valid_baseline_valid",
+  "type": "schema",
+  "expected": "pass",
+  "instance": "instance.xml"
+}

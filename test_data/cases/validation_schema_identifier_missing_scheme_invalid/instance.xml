@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xbrl
+    xmlns="http://www.xbrl.org/2003/instance"
+    xmlns:xbrli="http://www.xbrl.org/2003/instance"
+    xmlns:link="http://www.xbrl.org/2003/linkbase"
+    xmlns:xlink="http://www.w3.org/1999/xlink"
+    xmlns:my="http://www.example.com/schema-identifier-missing-scheme"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.example.com/schema-identifier-missing-scheme taxonomy.xsd">
+
+    <link:schemaRef xlink:href="taxonomy.xsd" xlink:type="simple"/>
+
+    <context id="ci">
+        <entity>
+            <identifier>Example Corp</identifier>
+        </entity>
+        <period>
+            <instant>2001-08-16</instant>
+        </period>
+    </context>
+
+    <my:text contextRef="ci">Hello</my:text>
+</xbrl>

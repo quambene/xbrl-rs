@@ -35,6 +35,7 @@ struct NamedTypeBase {
 
 enum SchemaTag {
     Schema,
+    Annotation,
     Appinfo,
     RoleType,
     ArcroleType,
@@ -78,6 +79,7 @@ impl SchemaTag {
     fn from_local_name(local: &str) -> Self {
         match local {
             "schema" => Self::Schema,
+            "annotation" => Self::Annotation,
             "appinfo" => Self::Appinfo,
             "roleType" => Self::RoleType,
             "arcroleType" => Self::ArcroleType,
@@ -115,6 +117,7 @@ impl SchemaTag {
     fn local_name(&self) -> &str {
         match self {
             Self::Schema => "schema",
+            Self::Annotation => "annotation",
             Self::Appinfo => "appinfo",
             Self::RoleType => "roleType",
             Self::ArcroleType => "arcroleType",
@@ -175,6 +178,8 @@ pub(crate) fn read_schema<R: io::BufRead>(
 
     let mut buf = Vec::new();
     let mut inside_appinfo = false;
+    let mut annotation_base: Option<String> = None;
+    let mut appinfo_base: Option<String> = None;
     let mut has_schema_root = false;
     let mut inside_linkbase_depth = 0u32;
     let mut linkbase_role_refs: HashSet<String> = HashSet::new();
@@ -200,8 +205,22 @@ pub(crate) fn read_schema<R: io::BufRead>(
                         has_schema_root = true;
                         extract_schema_attrs(e.attributes(), &mut schema);
                     }
+                    SchemaTag::Annotation => {
+                        let local_base = attr_xml_base(e.attributes());
+                        annotation_base = local_base;
+                    }
                     SchemaTag::Appinfo => {
                         inside_appinfo = true;
+                        let local_base = attr_xml_base(e.attributes());
+                        appinfo_base = resolve_inherited_xml_base(
+                            annotation_base.as_deref(),
+                            local_base.as_deref(),
+                        );
+                    }
+                    SchemaTag::LinkbaseRef if inside_appinfo => {
+                        schema
+                            .linkbase_refs
+                            .push(parse_linkbase_ref(e.attributes(), appinfo_base.as_deref()));
                     }
                     SchemaTag::RoleType if inside_appinfo => {
                         schema.role_types.push(parse_role_type(
@@ -350,7 +369,7 @@ pub(crate) fn read_schema<R: io::BufRead>(
                     SchemaTag::LinkbaseRef if inside_appinfo => {
                         schema
                             .linkbase_refs
-                            .push(parse_linkbase_ref(e.attributes()));
+                            .push(parse_linkbase_ref(e.attributes(), appinfo_base.as_deref()));
                     }
                     SchemaTag::Import => {
                         if let Some(imp) = parse_import(e.attributes()) {
@@ -425,6 +444,10 @@ pub(crate) fn read_schema<R: io::BufRead>(
                 let tag = SchemaTag::from_name(e.name().as_ref());
                 if matches!(tag, SchemaTag::Appinfo) {
                     inside_appinfo = false;
+                    appinfo_base = None;
+                }
+                if matches!(tag, SchemaTag::Annotation) {
+                    annotation_base = None;
                 }
 
                 if inside_linkbase_depth > 0 {
@@ -904,8 +927,9 @@ fn extract_schema_attrs(attrs: Attributes, schema: &mut TaxonomySchema) {
 }
 
 /// Parse a `link:linkbaseRef` element.
-fn parse_linkbase_ref(attrs: Attributes) -> LinkbaseRef {
+fn parse_linkbase_ref(attrs: Attributes, inherited_base: Option<&str>) -> LinkbaseRef {
     let mut href = String::new();
+    let mut local_xml_base = None;
     let mut role = None;
     let mut arcrole = None;
     let mut title = None;
@@ -920,6 +944,11 @@ fn parse_linkbase_ref(attrs: Attributes) -> LinkbaseRef {
                     .map(|v| v.to_string())
                     .unwrap_or_default();
             }
+            "base" => {
+                if key.as_ref() == "xml:base" {
+                    local_xml_base = attr.unescape_value().ok().map(|v| v.to_string());
+                }
+            }
             "role" => {
                 role = attr.unescape_value().ok().map(|v| v.to_string());
             }
@@ -933,12 +962,92 @@ fn parse_linkbase_ref(attrs: Attributes) -> LinkbaseRef {
         }
     }
 
+    let effective_base = resolve_inherited_xml_base(inherited_base, local_xml_base.as_deref());
+    if let Some(base) = effective_base.as_deref() {
+        href = resolve_href_with_xml_base(base, &href);
+    }
+
     LinkbaseRef {
         href,
         role,
         arcrole,
         title,
     }
+}
+
+fn resolve_href_with_xml_base(xml_base: &str, href: &str) -> String {
+    if href.is_empty() || href.contains("://") || href.starts_with('/') || href.starts_with('#') {
+        return href.to_string();
+    }
+
+    let base = xml_base.trim();
+    if base.is_empty() {
+        return href.to_string();
+    }
+
+    let combined = if base.ends_with('/') {
+        format!("{base}{href}")
+    } else if let Some((parent, _)) = base.rsplit_once('/') {
+        if parent.is_empty() {
+            href.to_string()
+        } else {
+            format!("{parent}/{href}")
+        }
+    } else {
+        href.to_string()
+    };
+
+    normalize_uri_path(&combined)
+}
+
+fn resolve_inherited_xml_base(inherited: Option<&str>, local: Option<&str>) -> Option<String> {
+    match (inherited, local) {
+        (Some(parent), Some(local_base)) => Some(resolve_href_with_xml_base(parent, local_base)),
+        (None, Some(local_base)) => Some(normalize_uri_path(local_base.trim())),
+        (Some(parent), None) => Some(parent.to_string()),
+        (None, None) => None,
+    }
+}
+
+fn normalize_uri_path(path: &str) -> String {
+    let is_absolute = path.starts_with('/');
+    let keep_trailing_slash = path.ends_with('/');
+
+    let mut segments: Vec<&str> = Vec::new();
+    for segment in path.split('/') {
+        match segment {
+            "" | "." => {}
+            ".." => {
+                if !segments.is_empty() {
+                    segments.pop();
+                }
+            }
+            _ => segments.push(segment),
+        }
+    }
+
+    let mut normalized = String::new();
+    if is_absolute {
+        normalized.push('/');
+    }
+
+    normalized.push_str(&segments.join("/"));
+
+    if keep_trailing_slash && !normalized.is_empty() && !normalized.ends_with('/') {
+        normalized.push('/');
+    }
+
+    normalized
+}
+
+fn attr_xml_base(attrs: Attributes) -> Option<String> {
+    for attr in attrs.flatten() {
+        let key = String::from_utf8_lossy(attr.key.as_ref());
+        if key.as_ref() == "xml:base" {
+            return attr.unescape_value().ok().map(|v| v.to_string());
+        }
+    }
+    None
 }
 
 /// Parse a `link:roleType` element and its children.

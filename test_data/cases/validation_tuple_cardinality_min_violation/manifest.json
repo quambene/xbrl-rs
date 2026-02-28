@@ -1,0 +1,6 @@
+{
+  "name": "validation_tuple_cardinality_min_violation",
+  "type": "cardinality",
+  "expected": "fail",
+  "instance": "instance.xml"
+}

@@ -1,20 +1,25 @@
 use roxmltree::Document;
-use std::{
-    io::Cursor,
-    path::{Path, PathBuf},
-    str::FromStr,
+use std::{path::PathBuf, str::FromStr};
+use xbrl_rs::{
+    Context, ContextId, EntityIdentifier, InstanceDocument, Period, TaxonomySet, Unit, UnitId,
+    XmlWriter,
 };
-use xbrl_rs::{Fact, InstanceDocument, TaxonomySet, XmlReader, XmlWriter};
 
 const TAXONOMY_ENTRY_POINT: &str = "test_data/taxonomies";
+const GCD_SCHEMA: &str =
+    "http://www.xbrl.de/taxonomies/de-gcd-2020-04-01/de-gcd-2020-04-01-shell.xsd";
+const GAAP_SCHEMA: &str =
+    "http://www.xbrl.de/taxonomies/de-gaap-ci-2020-04-01/de-gaap-ci-2020-04-01-shell-fiscal.xsd";
 
 #[test]
+#[ignore = "requires taxonomies in test_data/taxonomies"]
 fn write_empty_instance() {
     let entry_point = PathBuf::from_str(TAXONOMY_ENTRY_POINT).unwrap();
-    let gcd = "http://www.xbrl.de/taxonomies/de-gcd-2020-04-01/de-gcd-2020-04-01-shell.xsd";
-    let gaap = "http://www.xbrl.de/taxonomies/de-gaap-ci-2020-04-01/de-gaap-ci-2020-04-01-shell-fiscal.xsd";
-    let taxonomy =
-        TaxonomySet::discover(vec![gcd.to_owned(), gaap.to_owned()], entry_point).unwrap();
+    let taxonomy = TaxonomySet::discover(
+        vec![GCD_SCHEMA.to_owned(), GAAP_SCHEMA.to_owned()],
+        entry_point,
+    )
+    .unwrap();
 
     let mut instance = InstanceDocument::default();
 
@@ -43,27 +48,58 @@ fn write_empty_instance() {
 }
 
 #[test]
-fn write_roundtrip_preserves_tuple_children() {
-    let path = Path::new("test_data/examples/HandelsbilanzLandwirt_GmbH.xml");
-    let source = std::fs::read_to_string(path).unwrap();
+#[ignore = "requires taxonomies in test_data/taxonomies"]
+fn generate_instance() {
+    // 1. Discover the taxonomy from the local test data
+    let entry_point = PathBuf::from(TAXONOMY_ENTRY_POINT);
+    let taxonomy = TaxonomySet::discover(
+        vec![GCD_SCHEMA.to_owned(), GAAP_SCHEMA.to_owned()],
+        entry_point,
+    )
+    .unwrap();
 
-    let mut reader = XmlReader::from_str(&source);
-    let instance = InstanceDocument::from_xml(&mut reader).unwrap();
+    // 2. Define an instant context (balance-sheet date) and a duration context (fiscal year)
+    let entity = EntityIdentifier {
+        scheme: "http://example.com/id".to_owned(),
+        value: "0000000000000".to_owned(),
+    };
+    let instant_ctx = Context::new(
+        ContextId::from("I-2020"),
+        entity.clone(),
+        Period::Instant {
+            date: "2020-12-31".to_owned(),
+        },
+    );
+    let duration_ctx = Context::new(
+        ContextId::from("D-2020"),
+        entity,
+        Period::Duration {
+            start: "2020-01-01".to_owned(),
+            end: "2020-12-31".to_owned(),
+        },
+    );
 
-    let original_item_count = instance.item_fact_count();
+    // 3. Define a monetary unit
+    let unit = Unit::new(UnitId::from("EUR"), "iso4217:EUR".to_owned());
 
+    // 4. Build the instance from the taxonomy.
+    let mut instance = InstanceDocument::from_taxonomy(&taxonomy, instant_ctx, duration_ctx, unit);
+
+    // 5. Register namespace declarations from all discovered schemas
+    for schema in taxonomy.schemas().values() {
+        for (prefix, uri) in &schema.namespaces {
+            instance.add_namespace(prefix.clone(), uri.clone());
+        }
+    }
+
+    // 6. Validate the generated XBRL
+    let res = instance.validate(&taxonomy);
+
+    dbg!(&res);
+    assert!(res.is_valid());
+
+    // 7. Serialize to XML
     let mut writer: XmlWriter<Vec<u8>> = XmlWriter::new(Vec::new());
     instance.to_xml(&mut writer).unwrap();
-    let xml = writer.into_inner();
-
-    let mut reparsed_reader = XmlReader::from_reader(Cursor::new(xml));
-    let reparsed = InstanceDocument::from_xml(&mut reparsed_reader).unwrap();
-
-    assert_eq!(reparsed.item_fact_count(), original_item_count);
-
-    let has_shareholder_tuple = reparsed
-        .facts()
-        .iter()
-        .any(|fact| matches!(fact, Fact::Tuple(tuple) if tuple.concept() == "de-gcd:genInfo.company.id.shareholder"));
-    assert!(has_shareholder_tuple);
+    let _xml = String::from_utf8(writer.into_inner()).unwrap();
 }

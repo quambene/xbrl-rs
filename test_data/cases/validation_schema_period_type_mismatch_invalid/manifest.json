@@ -1,0 +1,6 @@
+{
+  "name": "validation_schema_period_type_mismatch_invalid",
+  "type": "schema",
+  "expected": "fail",
+  "instance": "instance.xml"
+}

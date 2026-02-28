@@ -1,0 +1,6 @@
+{
+  "name": "validation_numeric_invalid_lexical",
+  "type": "schema",
+  "expected": "fail",
+  "instance": "instance.xml"
+}

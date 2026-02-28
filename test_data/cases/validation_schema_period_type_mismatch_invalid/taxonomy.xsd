@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema
+    xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+    xmlns:xbrli="http://www.xbrl.org/2003/instance"
+    targetNamespace="http://www.example.com/schema-period-mismatch"
+    xmlns:my="http://www.example.com/schema-period-mismatch"
+    elementFormDefault="qualified">
+    <xsd:import
+        namespace="http://www.xbrl.org/2003/instance"
+        schemaLocation="http://www.xbrl.org/2003/xbrl-instance-2003-12-31.xsd"/>
+
+    <xsd:element name="durationText"
+        type="xbrli:stringItemType"
+        substitutionGroup="xbrli:item"
+        id="durationText"
+        xbrli:periodType="duration"/>
+</xsd:schema>

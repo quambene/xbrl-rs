@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema
+    xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+    xmlns:xbrli="http://www.xbrl.org/2003/instance"
+    elementFormDefault="qualified"
+    targetNamespace="http://www.example.com/cardinality"
+    xmlns:my="http://www.example.com/cardinality">
+    <xsd:import
+        namespace="http://www.xbrl.org/2003/instance"
+        schemaLocation="http://www.xbrl.org/2003/xbrl-instance-2003-12-31.xsd"/>
+
+    <xsd:element name="address"
+        substitutionGroup="xbrli:tuple"
+        id="address">
+        <xsd:complexType>
+            <xsd:complexContent>
+                <xsd:restriction base="xsd:anyType">
+                    <xsd:sequence>
+                        <xsd:element ref="my:city" minOccurs="2" maxOccurs="2"/>
+                        <xsd:element ref="my:country" minOccurs="0" maxOccurs="1"/>
+                    </xsd:sequence>
+                </xsd:restriction>
+            </xsd:complexContent>
+        </xsd:complexType>
+    </xsd:element>
+
+    <xsd:element name="city"
+        type="xbrli:stringItemType"
+        substitutionGroup="xbrli:item"
+        id="city"
+        xbrli:periodType="instant"
+        nillable="true"/>
+
+    <xsd:element name="country"
+        type="xbrli:stringItemType"
+        substitutionGroup="xbrli:item"
+        id="country"
+        xbrli:periodType="instant"
+        nillable="true"/>
+</xsd:schema>

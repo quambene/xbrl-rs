@@ -4,6 +4,9 @@
 
 use std::{borrow::Borrow, fmt, ops::Deref};
 
+const NS_XBRLI: &str = "http://www.xbrl.org/2003/instance";
+const NS_ISO4217: &str = "http://www.xbrl.org/2003/iso4217";
+
 /// Type-safe identifier for an XBRL unit (the `id` attribute on
 /// `<xbrli:unit>` elements).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -82,11 +85,12 @@ pub struct Unit {
 impl Unit {
     pub fn new(id: UnitId, measure: String) -> Self {
         let (prefix, local_name) = parse_qname(&measure);
+        let namespace_uri = known_unit_namespace(prefix.as_deref()).map(str::to_owned);
         let first = UnitMeasure {
             qname: measure.clone(),
             prefix,
             local_name,
-            namespace_uri: None,
+            namespace_uri,
         };
 
         Self {
@@ -149,5 +153,13 @@ fn parse_qname(value: &str) -> (Option<String>, String) {
         (Some(prefix.to_string()), local.to_string())
     } else {
         (None, value.to_string())
+    }
+}
+
+fn known_unit_namespace(prefix: Option<&str>) -> Option<&'static str> {
+    match prefix {
+        Some("iso4217") => Some(NS_ISO4217),
+        Some("xbrli") => Some(NS_XBRLI),
+        _ => None,
     }
 }

@@ -43,6 +43,7 @@ fn assert_dts(dts: &TaxonomySet) {
 // -- Version mismatch --
 
 #[test]
+#[ignore = "requires taxonomies in test_data/taxonomies"]
 fn discover_version_mismatch_returns_error() {
     let schema_refs = vec![
         "http://www.xbrl.de/taxonomies/de-gcd-2020-04-01/de-gcd-2020-04-01-shell.xsd".to_owned(),
@@ -57,6 +58,7 @@ fn discover_version_mismatch_returns_error() {
 // -- 2020-04-01 (v6.4) --
 
 #[test]
+#[ignore = "requires taxonomies in test_data/taxonomies"]
 fn discover_full_dts_2020() {
     let schema_refs = [
         "http://www.xbrl.de/taxonomies/de-gcd-2020-04-01/de-gcd-2020-04-01-shell.xsd",
@@ -78,6 +80,7 @@ fn discover_full_dts_2020() {
 // -- 2021-04-14 (v6.5) --
 
 #[test]
+#[ignore = "requires taxonomies in test_data/taxonomies"]
 fn discover_full_dts_2021() {
     let schema_refs = [
         "http://www.xbrl.de/taxonomies/de-gcd-2021-04-14/de-gcd-2021-04-14-shell.xsd",

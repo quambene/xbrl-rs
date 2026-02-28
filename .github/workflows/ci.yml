@@ -50,6 +50,13 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - name: cargo test --lib
         run: cargo test --lib
+  integration-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: cargo test --test '*'
+        run: cargo test --test '*'
   doc-test:
     runs-on: ubuntu-latest
     steps:

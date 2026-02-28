@@ -1,0 +1,6 @@
+{
+  "name": "validation_dim_valid_member_valid",
+  "type": "dimension",
+  "expected": "pass",
+  "instance": "instance.xml"
+}

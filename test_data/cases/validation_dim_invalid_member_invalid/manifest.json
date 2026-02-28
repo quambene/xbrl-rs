@@ -1,0 +1,6 @@
+{
+  "name": "validation_dim_invalid_member_invalid",
+  "type": "dimension",
+  "expected": "fail",
+  "instance": "instance.xml"
+}

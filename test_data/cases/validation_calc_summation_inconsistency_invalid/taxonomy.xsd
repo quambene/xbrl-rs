@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema
+    xmlns:xs="http://www.w3.org/2001/XMLSchema"
+    xmlns:xbrli="http://www.xbrl.org/2003/instance"
+    xmlns:link="http://www.xbrl.org/2003/linkbase"
+    xmlns:xlink="http://www.w3.org/1999/xlink"
+    targetNamespace="http://www.example.com/calc"
+    xmlns:my="http://www.example.com/calc"
+    elementFormDefault="qualified">
+    <xs:annotation>
+        <xs:appinfo>
+            <link:linkbaseRef
+                xlink:type="simple"
+                xlink:href="calculation.xml"
+                xlink:arcrole="http://www.w3.org/1999/xlink/properties/linkbase"
+                xlink:role="http://www.xbrl.org/2003/role/calculationLinkbaseRef"/>
+        </xs:appinfo>
+    </xs:annotation>
+
+    <xs:import
+        namespace="http://www.xbrl.org/2003/instance"
+        schemaLocation="http://www.xbrl.org/2003/xbrl-instance-2003-12-31.xsd"/>
+
+    <xs:element name="totalAmount"
+        type="xbrli:monetaryItemType"
+        substitutionGroup="xbrli:item"
+        id="my_totalAmount"
+        xbrli:periodType="instant"/>
+
+    <xs:element name="partA"
+        type="xbrli:monetaryItemType"
+        substitutionGroup="xbrli:item"
+        id="my_partA"
+        xbrli:periodType="instant"/>
+
+    <xs:element name="partB"
+        type="xbrli:monetaryItemType"
+        substitutionGroup="xbrli:item"
+        id="my_partB"
+        xbrli:periodType="instant"/>
+</xs:schema>

@@ -1,0 +1,6 @@
+{
+  "name": "validation_schema_numeric_decimals_precision_both_invalid",
+  "type": "schema",
+  "expected": "fail",
+  "instance": "instance.xml"
+}

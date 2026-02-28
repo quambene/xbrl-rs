@@ -4,22 +4,20 @@
     xmlns:xbrli="http://www.xbrl.org/2003/instance"
     xmlns:link="http://www.xbrl.org/2003/linkbase"
     xmlns:xlink="http://www.w3.org/1999/xlink"
-    xmlns:my="http://www.example.com/strict"
+    xmlns:my="http://www.example.com/schema-baseline"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xsi:schemaLocation="http://www.example.com/strict validation_strict_tuple_taxonomy.xsd">
+    xsi:schemaLocation="http://www.example.com/schema-baseline taxonomy.xsd">
 
-    <link:schemaRef xlink:href="validation_strict_tuple_taxonomy.xsd" xlink:type="simple"/>
+    <link:schemaRef xlink:href="taxonomy.xsd" xlink:type="simple"/>
 
     <context id="ci">
         <entity>
-            <identifier scheme="http://www.un.org/">Example Corp</identifier>
+            <identifier scheme="http://www.example.com/id">Example Corp</identifier>
         </entity>
         <period>
             <instant>2001-08-16</instant>
         </period>
     </context>
 
-    <my:address>
-        <my:country contextRef="ci">United States</my:country>
-    </my:address>
+    <my:text contextRef="ci">Hello</my:text>
 </xbrl>

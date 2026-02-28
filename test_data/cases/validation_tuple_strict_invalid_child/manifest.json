@@ -1,0 +1,6 @@
+{
+  "name": "validation_tuple_strict_invalid_child",
+  "type": "tuple",
+  "expected": "fail",
+  "instance": "instance.xml"
+}

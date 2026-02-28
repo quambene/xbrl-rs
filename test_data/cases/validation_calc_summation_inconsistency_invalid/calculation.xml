@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<link:linkbase
+    xmlns:link="http://www.xbrl.org/2003/linkbase"
+    xmlns:xlink="http://www.w3.org/1999/xlink">
+    <link:calculationLink xlink:type="extended" xlink:role="http://www.example.com/role/calc">
+        <link:loc xlink:type="locator" xlink:href="taxonomy.xsd#my_totalAmount" xlink:label="loc_total"/>
+        <link:loc xlink:type="locator" xlink:href="taxonomy.xsd#my_partA" xlink:label="loc_a"/>
+        <link:loc xlink:type="locator" xlink:href="taxonomy.xsd#my_partB" xlink:label="loc_b"/>
+
+        <link:calculationArc
+            xlink:type="arc"
+            xlink:arcrole="http://www.xbrl.org/2003/arcrole/summation-item"
+            xlink:from="loc_total"
+            xlink:to="loc_a"
+            order="1"
+            weight="1"/>
+        <link:calculationArc
+            xlink:type="arc"
+            xlink:arcrole="http://www.xbrl.org/2003/arcrole/summation-item"
+            xlink:from="loc_total"
+            xlink:to="loc_b"
+            order="2"
+            weight="1"/>
+    </link:calculationLink>
+</link:linkbase>

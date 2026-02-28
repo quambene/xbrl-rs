@@ -1,0 +1,6 @@
+{
+  "name": "validation_calc_summation_consistent_valid",
+  "type": "calculation",
+  "expected": "pass",
+  "instance": "instance.xml"
+}

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<link:linkbase
+    xmlns:link="http://www.xbrl.org/2003/linkbase"
+    xmlns:xlink="http://www.w3.org/1999/xlink">
+    <link:definitionLink xlink:type="extended" xlink:role="http://www.example.com/role/dim">
+        <link:loc xlink:type="locator" xlink:href="taxonomy.xsd#my_regionAxis" xlink:label="loc_axis"/>
+        <link:loc xlink:type="locator" xlink:href="taxonomy.xsd#my_regionDomain" xlink:label="loc_domain"/>
+        <link:loc xlink:type="locator" xlink:href="taxonomy.xsd#my_germanyMember" xlink:label="loc_germany"/>
+
+        <link:definitionArc
+            xlink:type="arc"
+            xlink:arcrole="http://xbrl.org/int/dim/arcrole/dimension-domain"
+            xlink:from="loc_axis"
+            xlink:to="loc_domain"
+            order="1"/>
+
+        <link:definitionArc
+            xlink:type="arc"
+            xlink:arcrole="http://xbrl.org/int/dim/arcrole/domain-member"
+            xlink:from="loc_domain"
+            xlink:to="loc_germany"
+            order="2"/>
+    </link:definitionLink>
+</link:linkbase>

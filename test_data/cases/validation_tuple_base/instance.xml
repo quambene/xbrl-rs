@@ -12,7 +12,7 @@
 
     <context id="ci">
         <entity>
-            <identifier scheme="http://www.un.org/">Example Corp</identifier>
+            <identifier scheme="http://www.example.com/id">Example Corp</identifier>
         </entity>
         <period>
             <instant>2001-08-16</instant>

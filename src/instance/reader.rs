@@ -178,11 +178,49 @@ fn resolve_xml_base_href(xml_base: &str, href: &str) -> String {
         return href.to_string();
     }
 
-    if base.ends_with('/') {
+    let combined = if base.ends_with('/') {
         format!("{base}{href}")
+    } else if let Some((parent, _)) = base.rsplit_once('/') {
+        if parent.is_empty() {
+            href.to_string()
+        } else {
+            format!("{parent}/{href}")
+        }
     } else {
-        format!("{base}/{href}")
+        href.to_string()
+    };
+
+    normalize_uri_path(&combined)
+}
+
+fn normalize_uri_path(path: &str) -> String {
+    let is_absolute = path.starts_with('/');
+    let keep_trailing_slash = path.ends_with('/');
+
+    let mut segments: Vec<&str> = Vec::new();
+    for segment in path.split('/') {
+        match segment {
+            "" | "." => {}
+            ".." => {
+                if !segments.is_empty() {
+                    segments.pop();
+                }
+            }
+            _ => segments.push(segment),
+        }
     }
+
+    let mut normalized = String::new();
+    if is_absolute {
+        normalized.push('/');
+    }
+    normalized.push_str(&segments.join("/"));
+
+    if keep_trailing_slash && !normalized.is_empty() && !normalized.ends_with('/') {
+        normalized.push('/');
+    }
+
+    normalized
 }
 
 /// Extract namespace declarations from the xbrl element.
