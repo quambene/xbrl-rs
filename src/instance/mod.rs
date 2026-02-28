@@ -456,7 +456,6 @@ impl InstanceDocument {
             if !element.is_abstract
                 && let Some(ref period_type) = element.period_type
             {
-
                 let context_ref = match period_type {
                     PeriodType::Duration => duration_ctx,
                     PeriodType::Instant => instant_ctx,
