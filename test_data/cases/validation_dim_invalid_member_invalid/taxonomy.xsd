@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema
+    xmlns:xs="http://www.w3.org/2001/XMLSchema"
+    xmlns:xbrli="http://www.xbrl.org/2003/instance"
+    xmlns:link="http://www.xbrl.org/2003/linkbase"
+    xmlns:xlink="http://www.w3.org/1999/xlink"
+    targetNamespace="http://www.example.com/dimension"
+    xmlns:my="http://www.example.com/dimension"
+    elementFormDefault="qualified">
+    <xs:annotation>
+        <xs:appinfo>
+            <link:linkbaseRef
+                xlink:type="simple"
+                xlink:href="definition.xml"
+                xlink:arcrole="http://www.w3.org/1999/xlink/properties/linkbase"
+                xlink:role="http://www.xbrl.org/2003/role/definitionLinkbaseRef"/>
+        </xs:appinfo>
+    </xs:annotation>
+
+    <xs:import
+        namespace="http://www.xbrl.org/2003/instance"
+        schemaLocation="http://www.xbrl.org/2003/xbrl-instance-2003-12-31.xsd"/>
+
+    <xs:element name="regionAxis"
+        type="xbrli:stringItemType"
+        substitutionGroup="xbrli:item"
+        id="my_regionAxis"
+        xbrli:periodType="duration"/>
+
+    <xs:element name="regionDomain"
+        type="xbrli:stringItemType"
+        substitutionGroup="xbrli:item"
+        id="my_regionDomain"
+        xbrli:periodType="duration"/>
+
+    <xs:element name="germanyMember"
+        type="xbrli:stringItemType"
+        substitutionGroup="xbrli:item"
+        id="my_germanyMember"
+        xbrli:periodType="duration"/>
+
+    <xs:element name="franceMember"
+        type="xbrli:stringItemType"
+        substitutionGroup="xbrli:item"
+        id="my_franceMember"
+        xbrli:periodType="duration"/>
+
+    <xs:element name="salesText"
+        type="xbrli:stringItemType"
+        substitutionGroup="xbrli:item"
+        id="my_salesText"
+        xbrli:periodType="duration"/>
+</xs:schema>

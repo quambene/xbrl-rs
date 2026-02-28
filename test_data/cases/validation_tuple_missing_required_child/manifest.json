@@ -1,0 +1,6 @@
+{
+  "name": "validation_tuple_missing_required_child",
+  "type": "tuple",
+  "expected": "fail",
+  "instance": "instance.xml"
+}

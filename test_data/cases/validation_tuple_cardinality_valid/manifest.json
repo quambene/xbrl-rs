@@ -1,0 +1,6 @@
+{
+  "name": "validation_tuple_cardinality_valid",
+  "type": "cardinality",
+  "expected": "pass",
+  "instance": "instance.xml"
+}

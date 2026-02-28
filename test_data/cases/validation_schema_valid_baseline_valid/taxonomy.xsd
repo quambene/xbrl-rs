@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema
+    xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+    xmlns:xbrli="http://www.xbrl.org/2003/instance"
+    targetNamespace="http://www.example.com/schema-baseline"
+    xmlns:my="http://www.example.com/schema-baseline"
+    elementFormDefault="qualified">
+    <xsd:import
+        namespace="http://www.xbrl.org/2003/instance"
+        schemaLocation="http://www.xbrl.org/2003/xbrl-instance-2003-12-31.xsd"/>
+
+    <xsd:element name="text"
+        type="xbrli:stringItemType"
+        substitutionGroup="xbrli:item"
+        id="text"
+        xbrli:periodType="instant"/>
+</xsd:schema>
