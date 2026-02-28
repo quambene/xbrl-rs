@@ -45,6 +45,24 @@ pub(crate) fn write_xml<W: io::Write>(
         writer.write_event(Event::Empty(elem))?;
     }
 
+    // <link:roleRef> elements
+    for role_uri in instance.role_refs() {
+        let mut elem = BytesStart::new("link:roleRef");
+        elem.push_attribute(("roleURI", role_uri.as_str()));
+        elem.push_attribute(("xlink:type", "simple"));
+        elem.push_attribute(("xlink:href", ""));
+        writer.write_event(Event::Empty(elem))?;
+    }
+
+    // <link:arcroleRef> elements
+    for arcrole_uri in instance.arcrole_refs() {
+        let mut elem = BytesStart::new("link:arcroleRef");
+        elem.push_attribute(("arcroleURI", arcrole_uri.as_str()));
+        elem.push_attribute(("xlink:type", "simple"));
+        elem.push_attribute(("xlink:href", ""));
+        writer.write_event(Event::Empty(elem))?;
+    }
+
     // <xbrli:context> elements
     let mut ctx_sorted: Vec<_> = instance.contexts().iter().collect();
     ctx_sorted.sort_by_key(|(id, _)| *id);
