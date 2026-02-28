@@ -859,6 +859,18 @@ fn validate_contexts(
     result: &mut ValidationResult,
 ) {
     for (ctx_id, context) in instance.contexts() {
+        if context.entity.scheme.trim().is_empty() {
+            result.add(
+                Severity::Error,
+                "spec.identifier_missing_scheme",
+                format!(
+                    "Context '{ctx_id}' entity identifier is missing required @scheme attribute"
+                ),
+                None,
+                Some(ctx_id),
+            );
+        }
+
         if context.segment_has_instance_descendant {
             result.add(
                 Severity::Error,

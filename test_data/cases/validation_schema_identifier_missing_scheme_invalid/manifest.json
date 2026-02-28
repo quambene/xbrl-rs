@@ -1,0 +1,6 @@
+{
+  "name": "validation_schema_identifier_missing_scheme_invalid",
+  "type": "schema",
+  "expected": "fail",
+  "instance": "instance.xml"
+}
