@@ -1,0 +1,6 @@
+{
+  "name": "validation_numeric_invalid_lexical_tolerated_valid",
+  "type": "schema",
+  "expected": "pass",
+  "instance": "instance.xml"
+}

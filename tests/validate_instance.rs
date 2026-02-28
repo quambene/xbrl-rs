@@ -57,29 +57,3 @@ fn validate_instance_balance_sheet_v65() {
         result.warnings()
     );
 }
-
-#[test]
-fn tolerates_invalid_numeric_lexical_value_for_compatibility() {
-    let path = Path::new(INSTANCE_BASE).join("balance_sheet_v64.xml");
-    let mut instance = parse_instance(&path);
-    let taxonomy = discover_taxonomy(&instance, TAXONOMY_ENTRY_POINT);
-
-    let numeric_fact_index = instance
-        .item_facts()
-        .iter()
-        .position(|fact| fact.unit_ref().is_some())
-        .expect("expected at least one numeric fact");
-
-    instance.set_fact_value(numeric_fact_index, "not-a-number".to_string());
-
-    let result = instance.validate(&taxonomy);
-
-    assert!(
-        !result
-            .errors()
-            .iter()
-            .any(|error| error.code == "schema.invalid_numeric_lexical"),
-        "did not expect eager lexical numeric errors, got: {:#?}",
-        result.errors()
-    );
-}
