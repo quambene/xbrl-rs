@@ -157,6 +157,12 @@ fn write_tuple_fact<W: std::io::Write>(writer: &mut Writer<W>, fact: &TupleFact)
         elem.push_attribute(("id", id));
     }
 
+    if fact.is_nil() {
+        elem.push_attribute(("xsi:nil", "true"));
+        writer.write_event(Event::Empty(elem))?;
+        return Ok(());
+    }
+
     if fact.children().is_empty() {
         writer.write_event(Event::Empty(elem))?;
         return Ok(());
