@@ -156,7 +156,7 @@ fn parse_qname(value: &str) -> (Option<String>, String) {
     }
 }
 
-fn known_unit_namespace(prefix: Option<&str>) -> Option<&'static str> {
+pub(crate) fn known_unit_namespace(prefix: Option<&str>) -> Option<&'static str> {
     match prefix {
         Some("iso4217") => Some(NS_ISO4217),
         Some("xbrli") => Some(NS_XBRLI),

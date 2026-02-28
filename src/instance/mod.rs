@@ -164,11 +164,15 @@ impl InstanceDocument {
         // Walk the presentation tree in section order, depth-first within each section.
         // The tree structure gives both the fact order and the tuple nesting directly,
         // without needing to consult schema substitution groups.
-        let mut seen: HashSet<String> = HashSet::new();
-        let mut hoisted: Vec<Fact> = Vec::new();
+        let mut recursion_path: HashSet<String> = HashSet::new();
+        let mut emitted_items: HashSet<String> = HashSet::new();
+        let mut emitted_tuples: HashSet<String> = HashSet::new();
         for arcs in taxonomy.presentations().values() {
             let roots = view::find_roots(arcs);
+            let mut seeded_nodes: HashSet<&str> = HashSet::new();
             for root_id in roots {
+                seeded_nodes.insert(root_id);
+                let mut hoisted: Vec<Fact> = Vec::new();
                 Self::populate_from_tree(
                     arcs,
                     root_id,
@@ -177,13 +181,42 @@ impl InstanceDocument {
                     &duration_context_ref,
                     &unit_ref,
                     &mut instance.facts,
-                    &mut seen,
+                    &mut emitted_items,
+                    &mut emitted_tuples,
+                    &mut recursion_path,
                     None,
                     &mut hoisted,
                 );
+                instance.facts.extend(hoisted);
+            }
+
+            let mut remaining_nodes: Vec<&str> = arcs
+                .iter()
+                .flat_map(|arc| [arc.from.as_str(), arc.to.as_str()])
+                .filter(|concept_id| !seeded_nodes.contains(*concept_id))
+                .collect();
+            remaining_nodes.sort_unstable();
+            remaining_nodes.dedup();
+
+            for concept_id in remaining_nodes {
+                let mut hoisted: Vec<Fact> = Vec::new();
+                Self::populate_from_tree(
+                    arcs,
+                    concept_id,
+                    taxonomy,
+                    &instant_context_ref,
+                    &duration_context_ref,
+                    &unit_ref,
+                    &mut instance.facts,
+                    &mut emitted_items,
+                    &mut emitted_tuples,
+                    &mut recursion_path,
+                    None,
+                    &mut hoisted,
+                );
+                instance.facts.extend(hoisted);
             }
         }
-        instance.facts.extend(hoisted);
 
         instance
     }
@@ -395,8 +428,7 @@ impl InstanceDocument {
     ///   is not a valid schema child of the enclosing tuple (per its
     ///   `xs:complexType` content model) it is pushed to `hoisted` instead,
     ///   which `from_taxonomy` appends to the top-level facts after all sections
-    ///   have been traversed.  This makes the hoisting deterministic regardless
-    ///   of which presentation section encounters the concept first.
+    ///   have been traversed.
     /// - Abstract / grouping → recurse into children at the same level.
     #[allow(clippy::too_many_arguments)]
     fn populate_from_tree(
@@ -407,12 +439,14 @@ impl InstanceDocument {
         duration_ctx: &ContextId,
         unit: &UnitId,
         facts: &mut Vec<Fact>,
-        seen: &mut HashSet<String>,
+        emitted_items: &mut HashSet<String>,
+        emitted_tuples: &mut HashSet<String>,
+        recursion_path: &mut HashSet<String>,
         parent_tuple_element: Option<&ElementDefinition>,
         hoisted: &mut Vec<Fact>,
     ) {
-        if !seen.insert(concept_id.to_string()) {
-            return; // already emitted in an earlier section
+        if !recursion_path.insert(concept_id.to_string()) {
+            return; // cycle guard within current recursion branch
         }
 
         let mut children: Vec<&crate::taxonomy::PresentationArc> = arcs
@@ -428,28 +462,33 @@ impl InstanceDocument {
 
         if let Some(element) = taxonomy.find_element_by_id(concept_id) {
             if element.is_tuple() && !element.is_abstract {
-                let qname = taxonomy
-                    .qualified_name(concept_id)
-                    .unwrap_or_else(|| concept_id.replacen('_', ":", 1));
-                facts.push(Fact::Tuple(TupleFact::new(qname)));
-                let tuple_children = match facts.last_mut() {
-                    Some(Fact::Tuple(t)) => t.children_mut(),
-                    _ => unreachable!(),
-                };
-                for arc in &children {
-                    Self::populate_from_tree(
-                        arcs,
-                        arc.to.as_str(),
-                        taxonomy,
-                        instant_ctx,
-                        duration_ctx,
-                        unit,
-                        tuple_children,
-                        seen,
-                        Some(element),
-                        hoisted,
-                    );
+                if emitted_tuples.insert(concept_id.to_string()) {
+                    let qname = taxonomy
+                        .qualified_name(concept_id)
+                        .unwrap_or_else(|| concept_id.replacen('_', ":", 1));
+                    facts.push(Fact::Tuple(TupleFact::new(qname)));
+                    let tuple_children = match facts.last_mut() {
+                        Some(Fact::Tuple(t)) => t.children_mut(),
+                        _ => unreachable!(),
+                    };
+                    for arc in &children {
+                        Self::populate_from_tree(
+                            arcs,
+                            arc.to.as_str(),
+                            taxonomy,
+                            instant_ctx,
+                            duration_ctx,
+                            unit,
+                            tuple_children,
+                            emitted_items,
+                            emitted_tuples,
+                            recursion_path,
+                            Some(element),
+                            hoisted,
+                        );
+                    }
                 }
+                recursion_path.remove(concept_id);
                 return;
             }
 
@@ -463,28 +502,29 @@ impl InstanceDocument {
                 let qname = taxonomy
                     .qualified_name(concept_id)
                     .unwrap_or_else(|| concept_id.replacen('_', ":", 1));
-                let mut fact = ItemFact::new(
-                    qname,
-                    context_ref.to_string(),
-                    Some(unit.to_string()),
-                    String::new(),
-                );
-                fact.set_nil(true);
+                if emitted_items.insert(concept_id.to_string()) {
+                    let mut fact = ItemFact::new(
+                        qname,
+                        context_ref.to_string(),
+                        Some(unit.to_string()),
+                        String::new(),
+                    );
+                    fact.set_nil(true);
 
-                // Items not allowed by the tuple's content model are hoisted to
-                // the top level so they still appear in the generated template.
-                if let Some(parent_el) = parent_tuple_element
-                    && !item_allowed_in_tuple(parent_el, element, taxonomy)
-                {
-                    hoisted.push(Fact::Item(fact));
-                } else {
-                    facts.push(Fact::Item(fact));
+                    // Items not allowed by the tuple's content model are hoisted to
+                    // the top level so they still appear in the generated template.
+                    if let Some(parent_el) = parent_tuple_element
+                        && !item_allowed_in_tuple(parent_el, element, taxonomy)
+                    {
+                        hoisted.push(Fact::Item(fact));
+                    } else {
+                        facts.push(Fact::Item(fact));
+                    }
                 }
-                return; // leaf node
             }
         }
 
-        // Abstract concept or concept not in any schema: recurse children at same level.
+        // Recurse children at the same level for non-structural presentation parents.
         for arc in &children {
             Self::populate_from_tree(
                 arcs,
@@ -494,11 +534,15 @@ impl InstanceDocument {
                 duration_ctx,
                 unit,
                 facts,
-                seen,
+                emitted_items,
+                emitted_tuples,
+                recursion_path,
                 parent_tuple_element,
                 hoisted,
             );
         }
+
+        recursion_path.remove(concept_id);
     }
 
     fn set_item_value_by_index(

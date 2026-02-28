@@ -5,7 +5,8 @@ use crate::{
     error::{Result, XbrlError},
     instance::{
         FootnoteArc, FootnoteLink, FootnoteLocator, FootnoteResource, NamespacePrefix, Unit,
-        UnitId, unit::UnitMeasure,
+        UnitId,
+        unit::{UnitMeasure, known_unit_namespace},
     },
 };
 use quick_xml::{
@@ -857,8 +858,11 @@ fn parse_measure(qname: &str, namespace_scope: &HashMap<NamespacePrefix, String>
         (None, qname.to_string())
     };
 
-    let namespace_uri = if let Some(prefix) = prefix.as_deref() {
-        namespace_scope.get(prefix).cloned()
+    let namespace_uri = if let Some(pfx) = prefix.as_deref() {
+        namespace_scope
+            .get(pfx)
+            .cloned()
+            .or_else(|| known_unit_namespace(Some(pfx)).map(str::to_owned))
     } else {
         namespace_scope.get("").cloned()
     };
