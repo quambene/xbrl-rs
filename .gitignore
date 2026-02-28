@@ -7,6 +7,7 @@
 # Test data
 /test_data/taxonomies
 /test_data/conformance
+/test_data/examples
 
 # Environment
 **/.env
