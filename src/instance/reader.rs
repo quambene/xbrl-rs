@@ -5,7 +5,8 @@ use crate::{
     error::{Result, XbrlError},
     instance::{
         FootnoteArc, FootnoteLink, FootnoteLocator, FootnoteResource, NamespacePrefix, Unit,
-        UnitId, unit::{UnitMeasure, known_unit_namespace},
+        UnitId,
+        unit::{UnitMeasure, known_unit_namespace},
     },
 };
 use quick_xml::{
