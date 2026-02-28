@@ -6,7 +6,9 @@ use crate::{
     Fact, InstanceDocument, ItemFact, Period, TaxonomySet, TupleFact,
     taxonomy::{ElementDefinition, MaxOccurs, PeriodType, TupleChildRef},
 };
+use rust_decimal::Decimal;
 use std::collections::{HashMap, HashSet};
+use std::str::FromStr;
 
 const NS_XBRLI: &str = "http://www.xbrl.org/2003/instance";
 const NS_ISO4217: &str = "http://www.xbrl.org/2003/iso4217";
@@ -785,6 +787,19 @@ fn validate_item_fact(
                 Some(ctx_ref),
             );
         }
+
+        if !fact.is_nil() && !is_valid_numeric_lexical(fact.value()) {
+            result.add(
+                Severity::Error,
+                "schema.invalid_numeric_lexical",
+                format!(
+                    "Numeric fact '{local_name}' has invalid lexical value '{}'",
+                    fact.value()
+                ),
+                Some(concept),
+                Some(ctx_ref),
+            );
+        }
     }
 
     // Unit reference must resolve if present
@@ -1059,6 +1074,12 @@ fn period_order_is_valid(start: &str, end: &str) -> bool {
     let s = start.trim();
     let e = end.trim();
     !s.is_empty() && !e.is_empty() && s < e
+}
+
+fn is_valid_numeric_lexical(value: &str) -> bool {
+    let trimmed = value.trim();
+    !trimmed.is_empty()
+        && (Decimal::from_str(trimmed).is_ok() || Decimal::from_scientific(trimmed).is_ok())
 }
 
 /// Determine whether an element definition is numeric based on its XSD type name.
