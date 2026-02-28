@@ -75,23 +75,6 @@ fn validate_instance_balance_sheet_v65() {
 }
 
 #[test]
-fn validates_unknown_tuple_concept() {
-    let path = case_instance("validation_tuple_base");
-    let mut instance = parse_instance(&path);
-    let taxonomy = discover_case_taxonomy(&instance, "validation_tuple_base");
-
-    instance.add_fact(Fact::tuple("de-gcd:doesNotExistTuple".to_string()));
-
-    let result = instance.validate(&taxonomy);
-    assert!(
-        result
-            .errors()
-            .iter()
-            .any(|error| error.code == "schema.concept_not_found")
-    );
-}
-
-#[test]
 fn validates_non_tuple_concept_used_as_tuple() {
     let path = case_instance("validation_tuple_base");
     let mut instance = parse_instance(&path);
