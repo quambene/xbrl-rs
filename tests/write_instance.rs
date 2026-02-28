@@ -2,7 +2,7 @@ use roxmltree::Document;
 use std::{path::PathBuf, str::FromStr};
 use xbrl_rs::{
     Context, ContextId, EntityIdentifier, InstanceDocument, Period, TaxonomySet, Unit, UnitId,
-    XmlWriter,
+    XmlReader, XmlWriter,
 };
 
 const TAXONOMY_ENTRY_POINT: &str = "test_data/taxonomies";
@@ -84,6 +84,7 @@ fn generate_instance() {
 
     // 4. Build the instance from the taxonomy.
     let mut instance = InstanceDocument::from_taxonomy(&taxonomy, instant_ctx, duration_ctx, unit);
+    assert_eq!(instance.item_fact_count(), 3609);
 
     // 5. Register namespace declarations from all discovered schemas
     for schema in taxonomy.schemas().values() {
@@ -99,5 +100,25 @@ fn generate_instance() {
     // 7. Serialize to XML
     let mut writer: XmlWriter<Vec<u8>> = XmlWriter::new(Vec::new());
     instance.to_xml(&mut writer).unwrap();
-    let _xml = String::from_utf8(writer.into_inner()).unwrap();
+    let xml = String::from_utf8(writer.into_inner()).unwrap();
+
+    let mut reader = XmlReader::from_str(&xml);
+    let instance_from_xml = InstanceDocument::from_xml(&mut reader).unwrap();
+
+    assert_eq!(instance.schema_refs(), instance_from_xml.schema_refs());
+    assert_eq!(instance.role_refs(), instance_from_xml.role_refs());
+    assert_eq!(instance.arcrole_refs(), instance_from_xml.arcrole_refs());
+    assert_eq!(instance.namespaces(), instance_from_xml.namespaces());
+    assert_eq!(instance.root_xml_lang(), instance_from_xml.root_xml_lang());
+    assert_eq!(instance.document_name(), instance_from_xml.document_name());
+    assert_eq!(
+        instance.contexts().len(),
+        instance_from_xml.contexts().len()
+    );
+    assert_eq!(instance.units(), instance_from_xml.units());
+    assert_eq!(instance.facts().len(), instance_from_xml.facts().len());
+    assert_eq!(
+        instance.footnote_links().len(),
+        instance_from_xml.footnote_links().len()
+    );
 }
