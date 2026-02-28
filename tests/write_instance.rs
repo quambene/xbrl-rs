@@ -1,6 +1,5 @@
 use roxmltree::Document;
-use std::path::PathBuf;
-use std::str::FromStr;
+use std::{path::PathBuf, str::FromStr};
 use xbrl_rs::{
     Context, ContextId, EntityIdentifier, InstanceDocument, Period, TaxonomySet, Unit, UnitId,
     XmlWriter,

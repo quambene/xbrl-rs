@@ -34,7 +34,10 @@ fn validate_cases_from_manifest() {
     let root = case_root();
     let case_dirs = discover_case_dirs(&root);
 
-    assert!(!case_dirs.is_empty(), "expected at least one test case in test_data/cases");
+    assert!(
+        !case_dirs.is_empty(),
+        "expected at least one test case in test_data/cases"
+    );
 
     let mut failures = Vec::new();
 

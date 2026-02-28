@@ -7,8 +7,10 @@ use crate::{
     taxonomy::{ElementDefinition, MaxOccurs, PeriodType, TupleChildRef},
 };
 use rust_decimal::Decimal;
-use std::collections::{HashMap, HashSet};
-use std::str::FromStr;
+use std::{
+    collections::{HashMap, HashSet},
+    str::FromStr,
+};
 
 const NS_XBRLI: &str = "http://www.xbrl.org/2003/instance";
 const NS_ISO4217: &str = "http://www.xbrl.org/2003/iso4217";
