@@ -94,8 +94,6 @@ fn generate_instance() {
 
     // 6. Validate the generated XBRL
     let res = instance.validate(&taxonomy);
-
-    dbg!(&res);
     assert!(res.is_valid());
 
     // 7. Serialize to XML

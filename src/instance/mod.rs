@@ -9,7 +9,11 @@ mod view;
 mod writer;
 
 use crate::{
-    TaxonomySet, error::Result, taxonomy::PeriodType, validation, validation::ValidationResult,
+    TaxonomySet,
+    error::Result,
+    taxonomy::{ElementDefinition, PeriodType, TupleChildRef},
+    validation,
+    validation::ValidationResult,
 };
 pub use context::{Context, ContextId, EntityIdentifier, Period};
 pub use fact::{Decimals, Fact, ItemFact, TupleFact};
@@ -161,6 +165,7 @@ impl InstanceDocument {
         // The tree structure gives both the fact order and the tuple nesting directly,
         // without needing to consult schema substitution groups.
         let mut seen: HashSet<String> = HashSet::new();
+        let mut hoisted: Vec<Fact> = Vec::new();
         for arcs in taxonomy.presentations().values() {
             let roots = view::find_roots(arcs);
             for root_id in roots {
@@ -173,9 +178,12 @@ impl InstanceDocument {
                     &unit_ref,
                     &mut instance.facts,
                     &mut seen,
+                    None,
+                    &mut hoisted,
                 );
             }
         }
+        instance.facts.extend(hoisted);
 
         instance
     }
@@ -383,7 +391,12 @@ impl InstanceDocument {
     /// Recursively walk one node of the presentation tree and emit facts.
     ///
     /// - Concrete tuple → push a [`TupleFact`] and recurse into its children.
-    /// - Concrete item  → push an [`ItemFact`] (nil placeholder).
+    /// - Concrete item  → push an [`ItemFact`] (nil placeholder).  If the item
+    ///   is not a valid schema child of the enclosing tuple (per its
+    ///   `xs:complexType` content model) it is pushed to `hoisted` instead,
+    ///   which `from_taxonomy` appends to the top-level facts after all sections
+    ///   have been traversed.  This makes the hoisting deterministic regardless
+    ///   of which presentation section encounters the concept first.
     /// - Abstract / grouping → recurse into children at the same level.
     #[allow(clippy::too_many_arguments)]
     fn populate_from_tree(
@@ -395,6 +408,8 @@ impl InstanceDocument {
         unit: &UnitId,
         facts: &mut Vec<Fact>,
         seen: &mut HashSet<String>,
+        parent_tuple_element: Option<&ElementDefinition>,
+        hoisted: &mut Vec<Fact>,
     ) {
         if !seen.insert(concept_id.to_string()) {
             return; // already emitted in an earlier section
@@ -431,6 +446,8 @@ impl InstanceDocument {
                         unit,
                         tuple_children,
                         seen,
+                        Some(element),
+                        hoisted,
                     );
                 }
                 return;
@@ -453,7 +470,16 @@ impl InstanceDocument {
                     String::new(),
                 );
                 fact.set_nil(true);
-                facts.push(Fact::Item(fact));
+
+                // Items not allowed by the tuple's content model are hoisted to
+                // the top level so they still appear in the generated template.
+                if let Some(parent_el) = parent_tuple_element
+                    && !item_allowed_in_tuple(parent_el, element, taxonomy)
+                {
+                    hoisted.push(Fact::Item(fact));
+                } else {
+                    facts.push(Fact::Item(fact));
+                }
                 return; // leaf node
             }
         }
@@ -469,6 +495,8 @@ impl InstanceDocument {
                 unit,
                 facts,
                 seen,
+                parent_tuple_element,
+                hoisted,
             );
         }
     }
@@ -500,6 +528,64 @@ impl InstanceDocument {
             }
         }
     }
+}
+
+/// Returns `true` if `child_element` is a valid schema child of `parent_element`.
+///
+/// A child is allowed when `parent_element.tuple_children` is empty (no explicit
+/// content model) or when the child's element name or substitution-group ancestry
+/// matches one of the declared `xs:element ref` entries.
+fn item_allowed_in_tuple(
+    parent_element: &ElementDefinition,
+    child_element: &ElementDefinition,
+    taxonomy: &TaxonomySet,
+) -> bool {
+    if parent_element.tuple_children.is_empty() {
+        return true;
+    }
+    parent_element
+        .tuple_children
+        .iter()
+        .any(|child_ref| matches_tuple_child_ref(child_ref, child_element, taxonomy))
+}
+
+/// Returns `true` if `child_element` satisfies the `child_ref` constraint, either
+/// by a direct name match or via its substitution-group ancestry chain.
+fn matches_tuple_child_ref(
+    child_ref: &TupleChildRef,
+    child_element: &ElementDefinition,
+    taxonomy: &TaxonomySet,
+) -> bool {
+    let allowed_local = child_ref
+        .qname
+        .rsplit(':')
+        .next()
+        .unwrap_or(&child_ref.qname);
+
+    if child_element.name == allowed_local {
+        return true;
+    }
+
+    let mut seen = HashSet::new();
+    let mut current = child_element
+        .substitution_group
+        .as_deref()
+        .and_then(|sg| sg.rsplit(':').next());
+
+    while let Some(local) = current {
+        if !seen.insert(local) {
+            break;
+        }
+        if local == allowed_local {
+            return true;
+        }
+        current = taxonomy
+            .find_element(local)
+            .and_then(|e| e.substitution_group.as_deref())
+            .and_then(|sg| sg.rsplit(':').next());
+    }
+
+    false
 }
 
 #[cfg(test)]
