@@ -1,16 +1,26 @@
 use roxmltree::Document;
-use std::{path::PathBuf, str::FromStr};
-use xbrl_rs::{InstanceDocument, TaxonomySet, XmlWriter};
+use std::path::PathBuf;
+use std::str::FromStr;
+use xbrl_rs::{
+    Context, ContextId, EntityIdentifier, InstanceDocument, Period, TaxonomySet, Unit, UnitId,
+    XmlWriter,
+};
 
 const TAXONOMY_ENTRY_POINT: &str = "test_data/taxonomies";
+const GCD_SCHEMA: &str =
+    "http://www.xbrl.de/taxonomies/de-gcd-2020-04-01/de-gcd-2020-04-01-shell.xsd";
+const GAAP_SCHEMA: &str =
+    "http://www.xbrl.de/taxonomies/de-gaap-ci-2020-04-01/de-gaap-ci-2020-04-01-shell-fiscal.xsd";
 
 #[test]
+#[ignore = "requires taxonomies in test_data/taxonomies"]
 fn write_empty_instance() {
     let entry_point = PathBuf::from_str(TAXONOMY_ENTRY_POINT).unwrap();
-    let gcd = "http://www.xbrl.de/taxonomies/de-gcd-2020-04-01/de-gcd-2020-04-01-shell.xsd";
-    let gaap = "http://www.xbrl.de/taxonomies/de-gaap-ci-2020-04-01/de-gaap-ci-2020-04-01-shell-fiscal.xsd";
-    let taxonomy =
-        TaxonomySet::discover(vec![gcd.to_owned(), gaap.to_owned()], entry_point).unwrap();
+    let taxonomy = TaxonomySet::discover(
+        vec![GCD_SCHEMA.to_owned(), GAAP_SCHEMA.to_owned()],
+        entry_point,
+    )
+    .unwrap();
 
     let mut instance = InstanceDocument::default();
 
@@ -36,4 +46,61 @@ fn write_empty_instance() {
     let doc = Document::parse(&xml);
 
     assert!(doc.is_ok());
+}
+
+#[test]
+#[ignore = "requires taxonomies in test_data/taxonomies"]
+fn generate_instance() {
+    // 1. Discover the taxonomy from the local test data
+    let entry_point = PathBuf::from(TAXONOMY_ENTRY_POINT);
+    let taxonomy = TaxonomySet::discover(
+        vec![GCD_SCHEMA.to_owned(), GAAP_SCHEMA.to_owned()],
+        entry_point,
+    )
+    .unwrap();
+
+    // 2. Define an instant context (balance-sheet date) and a duration context (fiscal year)
+    let entity = EntityIdentifier {
+        scheme: "http://example.com/id".to_owned(),
+        value: "0000000000000".to_owned(),
+    };
+    let instant_ctx = Context::new(
+        ContextId::from("I-2020"),
+        entity.clone(),
+        Period::Instant {
+            date: "2020-12-31".to_owned(),
+        },
+    );
+    let duration_ctx = Context::new(
+        ContextId::from("D-2020"),
+        entity,
+        Period::Duration {
+            start: "2020-01-01".to_owned(),
+            end: "2020-12-31".to_owned(),
+        },
+    );
+
+    // 3. Define a monetary unit
+    let unit = Unit::new(UnitId::from("EUR"), "iso4217:EUR".to_owned());
+
+    // 4. Build the instance from the taxonomy.
+    let mut instance = InstanceDocument::from_taxonomy(&taxonomy, instant_ctx, duration_ctx, unit);
+
+    // 5. Register namespace declarations from all discovered schemas
+    for schema in taxonomy.schemas().values() {
+        for (prefix, uri) in &schema.namespaces {
+            instance.add_namespace(prefix.clone(), uri.clone());
+        }
+    }
+
+    // 6. Validate the generated XBRL
+    let res = instance.validate(&taxonomy);
+
+    dbg!(&res);
+    assert!(res.is_valid());
+
+    // 7. Serialize to XML
+    let mut writer: XmlWriter<Vec<u8>> = XmlWriter::new(Vec::new());
+    instance.to_xml(&mut writer).unwrap();
+    let _xml = String::from_utf8(writer.into_inner()).unwrap();
 }
