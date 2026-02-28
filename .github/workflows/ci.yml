@@ -43,7 +43,7 @@ jobs:
           components: rustfmt
       - name: cargo +nightly fmt --check
         run: cargo +nightly fmt --check
-  unit-test:
+  test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
