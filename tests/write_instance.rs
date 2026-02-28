@@ -12,7 +12,7 @@ const GAAP_SCHEMA: &str =
     "http://www.xbrl.de/taxonomies/de-gaap-ci-2020-04-01/de-gaap-ci-2020-04-01-shell-fiscal.xsd";
 
 #[test]
-#[ignore = "requires taxonomies in test_data/taxonomies"]
+#[cfg_attr(not(feature = "taxonomy-test"), ignore)]
 fn write_empty_instance() {
     let entry_point = PathBuf::from_str(TAXONOMY_ENTRY_POINT).unwrap();
     let taxonomy = TaxonomySet::discover(
@@ -48,7 +48,7 @@ fn write_empty_instance() {
 }
 
 #[test]
-#[ignore = "requires taxonomies in test_data/taxonomies"]
+#[cfg_attr(not(feature = "taxonomy-test"), ignore)]
 fn generate_instance() {
     // 1. Discover the taxonomy from the local test data
     let entry_point = PathBuf::from(TAXONOMY_ENTRY_POINT);

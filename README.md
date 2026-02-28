@@ -62,7 +62,7 @@ let validation_result = instance.validate(&taxonomy);
 
 ## Testing
 
-Integration tests require the downloaded taxonomy files: `cargo run --bin download_taxonomies --release`
+Some integration tests require the downloaded taxonomy files in `test_data/taxonomies`: `cargo run --bin download_taxonomies --release`
 
 ```bash
 # Run unit tests
@@ -70,6 +70,9 @@ cargo test --lib
 
 # Run integration tests
 cargo test --test '*'
+
+# Run integration tests with full taxonomy
+cargo test --features taxonomy-test
 ```
 
 ## Conformance
@@ -81,7 +84,7 @@ Suite](https://specifications.xbrl.org/release-history-base-spec-conformance-sui
 
 ``` bash
 # Run conformance tests
-cargo test conformance_suite -- --ignored --nocapture
+cargo test conformance_suite --features conformance-test
 ```
 
 | Category                  |  Passed |  Failed | Skipped |   Total | Pass Rate |

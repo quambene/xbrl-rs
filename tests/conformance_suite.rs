@@ -458,7 +458,7 @@ fn category(testcase: &TestCase) -> String {
 }
 
 #[test]
-#[ignore]
+#[cfg_attr(not(feature = "conformance-test"), ignore)]
 fn conformance_suite() {
     let suite_root = Path::new("test_data/conformance");
     assert!(

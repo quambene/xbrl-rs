@@ -29,6 +29,7 @@
   - Implement `InstanceDocument::from_taxonomy`
   - Parse and validate `TupleFact`s
   - Parse and validate `TupleChildRef`
+  - Add feature flag `taxonomy-test` and `conformance-test`
 - changed
   - Rename `TaxonomySchema::parse` to `TaxonomySchema::from_xml`
   - Use `BufReader` for parsing schemas and linkbases

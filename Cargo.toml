@@ -24,6 +24,10 @@ include = [
 default = []
 download = ["dep:reqwest"]
 logger = ["dep:env_logger"]
+# Feature flag to run the taxonomy test suite.
+taxonomy-test = []
+# Feature flag to run the conformance test suite.
+conformance-test = []
 
 [dependencies]
 thiserror = "2.0"

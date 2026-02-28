@@ -25,7 +25,7 @@ fn discover_taxonomy(instance: &InstanceDocument, entry_point: &str) -> Taxonomy
 }
 
 #[test]
-#[ignore = "requires taxonomies in test_data/taxonomies"]
+#[cfg_attr(not(feature = "taxonomy-test"), ignore)]
 fn validate_instance_balance_sheet_v64() {
     let path = Path::new(INSTANCE_BASE).join("balance_sheet_v64.xml");
     let instance = parse_instance(&path);
@@ -43,7 +43,7 @@ fn validate_instance_balance_sheet_v64() {
 }
 
 #[test]
-#[ignore = "requires taxonomies in test_data/taxonomies"]
+#[cfg_attr(not(feature = "taxonomy-test"), ignore)]
 fn validate_instance_balance_sheet_v65() {
     let path = Path::new(INSTANCE_BASE).join("balance_sheet_v65.xml");
     let instance = parse_instance(&path);

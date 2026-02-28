@@ -5,7 +5,7 @@ use xbrl_rs::{Label, PeriodType, TaxonomySet};
 const TAXONOMY_ENTRY_POINT: &str = "test_data/taxonomies";
 
 #[test]
-#[ignore = "requires taxonomies in test_data/taxonomies"]
+#[cfg_attr(not(feature = "taxonomy-test"), ignore)]
 fn schema_by_namespace() {
     let entry_point = PathBuf::from_str(TAXONOMY_ENTRY_POINT).unwrap();
     let gcd = "http://www.xbrl.de/taxonomies/de-gcd-2020-04-01/de-gcd-2020-04-01-shell.xsd";
@@ -19,7 +19,7 @@ fn schema_by_namespace() {
 }
 
 #[test]
-#[ignore = "requires taxonomies in test_data/taxonomies"]
+#[cfg_attr(not(feature = "taxonomy-test"), ignore)]
 fn parse_labels_linkbase() {
     let entry_point = PathBuf::from_str(TAXONOMY_ENTRY_POINT).unwrap();
     let gaap = "http://www.xbrl.de/taxonomies/de-gaap-ci-2020-04-01/de-gaap-ci-2020-04-01-shell-fiscal.xsd";
@@ -63,7 +63,7 @@ fn parse_labels_linkbase() {
 }
 
 #[test]
-#[ignore = "requires taxonomies in test_data/taxonomies"]
+#[cfg_attr(not(feature = "taxonomy-test"), ignore)]
 fn parse_labels_linkbase_multiple_roles() {
     let entry_point = PathBuf::from_str(TAXONOMY_ENTRY_POINT).unwrap();
     let gcd = "http://www.xbrl.de/taxonomies/de-gcd-2020-04-01/de-gcd-2020-04-01-shell.xsd";
@@ -84,7 +84,7 @@ fn parse_labels_linkbase_multiple_roles() {
 }
 
 #[test]
-#[ignore = "requires taxonomies in test_data/taxonomies"]
+#[cfg_attr(not(feature = "taxonomy-test"), ignore)]
 fn parse_presentation_linkbase() {
     let entry_point = PathBuf::from_str(TAXONOMY_ENTRY_POINT).unwrap();
     let gaap = "http://www.xbrl.de/taxonomies/de-gaap-ci-2020-04-01/de-gaap-ci-2020-04-01-shell-fiscal.xsd";
@@ -111,7 +111,7 @@ fn parse_presentation_linkbase() {
 }
 
 #[test]
-#[ignore = "requires taxonomies in test_data/taxonomies"]
+#[cfg_attr(not(feature = "taxonomy-test"), ignore)]
 fn parse_calculation_linkbase() {
     let entry_point = PathBuf::from_str(TAXONOMY_ENTRY_POINT).unwrap();
     let gaap = "http://www.xbrl.de/taxonomies/de-gaap-ci-2020-04-01/de-gaap-ci-2020-04-01-shell-fiscal.xsd";
@@ -136,7 +136,7 @@ fn parse_calculation_linkbase() {
 }
 
 #[test]
-#[ignore = "requires taxonomies in test_data/taxonomies"]
+#[cfg_attr(not(feature = "taxonomy-test"), ignore)]
 fn parse_definition_linkbase() {
     let entry_point = PathBuf::from_str(TAXONOMY_ENTRY_POINT).unwrap();
     let gaap = "http://www.xbrl.de/taxonomies/de-gaap-ci-2020-04-01/de-gaap-ci-2020-04-01-shell-fiscal.xsd";
@@ -159,7 +159,7 @@ fn parse_definition_linkbase() {
 }
 
 #[test]
-#[ignore = "requires taxonomies in test_data/taxonomies"]
+#[cfg_attr(not(feature = "taxonomy-test"), ignore)]
 fn parse_reference_linkbase() {
     let entry_point = PathBuf::from_str(TAXONOMY_ENTRY_POINT).unwrap();
     let gaap = "http://www.xbrl.de/taxonomies/de-gaap-ci-2020-04-01/de-gaap-ci-2020-04-01-shell-fiscal.xsd";
@@ -182,7 +182,7 @@ fn parse_reference_linkbase() {
 }
 
 #[test]
-#[ignore = "requires taxonomies in test_data/taxonomies"]
+#[cfg_attr(not(feature = "taxonomy-test"), ignore)]
 fn linkbase_refs_have_roles() {
     let entry_point = PathBuf::from_str(TAXONOMY_ENTRY_POINT).unwrap();
     let gcd = "http://www.xbrl.de/taxonomies/de-gcd-2020-04-01/de-gcd-2020-04-01-shell.xsd";
@@ -210,7 +210,7 @@ fn linkbase_refs_have_roles() {
 }
 
 #[test]
-#[ignore = "requires taxonomies in test_data/taxonomies"]
+#[cfg_attr(not(feature = "taxonomy-test"), ignore)]
 fn find_element_by_id() {
     let entry_point = PathBuf::from_str(TAXONOMY_ENTRY_POINT).unwrap();
     let gaap = "http://www.xbrl.de/taxonomies/de-gaap-ci-2020-04-01/de-gaap-ci-2020-04-01-shell-fiscal.xsd";
@@ -225,7 +225,7 @@ fn find_element_by_id() {
 }
 
 #[test]
-#[ignore = "requires taxonomies in test_data/taxonomies"]
+#[cfg_attr(not(feature = "taxonomy-test"), ignore)]
 fn qualified_name() {
     let entry_point = PathBuf::from_str(TAXONOMY_ENTRY_POINT).unwrap();
     let gaap = "http://www.xbrl.de/taxonomies/de-gaap-ci-2020-04-01/de-gaap-ci-2020-04-01-shell-fiscal.xsd";
