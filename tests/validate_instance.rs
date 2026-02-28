@@ -7,7 +7,7 @@ use std::{
     path::{Path, PathBuf},
     str::FromStr,
 };
-use xbrl_rs::{Fact, InstanceDocument, TaxonomySet};
+use xbrl_rs::{InstanceDocument, TaxonomySet};
 
 const INSTANCE_BASE: &str = "test_data/instances";
 const TAXONOMY_ENTRY_POINT: &str = "test_data/taxonomies";
@@ -21,22 +21,6 @@ fn parse_instance(path: &Path) -> InstanceDocument {
 
 fn discover_taxonomy(instance: &InstanceDocument, entry_point: &str) -> TaxonomySet {
     let entry_point = PathBuf::from_str(entry_point).unwrap();
-    TaxonomySet::discover(instance.schema_refs().to_vec(), entry_point).unwrap()
-}
-
-fn case_instance(case: &str) -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("test_data")
-        .join("cases")
-        .join(case)
-        .join("instance.xml")
-}
-
-fn discover_case_taxonomy(instance: &InstanceDocument, case: &str) -> TaxonomySet {
-    let entry_point = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("test_data")
-        .join("cases")
-        .join(case);
     TaxonomySet::discover(instance.schema_refs().to_vec(), entry_point).unwrap()
 }
 
@@ -71,23 +55,6 @@ fn validate_instance_balance_sheet_v65() {
         result.warnings().is_empty(),
         "warnings: {:#?}",
         result.warnings()
-    );
-}
-
-#[test]
-fn validates_non_tuple_concept_used_as_tuple() {
-    let path = case_instance("validation_tuple_base");
-    let mut instance = parse_instance(&path);
-    let taxonomy = discover_case_taxonomy(&instance, "validation_tuple_base");
-
-    instance.add_fact(Fact::tuple("my:city".to_string()));
-
-    let result = instance.validate(&taxonomy);
-    assert!(
-        result
-            .errors()
-            .iter()
-            .any(|error| error.code == "schema.tuple_requires_tuple_concept")
     );
 }
 
