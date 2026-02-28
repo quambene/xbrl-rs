@@ -1,5 +1,5 @@
 {
-  "name": "validation_numeric_invalid_lexical_tolerated_valid",
+  "name": "validation_numeric_invalid_lexical",
   "type": "schema",
   "expected": "fail",
   "instance": "instance.xml"
