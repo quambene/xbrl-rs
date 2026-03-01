@@ -88,7 +88,7 @@ fn generate_instance() {
         &taxonomy,
         instant_ctx,
         duration_ctx,
-        vec![monetary_unit, pure_unit],
+        &[monetary_unit, pure_unit],
     );
     assert_eq!(instance.item_fact_count(), 3609);
 

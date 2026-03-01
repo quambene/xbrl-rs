@@ -145,7 +145,7 @@ impl InstanceDocument {
         taxonomy: &TaxonomySet,
         instant_context: Context,
         duration_context: Context,
-        units: Vec<Unit>,
+        units: &[Unit],
     ) -> Self {
         let mut instance = Self::default();
 
@@ -161,7 +161,7 @@ impl InstanceDocument {
         instance.add_context(instant_context);
         instance.add_context(duration_context);
 
-        for unit in &units {
+        for unit in units {
             instance.add_unit(unit.clone());
         }
 
