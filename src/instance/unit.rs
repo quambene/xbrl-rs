@@ -146,6 +146,14 @@ impl Unit {
                 && measure.local_name == "pure"
         })
     }
+
+    /// Check if this is a shares unit
+    pub fn is_shares(&self) -> bool {
+        self.primary_measure().is_some_and(|measure| {
+            measure.namespace_uri.as_deref() == Some("http://www.xbrl.org/2003/instance")
+                && measure.local_name == "shares"
+        })
+    }
 }
 
 fn parse_qname(value: &str) -> (Option<String>, String) {
