@@ -1,4 +1,28 @@
+mod linkbases;
+#[cfg(feature = "download")]
+mod loader;
+mod schema;
+mod taxonomy_set;
+mod types;
+
 use crate::error::Result;
+pub use linkbases::presentation::PresentationNetwork;
+pub use linkbases::{
+    calculation::CalculationArc,
+    definition::DefinitionArc,
+    label::Label,
+    presentation::PresentationArc,
+    reader::LinkbaseLocator,
+    reference::{Reference, ReferencePart},
+};
+#[cfg(feature = "download")]
+pub use loader::TaxonomyLoader;
+pub use schema::{
+    ArcroleType, Balance, CyclesAllowed, DeclaredAccuracy, ElementDefinition, LinkbaseRef,
+    MaxOccurs, PeriodType, RoleType, SchemaImport, SchemaInclude, TaxonomySchema, TupleChildRef,
+};
+pub use taxonomy_set::TaxonomySet;
+pub use types::{ConceptId, RoleUri, SchemaRefUrl};
 
 pub(crate) struct QName<'a> {
     pub namespace: &'a str,
@@ -19,25 +43,3 @@ pub(crate) fn split_qname(name: &[u8]) -> Result<QName<'_>> {
         local_name: decoded,
     })
 }
-
-mod linkbases;
-#[cfg(feature = "download")]
-mod loader;
-mod schema;
-mod taxonomy_set;
-
-pub use linkbases::{
-    calculation::CalculationArc,
-    definition::DefinitionArc,
-    label::Label,
-    presentation::PresentationArc,
-    reader::LinkbaseLocator,
-    reference::{Reference, ReferencePart},
-};
-#[cfg(feature = "download")]
-pub use loader::TaxonomyLoader;
-pub use schema::{
-    ArcroleType, Balance, CyclesAllowed, DeclaredAccuracy, ElementDefinition, LinkbaseRef,
-    MaxOccurs, PeriodType, RoleType, SchemaImport, SchemaInclude, TaxonomySchema, TupleChildRef,
-};
-pub use taxonomy_set::{ConceptId, RoleUri, SchemaRefUrl, TaxonomySet};
