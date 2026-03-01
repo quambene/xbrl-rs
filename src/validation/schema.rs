@@ -804,6 +804,17 @@ fn validate_item_fact(
         }
     }
 
+    // Non-numeric facts must not have a unitRef
+    if !is_numeric_type(element, taxonomy) && fact.unit_ref().is_some() {
+        result.add(
+            Severity::Error,
+            "spec.non_numeric_has_unit",
+            format!("Non-numeric fact '{local_name}' must not have unitRef"),
+            Some(concept),
+            Some(ctx_ref),
+        );
+    }
+
     // Unit reference must resolve if present
     if let Some(unit_ref) = fact.unit_ref()
         && instance.get_unit(unit_ref).is_none()

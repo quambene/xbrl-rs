@@ -132,9 +132,12 @@ impl InstanceDocument {
     /// Create a new instance pre-wired to a known taxonomy.
     ///
     /// - Registers all schema refs and role refs from the taxonomy
-    /// - Adds both contexts and the unit
+    /// - Adds both contexts and all provided units
     /// - Pre-populates nil facts for concepts in the presentation linkbase,
     ///   preserving tuple nesting derived directly from the presentation tree
+    /// - Assigns each fact the correct `unitRef` based on its XSD type:
+    ///   monetary → first currency unit, shares → first shares unit,
+    ///   other numeric → first pure unit, non-numeric → no unitRef
     ///
     /// Build the [`DocumentView`] once after this call, then fill values
     /// in-place via [`set_fact_value`] without rebuilding the view.
@@ -142,7 +145,7 @@ impl InstanceDocument {
         taxonomy: &TaxonomySet,
         instant_context: Context,
         duration_context: Context,
-        unit: Unit,
+        units: Vec<Unit>,
     ) -> Self {
         let mut instance = Self::default();
 
@@ -158,8 +161,9 @@ impl InstanceDocument {
         instance.add_context(instant_context);
         instance.add_context(duration_context);
 
-        let unit_ref = unit.id.clone();
-        instance.add_unit(unit);
+        for unit in &units {
+            instance.add_unit(unit.clone());
+        }
 
         // Walk the presentation tree in section order, depth-first within each section.
         // The tree structure gives both the fact order and the tuple nesting directly,
@@ -179,7 +183,7 @@ impl InstanceDocument {
                     taxonomy,
                     &instant_context_ref,
                     &duration_context_ref,
-                    &unit_ref,
+                    &units,
                     &mut instance.facts,
                     &mut emitted_items,
                     &mut emitted_tuples,
@@ -206,7 +210,7 @@ impl InstanceDocument {
                     taxonomy,
                     &instant_context_ref,
                     &duration_context_ref,
-                    &unit_ref,
+                    &units,
                     &mut instance.facts,
                     &mut emitted_items,
                     &mut emitted_tuples,
@@ -437,7 +441,7 @@ impl InstanceDocument {
         taxonomy: &TaxonomySet,
         instant_ctx: &ContextId,
         duration_ctx: &ContextId,
-        unit: &UnitId,
+        units: &[Unit],
         facts: &mut Vec<Fact>,
         emitted_items: &mut HashSet<String>,
         emitted_tuples: &mut HashSet<String>,
@@ -478,7 +482,7 @@ impl InstanceDocument {
                             taxonomy,
                             instant_ctx,
                             duration_ctx,
-                            unit,
+                            units,
                             tuple_children,
                             emitted_items,
                             emitted_tuples,
@@ -506,7 +510,7 @@ impl InstanceDocument {
                     let mut fact = ItemFact::new(
                         qname,
                         context_ref.to_string(),
-                        Some(unit.to_string()),
+                        unit_ref_for_element(element, units, taxonomy),
                         String::new(),
                     );
                     fact.set_nil(true);
@@ -532,7 +536,7 @@ impl InstanceDocument {
                 taxonomy,
                 instant_ctx,
                 duration_ctx,
-                unit,
+                units,
                 facts,
                 emitted_items,
                 emitted_tuples,
@@ -572,6 +576,70 @@ impl InstanceDocument {
             }
         }
     }
+}
+
+/// Determine the correct `unitRef` string for an element based on its XSD type.
+///
+/// - Monetary items  → first currency unit (`is_currency()`)
+/// - Shares items    → first shares unit (`is_shares()`)
+/// - Other numeric   → first pure unit (`is_pure()`)
+/// - Non-numeric     → `None` (unitRef forbidden by the XBRL spec)
+fn unit_ref_for_element(
+    element: &ElementDefinition,
+    units: &[Unit],
+    taxonomy: &TaxonomySet,
+) -> Option<String> {
+    let type_name = element.type_name.as_deref()?;
+
+    if taxonomy.is_type_derived_from(type_name, "monetaryItemType") {
+        return units
+            .iter()
+            .find(|u| u.is_currency())
+            .map(|u| u.id.to_string());
+    }
+    if taxonomy.is_type_derived_from(type_name, "sharesItemType") {
+        return units
+            .iter()
+            .find(|u| u.is_shares())
+            .map(|u| u.id.to_string());
+    }
+    for base in [
+        "pureItemType",
+        "decimalItemType",
+        "integerItemType",
+        "floatItemType",
+        "doubleItemType",
+        "fractionItemType",
+    ] {
+        if taxonomy.is_type_derived_from(type_name, base) {
+            return units.iter().find(|u| u.is_pure()).map(|u| u.id.to_string());
+        }
+    }
+    // Heuristic fallback for custom numeric type names not in the type hierarchy
+    let t = type_name.to_lowercase();
+    if t.contains("monetary") {
+        return units
+            .iter()
+            .find(|u| u.is_currency())
+            .map(|u| u.id.to_string());
+    }
+    if t.contains("shares") {
+        return units
+            .iter()
+            .find(|u| u.is_shares())
+            .map(|u| u.id.to_string());
+    }
+    if t.contains("pure")
+        || t.contains("decimal")
+        || t.contains("integer")
+        || t.contains("float")
+        || t.contains("double")
+        || t.contains("percent")
+        || t.contains("pershare")
+    {
+        return units.iter().find(|u| u.is_pure()).map(|u| u.id.to_string());
+    }
+    None
 }
 
 /// Returns `true` if `child_element` is a valid schema child of `parent_element`.

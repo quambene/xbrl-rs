@@ -79,11 +79,17 @@ fn generate_instance() {
         },
     );
 
-    // 3. Define a monetary unit
-    let unit = Unit::new(UnitId::from("EUR"), "iso4217:EUR".to_owned());
+    // 3. Define units: monetary (EUR) and pure (for dimensionless numeric items)
+    let monetary_unit = Unit::new(UnitId::from("EUR"), "iso4217:EUR".to_owned());
+    let pure_unit = Unit::new(UnitId::from("pure"), "xbrli:pure".to_owned());
 
     // 4. Build the instance from the taxonomy.
-    let mut instance = InstanceDocument::from_taxonomy(&taxonomy, instant_ctx, duration_ctx, unit);
+    let mut instance = InstanceDocument::from_taxonomy(
+        &taxonomy,
+        instant_ctx,
+        duration_ctx,
+        vec![monetary_unit, pure_unit],
+    );
     assert_eq!(instance.item_fact_count(), 3609);
 
     // 5. Register namespace declarations from all discovered schemas
@@ -95,7 +101,17 @@ fn generate_instance() {
 
     // 6. Validate the generated XBRL
     let res = instance.validate(&taxonomy);
+    assert!(
+        res.errors().is_empty(),
+        "Validation errors: {:?}",
+        res.errors()
+    );
     assert!(res.is_valid());
+    assert!(
+        res.warnings().is_empty(),
+        "Validation warnings: {:?}",
+        res.warnings()
+    );
 
     // 7. Serialize to XML
     let mut writer: XmlWriter<Vec<u8>> = XmlWriter::new(Vec::new());
