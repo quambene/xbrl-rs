@@ -70,10 +70,10 @@ enum SchemaTag {
 }
 
 impl SchemaTag {
-    fn from_name(name: &[u8]) -> Self {
-        let qname = split_qname(name);
+    fn from_name(name: &[u8]) -> Result<Self> {
+        let qname = split_qname(name)?;
         let _namespace = qname.namespace;
-        Self::from_local_name(qname.local_name)
+        Ok(Self::from_local_name(qname.local_name))
     }
 
     fn from_local_name(local: &str) -> Self {
@@ -189,9 +189,9 @@ pub(crate) fn read_schema<R: io::BufRead>(
     loop {
         match reader.read_event_into(&mut buf) {
             Ok(Event::Start(ref e)) => {
-                collect_schema_location_refs(e.attributes(), &mut schema.schema_location_refs);
+                collect_schema_location_refs(e.attributes(), &mut schema.schema_location_refs)?;
 
-                let tag = SchemaTag::from_name(e.name().as_ref());
+                let tag = SchemaTag::from_name(e.name().as_ref())?;
 
                 if matches!(tag, SchemaTag::Redefine) {
                     return Err(XbrlError::InvalidSchemaDocument {
@@ -220,7 +220,7 @@ pub(crate) fn read_schema<R: io::BufRead>(
                     SchemaTag::LinkbaseRef if inside_appinfo => {
                         schema
                             .linkbase_refs
-                            .push(parse_linkbase_ref(e.attributes(), appinfo_base.as_deref()));
+                            .push(parse_linkbase_ref(e.attributes(), appinfo_base.as_deref())?);
                     }
                     SchemaTag::RoleType if inside_appinfo => {
                         schema.role_types.push(parse_role_type(
@@ -239,7 +239,7 @@ pub(crate) fn read_schema<R: io::BufRead>(
                         )?);
                     }
                     SchemaTag::Element => {
-                        let elem = parse_element_def(e.attributes());
+                        let elem = parse_element_def(e.attributes())?;
                         let tuple_decl = elem
                             .as_ref()
                             .and_then(|element| element.substitution_group.as_deref())
@@ -250,22 +250,24 @@ pub(crate) fn read_schema<R: io::BufRead>(
                         if let Some(element) = elem {
                             schema.elements.push(element);
                         }
-                        let tag_name = String::from_utf8_lossy(e.name().as_ref()).to_string();
+                        let element_name = e.name();
+                        let tag_name = str::from_utf8(element_name.as_ref()).unwrap_or("");
                         let children =
-                            skip_to_end_with_tuple_checks(reader, &tag_name, tuple_decl, path)?;
+                            skip_to_end_with_tuple_checks(reader, tag_name, tuple_decl, path)?;
                         if tuple_decl && let Some(elem) = schema.elements.last_mut() {
                             elem.tuple_children = children;
                         }
                     }
                     SchemaTag::ComplexType | SchemaTag::SimpleType => {
-                        let tag_name = String::from_utf8_lossy(e.name().as_ref()).to_string();
+                        let element_name = e.name();
+                        let tag_name = str::from_utf8(element_name.as_ref()).unwrap_or("");
                         if let Some(NamedTypeBase {
                             type_name,
                             base,
                             declared_decimals,
                             declared_precision,
                             has_local_element_content,
-                        }) = parse_named_type_base(reader, e.attributes(), &tag_name, path)?
+                        }) = parse_named_type_base(reader, e.attributes(), tag_name, path)?
                         {
                             if has_local_element_content {
                                 complex_types_with_local_elements.insert(type_name.clone());
@@ -285,7 +287,7 @@ pub(crate) fn read_schema<R: io::BufRead>(
                     _ => {}
                 }
 
-                if attr_by_local_name(e.attributes(), "integerAttribute")
+                if attr_by_local_name(e.attributes(), "integerAttribute")?
                     .is_some_and(|value| value.parse::<i64>().is_err())
                 {
                     return Err(XbrlError::InvalidSchemaDocument {
@@ -295,7 +297,7 @@ pub(crate) fn read_schema<R: io::BufRead>(
                 }
 
                 if matches!(tag, SchemaTag::IntegerElement) {
-                    if let Some(value) = attr_by_local_name(e.attributes(), "value")
+                    if let Some(value) = attr_by_local_name(e.attributes(), "value")?
                         && value.parse::<i64>().is_err()
                     {
                         return Err(XbrlError::InvalidSchemaDocument {
@@ -305,14 +307,15 @@ pub(crate) fn read_schema<R: io::BufRead>(
                     }
 
                     let mut text_buf = Vec::new();
-                    if let Ok(Event::Text(text)) = reader.read_event_into(&mut text_buf) {
-                        let value = String::from_utf8_lossy(text.as_ref()).trim().to_string();
-                        if !value.is_empty() && value.parse::<i64>().is_err() {
-                            return Err(XbrlError::InvalidSchemaDocument {
-                                path: path.to_path_buf(),
-                                reason: "integerElement value is not a valid integer".to_string(),
-                            });
-                        }
+                    if let Ok(Event::Text(text)) = reader.read_event_into(&mut text_buf)
+                        && let Ok(value) = str::from_utf8(text.as_ref()).map(str::trim)
+                        && !value.is_empty()
+                        && value.parse::<i64>().is_err()
+                    {
+                        return Err(XbrlError::InvalidSchemaDocument {
+                            path: path.to_path_buf(),
+                            reason: "integerElement value is not a valid integer".to_string(),
+                        });
                     }
                 }
 
@@ -333,7 +336,7 @@ pub(crate) fn read_schema<R: io::BufRead>(
                     }
 
                     if matches!(tag, SchemaTag::RoleRef)
-                        && let Some(uri) = attr_by_local_name(e.attributes(), "roleURI")
+                        && let Some(uri) = attr_by_local_name(e.attributes(), "roleURI")?
                         && !linkbase_role_refs.insert(uri.clone())
                     {
                         return Err(XbrlError::InvalidSchemaDocument {
@@ -343,7 +346,7 @@ pub(crate) fn read_schema<R: io::BufRead>(
                     }
 
                     if matches!(tag, SchemaTag::ArcroleRef)
-                        && let Some(uri) = attr_by_local_name(e.attributes(), "arcroleURI")
+                        && let Some(uri) = attr_by_local_name(e.attributes(), "arcroleURI")?
                         && !linkbase_arcrole_refs.insert(uri.clone())
                     {
                         return Err(XbrlError::InvalidSchemaDocument {
@@ -354,9 +357,9 @@ pub(crate) fn read_schema<R: io::BufRead>(
                 }
             }
             Ok(Event::Empty(ref e)) => {
-                collect_schema_location_refs(e.attributes(), &mut schema.schema_location_refs);
+                collect_schema_location_refs(e.attributes(), &mut schema.schema_location_refs)?;
 
-                let tag = SchemaTag::from_name(e.name().as_ref());
+                let tag = SchemaTag::from_name(e.name().as_ref())?;
 
                 if matches!(tag, SchemaTag::Redefine) {
                     return Err(XbrlError::InvalidSchemaDocument {
@@ -369,27 +372,27 @@ pub(crate) fn read_schema<R: io::BufRead>(
                     SchemaTag::LinkbaseRef if inside_appinfo => {
                         schema
                             .linkbase_refs
-                            .push(parse_linkbase_ref(e.attributes(), appinfo_base.as_deref()));
+                            .push(parse_linkbase_ref(e.attributes(), appinfo_base.as_deref())?);
                     }
                     SchemaTag::Import => {
-                        if let Some(imp) = parse_import(e.attributes()) {
+                        if let Some(imp) = parse_import(e.attributes())? {
                             schema.imports.push(imp);
                         }
                     }
                     SchemaTag::Include => {
-                        if let Some(inc) = parse_include(e.attributes()) {
+                        if let Some(inc) = parse_include(e.attributes())? {
                             schema.includes.push(inc);
                         }
                     }
                     SchemaTag::Element => {
-                        if let Some(elem) = parse_element_def(e.attributes()) {
+                        if let Some(elem) = parse_element_def(e.attributes())? {
                             schema.elements.push(elem);
                         }
                     }
                     _ => {}
                 }
 
-                if attr_by_local_name(e.attributes(), "integerAttribute")
+                if attr_by_local_name(e.attributes(), "integerAttribute")?
                     .is_some_and(|value| value.parse::<i64>().is_err())
                 {
                     return Err(XbrlError::InvalidSchemaDocument {
@@ -399,7 +402,7 @@ pub(crate) fn read_schema<R: io::BufRead>(
                 }
 
                 if matches!(tag, SchemaTag::IntegerElement)
-                    && attr_by_local_name(e.attributes(), "value")
+                    && attr_by_local_name(e.attributes(), "value")?
                         .is_some_and(|value| value.parse::<i64>().is_err())
                 {
                     return Err(XbrlError::InvalidSchemaDocument {
@@ -420,7 +423,7 @@ pub(crate) fn read_schema<R: io::BufRead>(
                     }
 
                     if matches!(tag, SchemaTag::RoleRef)
-                        && let Some(uri) = attr_by_local_name(e.attributes(), "roleURI")
+                        && let Some(uri) = attr_by_local_name(e.attributes(), "roleURI")?
                         && !linkbase_role_refs.insert(uri.clone())
                     {
                         return Err(XbrlError::InvalidSchemaDocument {
@@ -430,7 +433,7 @@ pub(crate) fn read_schema<R: io::BufRead>(
                     }
 
                     if matches!(tag, SchemaTag::ArcroleRef)
-                        && let Some(uri) = attr_by_local_name(e.attributes(), "arcroleURI")
+                        && let Some(uri) = attr_by_local_name(e.attributes(), "arcroleURI")?
                         && !linkbase_arcrole_refs.insert(uri.clone())
                     {
                         return Err(XbrlError::InvalidSchemaDocument {
@@ -441,7 +444,7 @@ pub(crate) fn read_schema<R: io::BufRead>(
                 }
             }
             Ok(Event::End(ref e)) => {
-                let tag = SchemaTag::from_name(e.name().as_ref());
+                let tag = SchemaTag::from_name(e.name().as_ref())?;
                 if matches!(tag, SchemaTag::Appinfo) {
                     inside_appinfo = false;
                     appinfo_base = None;
@@ -523,13 +526,13 @@ fn skip_to_end_with_tuple_checks<R: io::BufRead>(
                 depth += 1;
 
                 if tuple_decl {
-                    let name = String::from_utf8_lossy(e.name().as_ref()).to_string();
-                    let local = local_name(&name);
+                    let element_name = e.name();
+                    let local = split_qname(element_name.as_ref())?.local_name;
 
                     choice_stack.push(local == "choice");
 
                     if (local == "complexType" || local == "complexContent")
-                        && attr_by_local_name(e.attributes(), "mixed")
+                        && attr_by_local_name(e.attributes(), "mixed")?
                             .is_some_and(|mixed| mixed.eq_ignore_ascii_case("true"))
                     {
                         return Err(XbrlError::InvalidSchemaDocument {
@@ -539,8 +542,8 @@ fn skip_to_end_with_tuple_checks<R: io::BufRead>(
                     }
 
                     if local == "element"
-                        && attr_by_local_name(e.attributes(), "name").is_some()
-                        && attr_by_local_name(e.attributes(), "ref").is_none()
+                        && attr_by_local_name(e.attributes(), "name")?.is_some()
+                        && attr_by_local_name(e.attributes(), "ref")?.is_none()
                     {
                         return Err(XbrlError::InvalidSchemaDocument {
                             path: path.to_path_buf(),
@@ -549,7 +552,8 @@ fn skip_to_end_with_tuple_checks<R: io::BufRead>(
                     }
 
                     if local == "attribute"
-                        && attr_by_local_name(e.attributes(), "ref").is_some_and(|reference| {
+                        && attr_by_local_name(e.attributes(), "ref")?
+                            .is_some_and(|reference| {
                             reference.starts_with("xbrli:") || reference.starts_with("xlink:")
                         })
                     {
@@ -563,12 +567,12 @@ fn skip_to_end_with_tuple_checks<R: io::BufRead>(
             }
             Ok(Event::Empty(e)) => {
                 if tuple_decl {
-                    let name = String::from_utf8_lossy(e.name().as_ref()).to_string();
-                    let local = local_name(&name);
+                    let element_name = e.name();
+                    let local = split_qname(element_name.as_ref())?.local_name;
 
                     if local == "element"
-                        && attr_by_local_name(e.attributes(), "name").is_some()
-                        && attr_by_local_name(e.attributes(), "ref").is_none()
+                        && attr_by_local_name(e.attributes(), "name")?.is_some()
+                        && attr_by_local_name(e.attributes(), "ref")?.is_none()
                     {
                         return Err(XbrlError::InvalidSchemaDocument {
                             path: path.to_path_buf(),
@@ -577,7 +581,7 @@ fn skip_to_end_with_tuple_checks<R: io::BufRead>(
                     }
 
                     if local == "element"
-                        && let Some(qname) = attr_by_local_name(e.attributes(), "ref")
+                        && let Some(qname) = attr_by_local_name(e.attributes(), "ref")?
                     {
                         // Inside xs:choice only one alternative is required; using min_occurs=0
                         // for individual elements avoids false "missing required child" errors.
@@ -585,11 +589,11 @@ fn skip_to_end_with_tuple_checks<R: io::BufRead>(
                         let min_occurs = if in_choice {
                             0
                         } else {
-                            attr_by_local_name(e.attributes(), "minOccurs")
+                            attr_by_local_name(e.attributes(), "minOccurs")?
                                 .and_then(|v| v.parse::<u32>().ok())
                                 .unwrap_or(1)
                         };
-                        let max_occurs = attr_by_local_name(e.attributes(), "maxOccurs")
+                        let max_occurs = attr_by_local_name(e.attributes(), "maxOccurs")?
                             .map(|v| {
                                 if v == "unbounded" {
                                     MaxOccurs::Unbounded
@@ -608,7 +612,8 @@ fn skip_to_end_with_tuple_checks<R: io::BufRead>(
                     }
 
                     if local == "attribute"
-                        && attr_by_local_name(e.attributes(), "ref").is_some_and(|reference| {
+                        && attr_by_local_name(e.attributes(), "ref")?
+                            .is_some_and(|reference| {
                             reference.starts_with("xbrli:") || reference.starts_with("xlink:")
                         })
                     {
@@ -672,12 +677,14 @@ fn normalize_qname(value: &str, namespaces: Option<&HashMap<String, String>>) ->
 
 fn collect_namespace_declarations(attrs: Attributes, namespaces: &mut HashMap<String, String>) {
     for attr in attrs.flatten() {
-        let key = String::from_utf8_lossy(attr.key.as_ref());
+        let Ok(key) = str::from_utf8(attr.key.as_ref()) else {
+            continue;
+        };
         if let Some(prefix) = key.strip_prefix("xmlns:") {
             if let Ok(value) = attr.unescape_value() {
                 namespaces.insert(prefix.to_string(), value.to_string());
             }
-        } else if key.as_ref() == "xmlns"
+        } else if key == "xmlns"
             && let Ok(value) = attr.unescape_value()
         {
             namespaces.insert("".to_string(), value.to_string());
@@ -710,15 +717,14 @@ fn is_allowed_embedded_linkbase_element(tag: &SchemaTag) -> bool {
     )
 }
 
-fn attr_by_local_name(attrs: Attributes, expected_local: &str) -> Option<String> {
+fn attr_by_local_name(attrs: Attributes, expected_local: &str) -> Result<Option<String>> {
     for attr in attrs.flatten() {
-        let key = String::from_utf8_lossy(attr.key.as_ref());
-        if local_name(&key) == expected_local {
-            return attr.unescape_value().ok().map(|value| value.to_string());
+        if split_qname(attr.key.as_ref())?.local_name == expected_local {
+            return Ok(attr.unescape_value().ok().map(|value| value.to_string()));
         }
     }
 
-    None
+    Ok(None)
 }
 
 fn parse_named_type_base<R: io::BufRead>(
@@ -729,8 +735,7 @@ fn parse_named_type_base<R: io::BufRead>(
 ) -> Result<Option<NamedTypeBase>> {
     let mut type_name = None;
     for attr in attrs.flatten() {
-        let key = String::from_utf8_lossy(attr.key.as_ref());
-        if local_name(&key) == "name" {
+        if split_qname(attr.key.as_ref())?.local_name == "name" {
             type_name = attr.unescape_value().ok().map(|v| v.to_string());
             break;
         }
@@ -752,12 +757,11 @@ fn parse_named_type_base<R: io::BufRead>(
         match reader.read_event_into(&mut buf) {
             Ok(Event::Start(e)) => {
                 depth += 1;
-                let name = String::from_utf8_lossy(e.name().as_ref()).to_string();
-                let local = local_name(&name);
+                let element_name = e.name();
+                let local = split_qname(element_name.as_ref())?.local_name;
                 if local == "restriction" || local == "extension" {
                     for attr in e.attributes().flatten() {
-                        let key = String::from_utf8_lossy(attr.key.as_ref());
-                        if local_name(&key) == "base" {
+                        if split_qname(attr.key.as_ref())?.local_name == "base" {
                             base = attr.unescape_value().ok().map(|v| v.to_string());
                             break;
                         }
@@ -767,8 +771,7 @@ fn parse_named_type_base<R: io::BufRead>(
                     let mut fixed_value: Option<String> = None;
                     let mut default_value: Option<String> = None;
                     for attr in e.attributes().flatten() {
-                        let key = String::from_utf8_lossy(attr.key.as_ref());
-                        match local_name(&key) {
+                        match split_qname(attr.key.as_ref())?.local_name {
                             "name" => {
                                 attr_name = attr.unescape_value().ok().map(|v| v.to_string());
                             }
@@ -806,21 +809,24 @@ fn parse_named_type_base<R: io::BufRead>(
                         }
                     }
                 } else if local == "element" {
-                    let has_name = e.attributes().flatten().any(|attr| {
-                        local_name(&String::from_utf8_lossy(attr.key.as_ref())) == "name"
-                    });
+                    let mut has_name = false;
+                    for attr in e.attributes().flatten() {
+                        if split_qname(attr.key.as_ref())?.local_name == "name" {
+                            has_name = true;
+                            break;
+                        }
+                    }
                     if has_name {
                         has_local_element_content = true;
                     }
                 }
             }
             Ok(Event::Empty(e)) => {
-                let name = String::from_utf8_lossy(e.name().as_ref()).to_string();
-                let local = local_name(&name);
+                let element_name = e.name();
+                let local = split_qname(element_name.as_ref())?.local_name;
                 if local == "restriction" || local == "extension" {
                     for attr in e.attributes().flatten() {
-                        let key = String::from_utf8_lossy(attr.key.as_ref());
-                        if local_name(&key) == "base" {
+                        if split_qname(attr.key.as_ref())?.local_name == "base" {
                             base = attr.unescape_value().ok().map(|v| v.to_string());
                             break;
                         }
@@ -830,8 +836,7 @@ fn parse_named_type_base<R: io::BufRead>(
                     let mut fixed_value: Option<String> = None;
                     let mut default_value: Option<String> = None;
                     for attr in e.attributes().flatten() {
-                        let key = String::from_utf8_lossy(attr.key.as_ref());
-                        match local_name(&key) {
+                        match split_qname(attr.key.as_ref())?.local_name {
                             "name" => {
                                 attr_name = attr.unescape_value().ok().map(|v| v.to_string());
                             }
@@ -869,9 +874,13 @@ fn parse_named_type_base<R: io::BufRead>(
                         }
                     }
                 } else if local == "element" {
-                    let has_name = e.attributes().flatten().any(|attr| {
-                        local_name(&String::from_utf8_lossy(attr.key.as_ref())) == "name"
-                    });
+                    let mut has_name = false;
+                    for attr in e.attributes().flatten() {
+                        if split_qname(attr.key.as_ref())?.local_name == "name" {
+                            has_name = true;
+                            break;
+                        }
+                    }
                     if has_name {
                         has_local_element_content = true;
                     }
@@ -913,21 +922,27 @@ fn local_name(name: &str) -> &str {
 /// Extract targetNamespace and xmlns:* declarations from the xs:schema element.
 fn extract_schema_attrs(attrs: Attributes, schema: &mut TaxonomySchema) {
     for attr in attrs.flatten() {
-        let key = String::from_utf8_lossy(attr.key.as_ref());
-        if *key == *"targetNamespace" {
+        let Ok(key) = str::from_utf8(attr.key.as_ref()) else {
+            continue;
+        };
+        if key == "targetNamespace" {
             schema.target_namespace = attr.unescape_value().ok().map(|v| v.to_string());
         } else if let Some(prefix) = key.strip_prefix("xmlns:") {
-            let uri = String::from_utf8_lossy(&attr.value).to_string();
-            schema.namespaces.insert(prefix.to_string(), uri);
-        } else if *key == *"xmlns" {
-            let uri = String::from_utf8_lossy(&attr.value).to_string();
-            schema.namespaces.insert("".to_string(), uri);
+            if let Ok(uri) = str::from_utf8(attr.value.as_ref()) {
+                schema
+                    .namespaces
+                    .insert(prefix.to_string(), uri.to_string());
+            }
+        } else if key == "xmlns"
+            && let Ok(uri) = str::from_utf8(attr.value.as_ref())
+        {
+            schema.namespaces.insert("".to_string(), uri.to_string());
         }
     }
 }
 
 /// Parse a `link:linkbaseRef` element.
-fn parse_linkbase_ref(attrs: Attributes, inherited_base: Option<&str>) -> LinkbaseRef {
+fn parse_linkbase_ref(attrs: Attributes, inherited_base: Option<&str>) -> Result<LinkbaseRef> {
     let mut href = String::new();
     let mut local_xml_base = None;
     let mut role = None;
@@ -935,8 +950,8 @@ fn parse_linkbase_ref(attrs: Attributes, inherited_base: Option<&str>) -> Linkba
     let mut title = None;
 
     for attr in attrs.flatten() {
-        let key = String::from_utf8_lossy(attr.key.as_ref());
-        let local = local_name(&key);
+        let key = str::from_utf8(attr.key.as_ref()).ok();
+        let local = split_qname(attr.key.as_ref())?.local_name;
         match local {
             "href" => {
                 href = attr
@@ -945,7 +960,7 @@ fn parse_linkbase_ref(attrs: Attributes, inherited_base: Option<&str>) -> Linkba
                     .unwrap_or_default();
             }
             "base" => {
-                if key.as_ref() == "xml:base" {
+                if key == Some("xml:base") {
                     local_xml_base = attr.unescape_value().ok().map(|v| v.to_string());
                 }
             }
@@ -967,12 +982,12 @@ fn parse_linkbase_ref(attrs: Attributes, inherited_base: Option<&str>) -> Linkba
         href = resolve_href_with_xml_base(base, &href);
     }
 
-    LinkbaseRef {
+    Ok(LinkbaseRef {
         href,
         role,
         arcrole,
         title,
-    }
+    })
 }
 
 fn resolve_href_with_xml_base(xml_base: &str, href: &str) -> String {
@@ -1042,8 +1057,7 @@ fn normalize_uri_path(path: &str) -> String {
 
 fn attr_xml_base(attrs: Attributes) -> Option<String> {
     for attr in attrs.flatten() {
-        let key = String::from_utf8_lossy(attr.key.as_ref());
-        if key.as_ref() == "xml:base" {
+        if str::from_utf8(attr.key.as_ref()).ok() == Some("xml:base") {
             return attr.unescape_value().ok().map(|v| v.to_string());
         }
     }
@@ -1064,8 +1078,7 @@ fn parse_role_type<R: io::BufRead>(
     collect_namespace_declarations(attrs.clone(), &mut role_type_namespaces);
 
     for attr in attrs.flatten() {
-        let key = String::from_utf8_lossy(attr.key.as_ref());
-        match key.as_ref() {
+        match split_qname(attr.key.as_ref())?.local_name {
             "id" => {
                 id = attr
                     .unescape_value()
@@ -1092,15 +1105,15 @@ fn parse_role_type<R: io::BufRead>(
         match reader.read_event_into(&mut buf) {
             Ok(Event::Start(ref e)) => {
                 depth += 1;
-                let name = String::from_utf8_lossy(e.name().as_ref()).to_string();
-                let local = local_name(&name);
+                let element_name = e.name();
+                let local = split_qname(element_name.as_ref())?.local_name;
 
                 if local == "definition" || local == "usedOn" {
                     let mut used_on_namespaces = role_type_namespaces.clone();
                     collect_namespace_declarations(e.attributes(), &mut used_on_namespaces);
                     let mut text_buf = Vec::new();
                     if let Ok(Event::Text(t)) = reader.read_event_into(&mut text_buf) {
-                        let text = String::from_utf8_lossy(t.as_ref()).to_string();
+                        let text = str::from_utf8(t.as_ref()).unwrap_or("").to_string();
                         if local == "definition" {
                             definition = Some(text);
                         } else {
@@ -1159,8 +1172,7 @@ fn parse_arcrole_type<R: io::BufRead>(
     collect_namespace_declarations(attrs.clone(), &mut arcrole_type_namespaces);
 
     for attr in attrs.flatten() {
-        let key = String::from_utf8_lossy(attr.key.as_ref());
-        match key.as_ref() {
+        match split_qname(attr.key.as_ref())?.local_name {
             "id" => {
                 id = attr
                     .unescape_value()
@@ -1199,15 +1211,15 @@ fn parse_arcrole_type<R: io::BufRead>(
         match reader.read_event_into(&mut buf) {
             Ok(Event::Start(ref e)) => {
                 depth += 1;
-                let name = String::from_utf8_lossy(e.name().as_ref()).to_string();
-                let local = local_name(&name);
+                let element_name = e.name();
+                let local = split_qname(element_name.as_ref())?.local_name;
 
                 if local == "definition" || local == "usedOn" {
                     let mut used_on_namespaces = arcrole_type_namespaces.clone();
                     collect_namespace_declarations(e.attributes(), &mut used_on_namespaces);
                     let mut text_buf = Vec::new();
                     if let Ok(Event::Text(t)) = reader.read_event_into(&mut text_buf) {
-                        let text = String::from_utf8_lossy(t.as_ref()).to_string();
+                        let text = str::from_utf8(t.as_ref()).unwrap_or("").to_string();
                         if local == "definition" {
                             definition = Some(text);
                         } else {
@@ -1253,13 +1265,12 @@ fn parse_arcrole_type<R: io::BufRead>(
 }
 
 /// Parse an `xs:import` element.
-fn parse_import(attrs: Attributes) -> Option<SchemaImport> {
+fn parse_import(attrs: Attributes) -> Result<Option<SchemaImport>> {
     let mut namespace = None;
     let mut schema_location = None;
 
     for attr in attrs.flatten() {
-        let key = String::from_utf8_lossy(attr.key.as_ref());
-        match key.as_ref() {
+        match split_qname(attr.key.as_ref())?.local_name {
             "namespace" => {
                 namespace = attr.unescape_value().ok().map(|v| v.to_string());
             }
@@ -1270,29 +1281,28 @@ fn parse_import(attrs: Attributes) -> Option<SchemaImport> {
         }
     }
 
-    namespace.map(|ns| SchemaImport {
+    Ok(namespace.map(|ns| SchemaImport {
         namespace: ns,
         schema_location,
-    })
+    }))
 }
 
 /// Parse an `xs:include` element.
-fn parse_include(attrs: Attributes) -> Option<SchemaInclude> {
+fn parse_include(attrs: Attributes) -> Result<Option<SchemaInclude>> {
     for attr in attrs.flatten() {
-        let key = String::from_utf8_lossy(attr.key.as_ref());
-        if *key == *"schemaLocation"
+        if split_qname(attr.key.as_ref())?.local_name == "schemaLocation"
             && let Ok(val) = attr.unescape_value()
         {
-            return Some(SchemaInclude {
+            return Ok(Some(SchemaInclude {
                 schema_location: val.to_string(),
-            });
+            }));
         }
     }
-    None
+    Ok(None)
 }
 
 /// Parse an `xs:element` definition's attributes.
-fn parse_element_def(attrs: Attributes) -> Option<ElementDefinition> {
+fn parse_element_def(attrs: Attributes) -> Result<Option<ElementDefinition>> {
     let mut name = None;
     let mut id = None;
     let mut type_name = None;
@@ -1303,8 +1313,7 @@ fn parse_element_def(attrs: Attributes) -> Option<ElementDefinition> {
     let mut balance = None;
 
     for attr in attrs.flatten() {
-        let key = String::from_utf8_lossy(attr.key.as_ref());
-        let attr_local = local_name(&key);
+        let attr_local = split_qname(attr.key.as_ref())?.local_name;
 
         match attr_local {
             "name" => {
@@ -1341,7 +1350,7 @@ fn parse_element_def(attrs: Attributes) -> Option<ElementDefinition> {
         }
     }
 
-    name.map(|n| ElementDefinition {
+    Ok(name.map(|n| ElementDefinition {
         name: n,
         id,
         type_name,
@@ -1351,26 +1360,28 @@ fn parse_element_def(attrs: Attributes) -> Option<ElementDefinition> {
         period_type,
         balance,
         tuple_children: Vec::new(),
-    })
+    }))
 }
 
-fn collect_schema_location_refs(attrs: Attributes, out: &mut Vec<String>) {
+fn collect_schema_location_refs(attrs: Attributes, out: &mut Vec<String>) -> Result<()> {
     for attr in attrs.flatten() {
-        let key = String::from_utf8_lossy(attr.key.as_ref());
-        let attr_local = local_name(&key);
+        let attr_local = split_qname(attr.key.as_ref())?.local_name;
 
         if attr_local != "schemaLocation" && attr_local != "noNamespaceSchemaLocation" {
             continue;
         }
 
-        let value = String::from_utf8_lossy(attr.value.as_ref());
-        for location in parse_schema_location_value(&value) {
-            let trimmed = location.trim();
-            if !trimmed.is_empty() && !out.iter().any(|existing| existing == trimmed) {
-                out.push(trimmed.to_string());
+        if let Ok(value) = str::from_utf8(attr.value.as_ref()) {
+            for location in parse_schema_location_value(value) {
+                let trimmed = location.trim();
+                if !trimmed.is_empty() && !out.iter().any(|existing| existing == trimmed) {
+                    out.push(trimmed.to_string());
+                }
             }
         }
     }
+
+    Ok(())
 }
 
 fn parse_schema_location_value(value: &str) -> Vec<&str> {

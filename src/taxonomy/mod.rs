@@ -1,21 +1,23 @@
+use crate::error::Result;
+
 pub(crate) struct QName<'a> {
     pub namespace: &'a str,
     pub local_name: &'a str,
 }
 
-pub(crate) fn split_qname(name: &[u8]) -> QName<'_> {
-    let decoded = std::str::from_utf8(name).unwrap_or("");
+pub(crate) fn split_qname(name: &[u8]) -> Result<QName<'_>> {
+    let decoded = std::str::from_utf8(name)?;
     if let Some((namespace, local_name)) = decoded.split_once(':') {
-        return QName {
+        return Ok(QName {
             namespace,
             local_name,
-        };
+        });
     }
 
-    QName {
+    Ok(QName {
         namespace: "",
         local_name: decoded,
-    }
+    })
 }
 
 mod linkbases;

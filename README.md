@@ -4,7 +4,8 @@
 [![documentation](https://img.shields.io/docsrs/xbrl-rs?label=docs.rs)](https://docs.rs/xbrl-rs)
 [![build status](https://github.com/quambene/xbrl-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/quambene/xbrl-rs/actions/workflows/ci.yml)
 
-A Rust library for parsing and validating XBRL documents.
+A Rust library for parsing and validating XBRL documents. This library expects
+UTF-8 encoded XML files.
 
 - [What is XBRL?](#what-is-xbrl)
 - [Features](#features)

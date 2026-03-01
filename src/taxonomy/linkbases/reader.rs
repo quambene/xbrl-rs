@@ -47,8 +47,10 @@ impl LinkbaseLocator {
                     if local.as_ref() == b"loc" {
                         let mut href = String::new();
                         for attr in e.attributes().flatten() {
-                            if attr.key.local_name().as_ref() == b"href" {
-                                href = String::from_utf8_lossy(&attr.value).to_string();
+                            if attr.key.local_name().as_ref() == b"href"
+                                && let Ok(decoded) = str::from_utf8(attr.value.as_ref())
+                            {
+                                href = decoded.to_string();
                             }
                         }
                         locators.push(LinkbaseLocator {

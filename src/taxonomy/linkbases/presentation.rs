@@ -1,6 +1,6 @@
 use crate::{
     error::{LinkbaseType, Result, XbrlError},
-    taxonomy::{linkbases::local_name, split_qname},
+    taxonomy::split_qname,
 };
 use indexmap::IndexMap;
 use quick_xml::{
@@ -29,13 +29,13 @@ enum PresentationTag {
 }
 
 impl PresentationTag {
-    fn from_name(name: &[u8]) -> Self {
-        match split_qname(name).local_name {
+    fn from_name(name: &[u8]) -> Result<Self> {
+        Ok(match split_qname(name)?.local_name {
             "presentationLink" => Self::PresentationLink,
             "loc" => Self::Loc,
             "presentationArc" => Self::PresentationArc,
             _ => Self::Unknown,
-        }
+        })
     }
 }
 
@@ -59,24 +59,24 @@ pub fn parse_presentation_linkbase(
     loop {
         match reader.read_event_into(&mut buf) {
             Ok(Event::Start(ref e)) => {
-                let tag = PresentationTag::from_name(e.name().as_ref());
+                let tag = PresentationTag::from_name(e.name().as_ref())?;
 
                 if matches!(tag, PresentationTag::PresentationLink) {
                     // Start a new link group — reset per-link state
-                    current_role = extract_role(e.attributes());
+                    current_role = extract_role(e.attributes())?;
                     locators.clear();
                     arcs.clear();
                 }
             }
             Ok(Event::Empty(ref e)) => {
-                let tag = PresentationTag::from_name(e.name().as_ref());
+                let tag = PresentationTag::from_name(e.name().as_ref())?;
 
                 match tag {
                     PresentationTag::Loc => {
-                        parse_loc(e.attributes(), &mut locators);
+                        parse_loc(e.attributes(), &mut locators)?;
                     }
                     PresentationTag::PresentationArc => {
-                        if let Some(arc) = parse_arc(e.attributes()) {
+                        if let Some(arc) = parse_arc(e.attributes())? {
                             arcs.push(arc);
                         }
                     }
@@ -84,7 +84,7 @@ pub fn parse_presentation_linkbase(
                 }
             }
             Ok(Event::End(ref e)) => {
-                let tag = PresentationTag::from_name(e.name().as_ref());
+                let tag = PresentationTag::from_name(e.name().as_ref())?;
 
                 if matches!(tag, PresentationTag::PresentationLink) {
                     // Resolve and flush arcs for this link
@@ -131,25 +131,23 @@ fn resolve_arcs(locators: &HashMap<String, String>, arcs: &[RawArc]) -> Vec<Pres
         .collect()
 }
 
-fn extract_role(attrs: Attributes) -> String {
+fn extract_role(attrs: Attributes) -> Result<String> {
     for attr in attrs.flatten() {
-        let key = String::from_utf8_lossy(attr.key.as_ref());
-        if local_name(&key) == "role"
+        if split_qname(attr.key.as_ref())?.local_name == "role"
             && let Ok(val) = attr.unescape_value()
         {
-            return val.to_string();
+            return Ok(val.to_string());
         }
     }
-    String::new()
+    Ok(String::new())
 }
 
-fn parse_loc(attrs: Attributes, locators: &mut HashMap<String, String>) {
+fn parse_loc(attrs: Attributes, locators: &mut HashMap<String, String>) -> Result<()> {
     let mut href = None;
     let mut label = None;
 
     for attr in attrs.flatten() {
-        let key = String::from_utf8_lossy(attr.key.as_ref());
-        let local = local_name(&key);
+        let local = split_qname(attr.key.as_ref())?.local_name;
         match local {
             "href" => {
                 if let Ok(val) = attr.unescape_value()
@@ -168,16 +166,17 @@ fn parse_loc(attrs: Attributes, locators: &mut HashMap<String, String>) {
     if let (Some(label), Some(concept_id)) = (label, href) {
         locators.insert(label, concept_id);
     }
+
+    Ok(())
 }
 
-fn parse_arc(attrs: Attributes) -> Option<RawArc> {
+fn parse_arc(attrs: Attributes) -> Result<Option<RawArc>> {
     let mut from = None;
     let mut to = None;
     let mut order = None;
 
     for attr in attrs.flatten() {
-        let key = String::from_utf8_lossy(attr.key.as_ref());
-        let local = local_name(&key);
+        let local = split_qname(attr.key.as_ref())?.local_name;
         match local {
             "from" => {
                 from = attr.unescape_value().ok().map(|v| v.to_string());
@@ -196,8 +195,8 @@ fn parse_arc(attrs: Attributes) -> Option<RawArc> {
         }
     }
 
-    match (from, to) {
+    Ok(match (from, to) {
         (Some(from), Some(to)) => Some(RawArc { from, to, order }),
         _ => None,
-    }
+    })
 }

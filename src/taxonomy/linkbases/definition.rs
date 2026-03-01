@@ -1,6 +1,6 @@
 use crate::{
     error::{LinkbaseType, Result, XbrlError},
-    taxonomy::{linkbases::local_name, split_qname},
+    taxonomy::split_qname,
 };
 use quick_xml::{
     Reader,
@@ -30,13 +30,13 @@ enum DefinitionTag {
 }
 
 impl DefinitionTag {
-    fn from_name(name: &[u8]) -> Self {
-        match split_qname(name).local_name {
+    fn from_name(name: &[u8]) -> Result<Self> {
+        Ok(match split_qname(name)?.local_name {
             "definitionLink" => Self::DefinitionLink,
             "loc" => Self::Loc,
             "definitionArc" => Self::DefinitionArc,
             _ => Self::Unknown,
-        }
+        })
     }
 }
 
@@ -60,23 +60,23 @@ pub fn parse_definition_linkbase(
     loop {
         match reader.read_event_into(&mut buf) {
             Ok(Event::Start(ref e)) => {
-                let tag = DefinitionTag::from_name(e.name().as_ref());
+                let tag = DefinitionTag::from_name(e.name().as_ref())?;
 
                 if matches!(tag, DefinitionTag::DefinitionLink) {
-                    current_role = extract_role(e.attributes());
+                    current_role = extract_role(e.attributes())?;
                     locators.clear();
                     arcs.clear();
                 }
             }
             Ok(Event::Empty(ref e)) => {
-                let tag = DefinitionTag::from_name(e.name().as_ref());
+                let tag = DefinitionTag::from_name(e.name().as_ref())?;
 
                 match tag {
                     DefinitionTag::Loc => {
-                        parse_loc(e.attributes(), &mut locators);
+                        parse_loc(e.attributes(), &mut locators)?;
                     }
                     DefinitionTag::DefinitionArc => {
-                        if let Some(arc) = parse_arc(e.attributes()) {
+                        if let Some(arc) = parse_arc(e.attributes())? {
                             arcs.push(arc);
                         }
                     }
@@ -84,7 +84,7 @@ pub fn parse_definition_linkbase(
                 }
             }
             Ok(Event::End(ref e)) => {
-                let tag = DefinitionTag::from_name(e.name().as_ref());
+                let tag = DefinitionTag::from_name(e.name().as_ref())?;
 
                 if matches!(tag, DefinitionTag::DefinitionLink) {
                     let resolved = resolve_arcs(&locators, &arcs);
@@ -132,25 +132,23 @@ fn resolve_arcs(locators: &HashMap<String, String>, arcs: &[RawDefArc]) -> Vec<D
         .collect()
 }
 
-fn extract_role(attrs: Attributes) -> String {
+fn extract_role(attrs: Attributes) -> Result<String> {
     for attr in attrs.flatten() {
-        let key = String::from_utf8_lossy(attr.key.as_ref());
-        if local_name(&key) == "role"
+        if split_qname(attr.key.as_ref())?.local_name == "role"
             && let Ok(val) = attr.unescape_value()
         {
-            return val.to_string();
+            return Ok(val.to_string());
         }
     }
-    String::new()
+    Ok(String::new())
 }
 
-fn parse_loc(attrs: Attributes, locators: &mut HashMap<String, String>) {
+fn parse_loc(attrs: Attributes, locators: &mut HashMap<String, String>) -> Result<()> {
     let mut href = None;
     let mut label = None;
 
     for attr in attrs.flatten() {
-        let key = String::from_utf8_lossy(attr.key.as_ref());
-        let local = local_name(&key);
+        let local = split_qname(attr.key.as_ref())?.local_name;
         match local {
             "href" => {
                 if let Ok(val) = attr.unescape_value()
@@ -169,17 +167,18 @@ fn parse_loc(attrs: Attributes, locators: &mut HashMap<String, String>) {
     if let (Some(label), Some(concept_id)) = (label, href) {
         locators.insert(label, concept_id);
     }
+
+    Ok(())
 }
 
-fn parse_arc(attrs: Attributes) -> Option<RawDefArc> {
+fn parse_arc(attrs: Attributes) -> Result<Option<RawDefArc>> {
     let mut from = None;
     let mut to = None;
     let mut order = None;
     let mut arcrole = String::new();
 
     for attr in attrs.flatten() {
-        let key = String::from_utf8_lossy(attr.key.as_ref());
-        let local = local_name(&key);
+        let local = split_qname(attr.key.as_ref())?.local_name;
         match local {
             "from" => {
                 from = attr.unescape_value().ok().map(|v| v.to_string());
@@ -203,7 +202,7 @@ fn parse_arc(attrs: Attributes) -> Option<RawDefArc> {
         }
     }
 
-    match (from, to) {
+    Ok(match (from, to) {
         (Some(from), Some(to)) => Some(RawDefArc {
             from,
             to,
@@ -211,5 +210,5 @@ fn parse_arc(attrs: Attributes) -> Option<RawDefArc> {
             arcrole,
         }),
         _ => None,
-    }
+    })
 }
