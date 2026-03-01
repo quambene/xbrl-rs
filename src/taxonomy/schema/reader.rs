@@ -552,8 +552,7 @@ fn skip_to_end_with_tuple_checks<R: io::BufRead>(
                     }
 
                     if local == "attribute"
-                        && attr_by_local_name(e.attributes(), "ref")?
-                            .is_some_and(|reference| {
+                        && attr_by_local_name(e.attributes(), "ref")?.is_some_and(|reference| {
                             reference.starts_with("xbrli:") || reference.starts_with("xlink:")
                         })
                     {
@@ -612,8 +611,7 @@ fn skip_to_end_with_tuple_checks<R: io::BufRead>(
                     }
 
                     if local == "attribute"
-                        && attr_by_local_name(e.attributes(), "ref")?
-                            .is_some_and(|reference| {
+                        && attr_by_local_name(e.attributes(), "ref")?.is_some_and(|reference| {
                             reference.starts_with("xbrli:") || reference.starts_with("xlink:")
                         })
                     {
