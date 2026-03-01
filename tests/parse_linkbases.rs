@@ -95,18 +95,19 @@ fn parse_presentation_linkbase() {
         "Expected presentation arcs to be parsed"
     );
 
-    // Balance sheet role should have parent-child arcs
+    // Balance sheet role should have a pre-computed presentation network
     let bs_role = "http://www.xbrl.de/taxonomies/de-gaap-ci/role/balanceSheet";
-    let bs_arcs = dts
-        .presentation_arcs(bs_role)
-        .expect("Expected presentation arcs for balanceSheet role");
+    let bs_network = dts
+        .presentation_network(bs_role)
+        .expect("Expected presentation network for balanceSheet role");
 
     // bs.ass -> bs.ass.fixAss should be a known parent-child relationship
     assert!(
-        bs_arcs
+        bs_network
+            .children_of("de-gaap-ci_bs.ass")
             .iter()
-            .any(|a| a.from == "de-gaap-ci_bs.ass" && a.to == "de-gaap-ci_bs.ass.fixAss"),
-        "Expected bs.ass -> bs.ass.fixAss presentation arc"
+            .any(|c| c.as_str() == "de-gaap-ci_bs.ass.fixAss"),
+        "Expected de-gaap-ci_bs.ass.fixAss as child of de-gaap-ci_bs.ass"
     );
 }
 

@@ -1,173 +1,23 @@
 use super::schema::{DeclaredAccuracy, ElementDefinition, RoleType, TaxonomySchema};
 use crate::{
+    ConceptId, RoleUri, SchemaRefUrl,
     error::{Result, XbrlError},
     taxonomy::linkbases::{
         calculation::{self, CalculationArc},
         definition::{self, DefinitionArc},
         label::{self, Label},
-        presentation::{self, PresentationArc},
+        presentation::{self, PresentationArc, PresentationNetwork, build_network},
         reference::{self, Reference},
     },
 };
 use indexmap::IndexMap;
 use quick_xml::Reader;
 use std::{
-    borrow::Borrow,
     collections::{HashMap, HashSet, VecDeque},
-    fmt, fs,
+    fs,
     io::{self, BufReader},
-    ops::Deref,
     path::{Path, PathBuf},
 };
-
-/// Strongly-typed key used by [`TaxonomySet`] maps previously keyed by
-/// plain strings.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct SchemaRefUrl(String);
-
-impl SchemaRefUrl {
-    /// Returns the key as a string slice.
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-}
-
-impl From<String> for SchemaRefUrl {
-    fn from(value: String) -> Self {
-        Self(value)
-    }
-}
-
-impl From<&str> for SchemaRefUrl {
-    fn from(value: &str) -> Self {
-        Self(value.to_owned())
-    }
-}
-
-impl Deref for SchemaRefUrl {
-    type Target = str;
-
-    fn deref(&self) -> &Self::Target {
-        self.as_str()
-    }
-}
-
-impl AsRef<str> for SchemaRefUrl {
-    fn as_ref(&self) -> &str {
-        self.as_str()
-    }
-}
-
-impl Borrow<str> for SchemaRefUrl {
-    fn borrow(&self) -> &str {
-        self.as_str()
-    }
-}
-
-impl fmt::Display for SchemaRefUrl {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.as_str())
-    }
-}
-
-/// Concept element identifier used in label/reference maps
-/// (e.g. `de-gaap-ci_bs.ass`).
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct ConceptId(String);
-
-impl ConceptId {
-    /// Returns the concept identifier as a string slice.
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-}
-
-impl From<String> for ConceptId {
-    fn from(value: String) -> Self {
-        Self(value)
-    }
-}
-
-impl From<&str> for ConceptId {
-    fn from(value: &str) -> Self {
-        Self(value.to_owned())
-    }
-}
-
-impl Deref for ConceptId {
-    type Target = str;
-
-    fn deref(&self) -> &Self::Target {
-        self.as_str()
-    }
-}
-
-impl AsRef<str> for ConceptId {
-    fn as_ref(&self) -> &str {
-        self.as_str()
-    }
-}
-
-impl Borrow<str> for ConceptId {
-    fn borrow(&self) -> &str {
-        self.as_str()
-    }
-}
-
-impl fmt::Display for ConceptId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.as_str())
-    }
-}
-
-/// Extended link role URI used in presentation/calculation/definition maps.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct RoleUri(String);
-
-impl RoleUri {
-    /// Returns the role URI as a string slice.
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-}
-
-impl From<String> for RoleUri {
-    fn from(value: String) -> Self {
-        Self(value)
-    }
-}
-
-impl From<&str> for RoleUri {
-    fn from(value: &str) -> Self {
-        Self(value.to_owned())
-    }
-}
-
-impl Deref for RoleUri {
-    type Target = str;
-
-    fn deref(&self) -> &Self::Target {
-        self.as_str()
-    }
-}
-
-impl AsRef<str> for RoleUri {
-    fn as_ref(&self) -> &str {
-        self.as_str()
-    }
-}
-
-impl Borrow<str> for RoleUri {
-    fn borrow(&self) -> &str {
-        self.as_str()
-    }
-}
-
-impl fmt::Display for RoleUri {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.as_str())
-    }
-}
 
 /// The complete Discoverable Taxonomy Set (DTS).
 ///
@@ -188,9 +38,10 @@ pub struct TaxonomySet {
     /// Concept labels parsed from label linkbase files.
     /// Keyed by concept element ID (e.g., "de-gaap-ci_bs.ass").
     labels: HashMap<ConceptId, Vec<Label>>,
-    /// Presentation arcs grouped by role URI, in the order roles were first
-    /// encountered during schema discovery.
-    presentations: IndexMap<RoleUri, Vec<PresentationArc>>,
+    /// Presentation networks grouped by role URI, in the order roles were first
+    /// encountered during schema discovery. Roots and sorted children are
+    /// pre-computed at parse time.
+    presentations: IndexMap<RoleUri, PresentationNetwork>,
     /// Calculation arcs grouped by role URI.
     calculations: HashMap<RoleUri, Vec<CalculationArc>>,
     /// Definition arcs grouped by role URI.
@@ -386,7 +237,7 @@ impl TaxonomySet {
         }
 
         // Parse presentation linkbases in BFS schema order (entry-point order preserved)
-        let mut presentations: IndexMap<RoleUri, Vec<PresentationArc>> = IndexMap::new();
+        let mut raw_presentations: IndexMap<RoleUri, Vec<PresentationArc>> = IndexMap::new();
         for path in &presentation_paths {
             let xml_file = fs::File::open(path).map_err(|err| XbrlError::FileRead {
                 path: path.clone(),
@@ -396,12 +247,17 @@ impl TaxonomySet {
             let mut reader = Reader::from_reader(BufReader::new(xml_file));
             let parsed = presentation::parse_presentation_linkbase(&mut reader)?;
             for (role, mut arcs) in parsed {
-                presentations
+                raw_presentations
                     .entry(role.into())
                     .or_default()
                     .append(&mut arcs);
             }
         }
+        // Build pre-computed presentation networks (roots + sorted children) once.
+        let presentations: IndexMap<RoleUri, PresentationNetwork> = raw_presentations
+            .into_iter()
+            .map(|(role, arcs)| build_network(arcs).map(|network| (role, network)))
+            .collect::<Result<IndexMap<_, _>>>()?;
 
         // Parse calculation linkbases
         let mut calculations: HashMap<RoleUri, Vec<CalculationArc>> = HashMap::new();
@@ -680,14 +536,14 @@ impl TaxonomySet {
         self.labels.get(concept_id).map(|v| v.as_slice())
     }
 
-    /// Get all presentation arcs grouped by role URI, in entry-point discovery order.
-    pub fn presentations(&self) -> &IndexMap<RoleUri, Vec<PresentationArc>> {
+    /// Get all presentation networks grouped by role URI, in entry-point discovery order.
+    pub fn presentations(&self) -> &IndexMap<RoleUri, PresentationNetwork> {
         &self.presentations
     }
 
-    /// Get presentation arcs for a specific role URI.
-    pub fn presentation_arcs(&self, role: &str) -> Option<&[PresentationArc]> {
-        self.presentations.get(role).map(|v| v.as_slice())
+    /// Get the presentation network for a specific role URI.
+    pub fn presentation_network(&self, role: &str) -> Option<&PresentationNetwork> {
+        self.presentations.get(role)
     }
 
     /// Get all calculation arcs grouped by role URI.
@@ -730,9 +586,11 @@ impl TaxonomySet {
 
 #[cfg(test)]
 impl TaxonomySet {
-    /// Insert a presentation arc for a role URI. Used in unit tests.
-    pub fn add_presentation_arc(&mut self, role: String, arc: PresentationArc) {
-        self.presentations.entry(role.into()).or_default().push(arc);
+    /// Insert presentation arcs for a role URI, building a [`PresentationNetwork`].
+    /// Used in unit tests; replaces any existing network for the role.
+    pub fn add_presentation_arcs(&mut self, role: String, arcs: Vec<PresentationArc>) {
+        self.presentations
+            .insert(role.into(), build_network(arcs).unwrap());
     }
 
     /// Insert a label for a concept ID. Used in unit tests.
@@ -806,4 +664,42 @@ pub fn strip_prefix(href: &str) -> &str {
     path.strip_prefix("/taxonomies/")
         .or_else(|| path.strip_prefix("/"))
         .unwrap_or(path)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::taxonomy::linkbases::presentation::PresentationArc;
+    use rust_decimal::Decimal;
+
+    #[test]
+    fn build_network_accepts_valid_tree() {
+        // root -> a -> b
+        //      -> c
+        let arcs = vec![
+            PresentationArc {
+                from: "root".to_string(),
+                to: "a".to_string(),
+                order: Some(Decimal::new(1, 0)),
+            },
+            PresentationArc {
+                from: "root".to_string(),
+                to: "c".to_string(),
+                order: Some(Decimal::new(2, 0)),
+            },
+            PresentationArc {
+                from: "a".to_string(),
+                to: "b".to_string(),
+                order: Some(Decimal::new(1, 0)),
+            },
+        ];
+        let network = build_network(arcs).unwrap();
+        assert_eq!(network.roots(), &[ConceptId::from("root")]);
+        assert_eq!(
+            network.children_of("root"),
+            &[ConceptId::from("a"), ConceptId::from("c")]
+        );
+        assert_eq!(network.children_of("a"), &[ConceptId::from("b")]);
+        assert!(network.children_of("b").is_empty());
+    }
 }

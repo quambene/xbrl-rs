@@ -9,9 +9,9 @@ mod view;
 mod writer;
 
 use crate::{
-    PresentationArc, TaxonomySet,
+    TaxonomySet,
     error::Result,
-    taxonomy::{ElementDefinition, PeriodType, TupleChildRef},
+    taxonomy::{ElementDefinition, PeriodType, PresentationNetwork, TupleChildRef},
     validation::{self, ValidationResult},
 };
 pub use context::{Context, ContextId, EntityIdentifier, Period};
@@ -20,7 +20,6 @@ pub use footnote::{FootnoteArc, FootnoteLink, FootnoteLocator, FootnoteResource}
 use quick_xml::{Reader, Writer};
 use std::{
     borrow::Borrow,
-    cmp::Ordering,
     collections::{HashMap, HashSet},
     fmt, io,
     ops::Deref,
@@ -167,31 +166,14 @@ impl InstanceDocument {
         // Walk the presentation tree in section order, depth-first within each section.
         // The tree structure gives both the fact order and the tuple nesting directly,
         // without needing to consult schema substitution groups.
-        let mut recursion_path: HashSet<String> = HashSet::new();
         let mut emitted_items: HashSet<String> = HashSet::new();
         let mut emitted_tuples: HashSet<String> = HashSet::new();
-        for arcs in taxonomy.presentations().values() {
-            let mut arc_index: HashMap<&str, Vec<&PresentationArc>> = HashMap::new();
-            for arc in arcs {
-                arc_index.entry(arc.from.as_str()).or_default().push(arc);
-            }
-            for children in arc_index.values_mut() {
-                children.sort_by(|a, b| match (a.order, b.order) {
-                    (Some(x), Some(y)) => x.cmp(&y),
-                    (Some(_), None) => Ordering::Less,
-                    (None, Some(_)) => Ordering::Greater,
-                    (None, None) => Ordering::Equal,
-                });
-            }
-
-            let roots = view::find_roots(arcs, &arc_index);
-            let mut seeded_nodes: HashSet<&str> = HashSet::new();
-            for root_id in roots {
-                seeded_nodes.insert(root_id);
+        for (_, network) in taxonomy.presentations() {
+            for root_id in network.roots() {
                 let mut hoisted: Vec<Fact> = Vec::new();
                 Self::populate_from_tree(
-                    &arc_index,
-                    root_id,
+                    network,
+                    root_id.as_str(),
                     taxonomy,
                     &instant_context_ref,
                     &duration_context_ref,
@@ -199,34 +181,6 @@ impl InstanceDocument {
                     &mut instance.facts,
                     &mut emitted_items,
                     &mut emitted_tuples,
-                    &mut recursion_path,
-                    None,
-                    &mut hoisted,
-                );
-                instance.facts.extend(hoisted);
-            }
-
-            let mut remaining_nodes: Vec<&str> = arcs
-                .iter()
-                .flat_map(|arc| [arc.from.as_str(), arc.to.as_str()])
-                .filter(|concept_id| !seeded_nodes.contains(*concept_id))
-                .collect();
-            remaining_nodes.sort_unstable();
-            remaining_nodes.dedup();
-
-            for concept_id in remaining_nodes {
-                let mut hoisted: Vec<Fact> = Vec::new();
-                Self::populate_from_tree(
-                    &arc_index,
-                    concept_id,
-                    taxonomy,
-                    &instant_context_ref,
-                    &duration_context_ref,
-                    units,
-                    &mut instance.facts,
-                    &mut emitted_items,
-                    &mut emitted_tuples,
-                    &mut recursion_path,
                     None,
                     &mut hoisted,
                 );
@@ -448,7 +402,7 @@ impl InstanceDocument {
     /// - Abstract / grouping → recurse into children at the same level.
     #[allow(clippy::too_many_arguments)]
     fn populate_from_tree(
-        arc_index: &HashMap<&str, Vec<&PresentationArc>>,
+        network: &PresentationNetwork,
         concept_id: &str,
         taxonomy: &TaxonomySet,
         instant_ctx: &ContextId,
@@ -457,16 +411,11 @@ impl InstanceDocument {
         facts: &mut Vec<Fact>,
         emitted_items: &mut HashSet<String>,
         emitted_tuples: &mut HashSet<String>,
-        recursion_path: &mut HashSet<String>,
         parent_tuple_element: Option<&ElementDefinition>,
         hoisted: &mut Vec<Fact>,
     ) {
-        if !recursion_path.insert(concept_id.to_string()) {
-            return; // cycle guard within current recursion branch
-        }
-
-        // Children are already sorted by `order`.
-        let children = arc_index.get(concept_id).map(Vec::as_slice).unwrap_or(&[]);
+        // Children are already sorted by `order` in the network.
+        let children = network.children_of(concept_id);
 
         if let Some(element) = taxonomy.find_element_by_id(concept_id) {
             if element.is_tuple() && !element.is_abstract {
@@ -479,10 +428,10 @@ impl InstanceDocument {
                         Some(Fact::Tuple(t)) => t.children_mut(),
                         _ => unreachable!(),
                     };
-                    for arc in children {
+                    for child_id in children {
                         Self::populate_from_tree(
-                            arc_index,
-                            arc.to.as_str(),
+                            network,
+                            child_id.as_str(),
                             taxonomy,
                             instant_ctx,
                             duration_ctx,
@@ -490,13 +439,11 @@ impl InstanceDocument {
                             tuple_children,
                             emitted_items,
                             emitted_tuples,
-                            recursion_path,
                             Some(element),
                             hoisted,
                         );
                     }
                 }
-                recursion_path.remove(concept_id);
                 return;
             }
 
@@ -533,10 +480,10 @@ impl InstanceDocument {
         }
 
         // Recurse children at the same level for non-structural presentation parents.
-        for arc in children {
+        for child_id in children {
             Self::populate_from_tree(
-                arc_index,
-                arc.to.as_str(),
+                network,
+                child_id.as_str(),
                 taxonomy,
                 instant_ctx,
                 duration_ctx,
@@ -544,13 +491,10 @@ impl InstanceDocument {
                 facts,
                 emitted_items,
                 emitted_tuples,
-                recursion_path,
                 parent_tuple_element,
                 hoisted,
             );
         }
-
-        recursion_path.remove(concept_id);
     }
 
     fn set_item_value_by_index(

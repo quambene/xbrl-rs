@@ -1,4 +1,5 @@
 use crate::{
+    ConceptId,
     error::{LinkbaseType, Result, XbrlError},
     taxonomy::split_qname,
 };
@@ -8,7 +9,116 @@ use quick_xml::{
     events::{Event, attributes::Attributes},
 };
 use rust_decimal::Decimal;
-use std::{collections::HashMap, io, str::FromStr};
+use std::{
+    cmp::Ordering,
+    collections::{HashMap, HashSet},
+    io,
+    str::FromStr,
+};
+
+/// A presentation hierarchy defined by a presentation linkbase, used for
+/// displaying facts in a human-friendly way.
+#[derive(Debug, Clone, Default)]
+pub struct PresentationNetwork {
+    /// Root concept IDs: appear as `from` but never as `to`, in display order.
+    pub(crate) roots: Vec<ConceptId>,
+    /// Children of each concept, already sorted by presentation `order`.
+    pub(crate) children: HashMap<ConceptId, Vec<ConceptId>>,
+}
+
+impl PresentationNetwork {
+    /// Returns root concept IDs (concepts that are never a child of another concept).
+    pub fn roots(&self) -> &[ConceptId] {
+        &self.roots
+    }
+
+    /// Returns children of `concept_id`, already sorted by presentation order.
+    pub fn children_of(&self, concept_id: &str) -> &[ConceptId] {
+        self.children
+            .get(concept_id)
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
+
+    /// Returns `true` if this network has no concepts.
+    pub fn is_empty(&self) -> bool {
+        self.roots.is_empty() && self.children.is_empty()
+    }
+}
+
+/// Build a [`PresentationNetwork`] from a flat list of presentation arcs.
+///
+/// Computes roots and groups children by parent (sorted by `order`).
+/// Called once per role after all linkbases are parsed.
+pub(crate) fn build_network(arcs: Vec<PresentationArc>) -> Result<PresentationNetwork> {
+    if arcs.is_empty() {
+        return Ok(PresentationNetwork::default());
+    }
+
+    // Collect all distinct node IDs and group children by parent.
+    let mut children_raw: HashMap<&str, Vec<(Option<Decimal>, &str)>> = HashMap::new();
+    let mut all_nodes: HashSet<&str> = HashSet::new();
+    for arc in &arcs {
+        all_nodes.insert(arc.from.as_str());
+        all_nodes.insert(arc.to.as_str());
+        children_raw
+            .entry(arc.from.as_str())
+            .or_default()
+            .push((arc.order, arc.to.as_str()));
+    }
+
+    // Sort children by order.
+    for kids in children_raw.values_mut() {
+        kids.sort_by(|(a, _), (b, _)| match (a, b) {
+            (Some(x), Some(y)) => x.cmp(y),
+            (Some(_), None) => Ordering::Less,
+            (None, Some(_)) => Ordering::Greater,
+            (None, None) => Ordering::Equal,
+        });
+    }
+
+    // Roots: `from` IDs that never appear as `to`, in first-occurrence order.
+    let to_set: HashSet<&str> = arcs.iter().map(|a| a.to.as_str()).collect();
+    let mut seen: HashSet<&str> = HashSet::new();
+    let mut roots_raw: Vec<&str> = Vec::new();
+    for arc in &arcs {
+        let from = arc.from.as_str();
+        if !to_set.contains(from) && seen.insert(from) {
+            roots_raw.push(from);
+        }
+    }
+
+    // Sort roots by their minimum outgoing arc order.
+    roots_raw.sort_by(|a, b| {
+        let min_order = |id: &&str| {
+            children_raw
+                .get(*id)
+                .and_then(|kids| kids.iter().filter_map(|(ord, _)| *ord).min())
+        };
+        match (min_order(a), min_order(b)) {
+            (Some(x), Some(y)) => x.cmp(&y),
+            (Some(_), None) => Ordering::Less,
+            (None, Some(_)) => Ordering::Greater,
+            (None, None) => Ordering::Equal,
+        }
+    });
+
+    // Convert to owned ConceptId structures.
+    let roots: Vec<ConceptId> = roots_raw.into_iter().map(ConceptId::from).collect();
+    let children: HashMap<ConceptId, Vec<ConceptId>> = children_raw
+        .into_iter()
+        .map(|(parent, kids)| {
+            (
+                ConceptId::from(parent),
+                kids.into_iter()
+                    .map(|(_, child)| ConceptId::from(child))
+                    .collect(),
+            )
+        })
+        .collect();
+
+    Ok(PresentationNetwork { roots, children })
+}
 
 /// A parent-child relationship from a presentation linkbase.
 #[derive(Debug, Clone, PartialEq)]

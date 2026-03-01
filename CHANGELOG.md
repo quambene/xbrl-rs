@@ -22,7 +22,7 @@
   - Add `SchemaRefUrl`, `ConceptId`, `RoleUri`, `ContextId`, `NamespacePrefix`,
     `UnitId`, `Decimals`, `Balance`, `CyclesAllowed`, `PeriodType`,
     `DeclaredAccuracy`, `SchemaTag`, `ReferenceTag`, `PresentationTag`,
-    `LabelTag`, `DefinitionTag`, `CalculationTag`, `FactValue`
+    `LabelTag`, `DefinitionTag`, `CalculationTag`, `FactValue`, `PresentationNetwork`
   - Add `TaxonomySchema::from_xml_unchecked` and `TaxonomySchema::validate`
   - Add `DocumentView` and implement `InstanceDocument::view`
   - Add `example/print_facts.rs`
@@ -36,6 +36,7 @@
   - Put `TaxonomyLoader` behind feature flag `download`
   - Put `env::logger` behind feature flag `logger`
   - Rename `XbrlInstance` to `InstanceDocument`
+  - Refactor `TaxonomySet::presentations` from `IndexMap<RoleUri, Vec<PresentationArc>>` to `IndexMap<RoleUri, PresentationNetwork>`
 
 ## v0.1.1 (2026-02-18)
 

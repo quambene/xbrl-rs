@@ -100,6 +100,13 @@ pub enum XbrlError {
         value: String,
     },
 
+    /// A cycle was detected in a presentation linkbase.
+    ///
+    /// The XBRL 2.1 specification requires presentation relationships to form
+    /// a forest (set of trees). Cycles are explicitly forbidden.
+    #[error("Cycle detected in presentation linkbase: concept '{concept_id}' is part of a cycle")]
+    PresentationCycle { concept_id: String },
+
     /// IO error
     #[error(transparent)]
     Io(#[from] std::io::Error),

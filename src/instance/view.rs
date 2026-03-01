@@ -1,14 +1,8 @@
 //! Document view built from the presentation linkbase.
 
 use super::fact::ItemFact;
-use crate::{
-    TaxonomySet,
-    taxonomy::{Label, PresentationArc},
-};
-use std::{
-    cmp::Ordering,
-    collections::{HashMap, HashSet},
-};
+use crate::{PresentationNetwork, TaxonomySet, taxonomy::Label};
+use std::collections::HashMap;
 
 /// A hierarchical view of an XBRL document organised by presentation sections.
 #[derive(Debug)]
@@ -71,121 +65,50 @@ pub fn build_view<'a>(facts: &[&ItemFact], taxonomy: &'a TaxonomySet) -> Documen
         fact_index.entry(fact.concept_id()).or_default().push(i);
     }
 
-    let roles = taxonomy
-        .presentations()
-        .iter()
-        .map(|(role, arcs)| (role.as_str(), arcs))
-        .collect::<Vec<_>>();
+    let mut sections = Vec::with_capacity(taxonomy.presentations().len());
 
-    let mut sections = Vec::with_capacity(roles.len());
-
-    for (role, arcs) in roles {
-        let mut arc_index: HashMap<&'a str, Vec<&'a PresentationArc>> = HashMap::new();
-        for arc in arcs {
-            arc_index.entry(arc.from.as_str()).or_default().push(arc);
-        }
-        // Sort children by `order` up front so `build_nodes` never needs to
-        // re-sort.
-        for children in arc_index.values_mut() {
-            children.sort_by(|a, b| match (a.order, b.order) {
-                (Some(x), Some(y)) => x.cmp(&y),
-                (Some(_), None) => Ordering::Less,
-                (None, Some(_)) => Ordering::Greater,
-                (None, None) => Ordering::Equal,
-            });
-        }
-
-        let roots = find_roots(arcs, &arc_index);
-        let mut visited: HashSet<&'a str> = HashSet::new();
-        let nodes = roots
+    for (role, network) in taxonomy.presentations() {
+        let nodes = network
+            .roots()
             .iter()
-            .flat_map(|root_id| {
-                build_nodes(&arc_index, root_id, 0, taxonomy, &fact_index, &mut visited)
-            })
+            .flat_map(|root| build_nodes(network, root.as_str(), 0, taxonomy, &fact_index))
             .collect();
-
-        sections.push(SectionView { role, nodes });
+        sections.push(SectionView {
+            role: role.as_str(),
+            nodes,
+        });
     }
 
     DocumentView { sections }
 }
 
-/// Find root concept IDs: those that appear as `from` but never as `to`.
-pub(super) fn find_roots<'a>(
-    arcs: &'a [PresentationArc],
-    arc_index: &HashMap<&'a str, Vec<&'a PresentationArc>>,
-) -> Vec<&'a str> {
-    let to_set: HashSet<&str> = arcs.iter().map(|a| a.to.as_str()).collect();
-    let mut seen: HashSet<&str> = HashSet::new();
-    let mut roots: Vec<&'a str> = Vec::new();
-
-    for arc in arcs {
-        let from = arc.from.as_str();
-        if !to_set.contains(from) && seen.insert(from) {
-            roots.push(from);
-        }
-    }
-
-    // Order roots by their minimum outgoing arc order using the pre-built index.
-    roots.sort_by(|a, b| {
-        let min_order = |id: &&str| {
-            arc_index
-                .get(*id)
-                .and_then(|arcs| arcs.iter().filter_map(|a| a.order).min())
-        };
-        match (min_order(a), min_order(b)) {
-            (Some(x), Some(y)) => x.cmp(&y),
-            (Some(_), None) => Ordering::Less,
-            (None, Some(_)) => Ordering::Greater,
-            (None, None) => Ordering::Equal,
-        }
-    });
-
-    roots
-}
-
 /// Recursively build tree nodes for all children of `parent_id`.
 fn build_nodes<'a>(
-    arc_index: &HashMap<&'a str, Vec<&'a PresentationArc>>,
+    network: &'a PresentationNetwork,
     parent_id: &'a str,
     depth: usize,
     taxonomy: &'a TaxonomySet,
     fact_index: &HashMap<String, Vec<usize>>,
-    visited: &mut HashSet<&'a str>,
 ) -> Vec<TreeNode<'a>> {
-    if !visited.insert(parent_id) {
-        // Cycle detected — skip this branch.
-        return Vec::new();
-    }
+    // Children are already sorted by `order` in the network.
+    let children = network.children_of(parent_id);
 
-    // Children are already sorted by `order`
-    let children_arcs = arc_index.get(parent_id).map(Vec::as_slice).unwrap_or(&[]);
+    let mut nodes = Vec::with_capacity(children.len());
 
-    let mut nodes = Vec::with_capacity(children_arcs.len());
-
-    for arc in children_arcs {
-        let child_id = arc.to.as_str();
-        let labels = taxonomy.labels_for(child_id).unwrap_or(&[]);
-        let fact_indices = fact_index.get(child_id).cloned().unwrap_or_default();
-        let children = build_nodes(
-            arc_index,
-            child_id,
-            depth + 1,
-            taxonomy,
-            fact_index,
-            visited,
-        );
+    for child_id in children {
+        let child_str: &'a str = child_id.as_str();
+        let labels = taxonomy.labels_for(child_str).unwrap_or(&[]);
+        let fact_indices = fact_index.get(child_str).cloned().unwrap_or_default();
+        let grandchildren = build_nodes(network, child_str, depth + 1, taxonomy, fact_index);
 
         nodes.push(TreeNode {
-            concept_id: child_id,
+            concept_id: child_str,
             labels,
             depth,
             fact_indices,
-            children,
+            children: grandchildren,
         });
     }
-
-    visited.remove(parent_id);
 
     nodes
 }
@@ -204,12 +127,25 @@ mod tests {
         labels: Vec<(String, Label)>,
     ) -> TaxonomySet {
         let mut taxonomy = TaxonomySet::default();
+        // Group arcs by role, preserving insertion order.
+        let mut role_order: Vec<String> = Vec::new();
+        let mut by_role: HashMap<String, Vec<PresentationArc>> = HashMap::new();
+
         for (role, arc) in arcs {
-            taxonomy.add_presentation_arc(role, arc);
+            if !by_role.contains_key(&role) {
+                role_order.push(role.clone());
+            }
+            by_role.entry(role).or_default().push(arc);
         }
+
+        for role in role_order {
+            taxonomy.add_presentation_arcs(role.clone(), by_role.remove(&role).unwrap());
+        }
+
         for (concept_id, label) in labels {
             taxonomy.add_label(concept_id, label);
         }
+
         taxonomy
     }
 
@@ -299,31 +235,22 @@ mod tests {
     }
 
     #[test]
-    fn build_view_cycle_protection() {
-        let role = "http://example.com/role/cycle".to_string();
-        // a -> b -> a  (cycle)
-        let arcs = vec![
-            (
-                role.clone(),
-                PresentationArc {
-                    from: "a".to_string(),
-                    to: "b".to_string(),
-                    order: Some(Decimal::new(1, 0)),
-                },
-            ),
-            (
-                role.clone(),
-                PresentationArc {
-                    from: "b".to_string(),
-                    to: "a".to_string(),
-                    order: Some(Decimal::new(1, 0)),
-                },
-            ),
-        ];
+    fn build_view_acyclic_network() {
+        // Verify build_view works correctly on a simple non-cyclic network.
+        let role = "http://example.com/role/test".to_string();
+        let arcs = vec![(
+            role.clone(),
+            PresentationArc {
+                from: "root".to_string(),
+                to: "child".to_string(),
+                order: Some(Decimal::new(1, 0)),
+            },
+        )];
         let taxonomy = create_taxonomy(arcs, vec![]);
-        // Should not hang or panic.
         let view = build_view(&[], &taxonomy);
         assert_eq!(view.sections.len(), 1);
+        assert_eq!(view.sections[0].nodes.len(), 1);
+        assert_eq!(view.sections[0].nodes[0].concept_id, "child");
     }
 
     #[test]
