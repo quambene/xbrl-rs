@@ -80,11 +80,28 @@ pub fn build_view<'a>(facts: &[&ItemFact], taxonomy: &'a TaxonomySet) -> Documen
     let mut sections = Vec::with_capacity(roles.len());
 
     for (role, arcs) in roles {
-        let roots = find_roots(arcs);
+        let mut arc_index: HashMap<&'a str, Vec<&'a PresentationArc>> = HashMap::new();
+        for arc in arcs {
+            arc_index.entry(arc.from.as_str()).or_default().push(arc);
+        }
+        // Sort children by `order` up front so `build_nodes` never needs to
+        // re-sort.
+        for children in arc_index.values_mut() {
+            children.sort_by(|a, b| match (a.order, b.order) {
+                (Some(x), Some(y)) => x.cmp(&y),
+                (Some(_), None) => Ordering::Less,
+                (None, Some(_)) => Ordering::Greater,
+                (None, None) => Ordering::Equal,
+            });
+        }
+
+        let roots = find_roots(arcs, &arc_index);
         let mut visited: HashSet<&'a str> = HashSet::new();
         let nodes = roots
             .iter()
-            .flat_map(|root_id| build_nodes(arcs, root_id, 0, taxonomy, &fact_index, &mut visited))
+            .flat_map(|root_id| {
+                build_nodes(&arc_index, root_id, 0, taxonomy, &fact_index, &mut visited)
+            })
             .collect();
 
         sections.push(SectionView { role, nodes });
@@ -94,7 +111,10 @@ pub fn build_view<'a>(facts: &[&ItemFact], taxonomy: &'a TaxonomySet) -> Documen
 }
 
 /// Find root concept IDs: those that appear as `from` but never as `to`.
-pub(super) fn find_roots<'a>(arcs: &'a [PresentationArc]) -> Vec<&'a str> {
+pub(super) fn find_roots<'a>(
+    arcs: &'a [PresentationArc],
+    arc_index: &HashMap<&'a str, Vec<&'a PresentationArc>>,
+) -> Vec<&'a str> {
     let to_set: HashSet<&str> = arcs.iter().map(|a| a.to.as_str()).collect();
     let mut seen: HashSet<&str> = HashSet::new();
     let mut roots: Vec<&'a str> = Vec::new();
@@ -106,13 +126,12 @@ pub(super) fn find_roots<'a>(arcs: &'a [PresentationArc]) -> Vec<&'a str> {
         }
     }
 
-    // Order roots by their minimum outgoing arc order.
+    // Order roots by their minimum outgoing arc order using the pre-built index.
     roots.sort_by(|a, b| {
         let min_order = |id: &&str| {
-            arcs.iter()
-                .filter(|arc| arc.from.as_str() == *id)
-                .filter_map(|arc| arc.order)
-                .min()
+            arc_index
+                .get(*id)
+                .and_then(|arcs| arcs.iter().filter_map(|a| a.order).min())
         };
         match (min_order(a), min_order(b)) {
             (Some(x), Some(y)) => x.cmp(&y),
@@ -127,7 +146,7 @@ pub(super) fn find_roots<'a>(arcs: &'a [PresentationArc]) -> Vec<&'a str> {
 
 /// Recursively build tree nodes for all children of `parent_id`.
 fn build_nodes<'a>(
-    arcs: &'a [PresentationArc],
+    arc_index: &HashMap<&'a str, Vec<&'a PresentationArc>>,
     parent_id: &'a str,
     depth: usize,
     taxonomy: &'a TaxonomySet,
@@ -139,16 +158,8 @@ fn build_nodes<'a>(
         return Vec::new();
     }
 
-    let mut children_arcs: Vec<&'a PresentationArc> = arcs
-        .iter()
-        .filter(|a| a.from.as_str() == parent_id)
-        .collect();
-    children_arcs.sort_by(|a, b| match (a.order, b.order) {
-        (Some(x), Some(y)) => x.cmp(&y),
-        (Some(_), None) => Ordering::Less,
-        (None, Some(_)) => Ordering::Greater,
-        (None, None) => Ordering::Equal,
-    });
+    // Children are already sorted by `order`
+    let children_arcs = arc_index.get(parent_id).map(Vec::as_slice).unwrap_or(&[]);
 
     let mut nodes = Vec::with_capacity(children_arcs.len());
 
@@ -156,7 +167,14 @@ fn build_nodes<'a>(
         let child_id = arc.to.as_str();
         let labels = taxonomy.labels_for(child_id).unwrap_or(&[]);
         let fact_indices = fact_index.get(child_id).cloned().unwrap_or_default();
-        let children = build_nodes(arcs, child_id, depth + 1, taxonomy, fact_index, visited);
+        let children = build_nodes(
+            arc_index,
+            child_id,
+            depth + 1,
+            taxonomy,
+            fact_index,
+            visited,
+        );
 
         nodes.push(TreeNode {
             concept_id: child_id,

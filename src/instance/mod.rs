@@ -9,11 +9,10 @@ mod view;
 mod writer;
 
 use crate::{
-    TaxonomySet,
+    PresentationArc, TaxonomySet,
     error::Result,
     taxonomy::{ElementDefinition, PeriodType, TupleChildRef},
-    validation,
-    validation::ValidationResult,
+    validation::{self, ValidationResult},
 };
 pub use context::{Context, ContextId, EntityIdentifier, Period};
 pub use fact::{Decimals, Fact, ItemFact, TupleFact};
@@ -172,13 +171,26 @@ impl InstanceDocument {
         let mut emitted_items: HashSet<String> = HashSet::new();
         let mut emitted_tuples: HashSet<String> = HashSet::new();
         for arcs in taxonomy.presentations().values() {
-            let roots = view::find_roots(arcs);
+            let mut arc_index: HashMap<&str, Vec<&PresentationArc>> = HashMap::new();
+            for arc in arcs {
+                arc_index.entry(arc.from.as_str()).or_default().push(arc);
+            }
+            for children in arc_index.values_mut() {
+                children.sort_by(|a, b| match (a.order, b.order) {
+                    (Some(x), Some(y)) => x.cmp(&y),
+                    (Some(_), None) => Ordering::Less,
+                    (None, Some(_)) => Ordering::Greater,
+                    (None, None) => Ordering::Equal,
+                });
+            }
+
+            let roots = view::find_roots(arcs, &arc_index);
             let mut seeded_nodes: HashSet<&str> = HashSet::new();
             for root_id in roots {
                 seeded_nodes.insert(root_id);
                 let mut hoisted: Vec<Fact> = Vec::new();
                 Self::populate_from_tree(
-                    arcs,
+                    &arc_index,
                     root_id,
                     taxonomy,
                     &instant_context_ref,
@@ -205,7 +217,7 @@ impl InstanceDocument {
             for concept_id in remaining_nodes {
                 let mut hoisted: Vec<Fact> = Vec::new();
                 Self::populate_from_tree(
-                    arcs,
+                    &arc_index,
                     concept_id,
                     taxonomy,
                     &instant_context_ref,
@@ -357,7 +369,7 @@ impl InstanceDocument {
 
     /// Number of item facts in the instance (including nested tuple descendants).
     pub fn item_fact_count(&self) -> usize {
-        self.item_facts().len()
+        self.facts.iter().map(|fact| fact.count_items()).sum()
     }
 
     /// Set the value of a fact by its index (from [`DocumentView`] fact_indices).
@@ -436,7 +448,7 @@ impl InstanceDocument {
     /// - Abstract / grouping → recurse into children at the same level.
     #[allow(clippy::too_many_arguments)]
     fn populate_from_tree(
-        arcs: &[crate::taxonomy::PresentationArc],
+        arc_index: &HashMap<&str, Vec<&PresentationArc>>,
         concept_id: &str,
         taxonomy: &TaxonomySet,
         instant_ctx: &ContextId,
@@ -453,16 +465,8 @@ impl InstanceDocument {
             return; // cycle guard within current recursion branch
         }
 
-        let mut children: Vec<&crate::taxonomy::PresentationArc> = arcs
-            .iter()
-            .filter(|a| a.from.as_str() == concept_id)
-            .collect();
-        children.sort_by(|a, b| match (a.order, b.order) {
-            (Some(x), Some(y)) => x.cmp(&y),
-            (Some(_), None) => Ordering::Less,
-            (None, Some(_)) => Ordering::Greater,
-            (None, None) => Ordering::Equal,
-        });
+        // Children are already sorted by `order`.
+        let children = arc_index.get(concept_id).map(Vec::as_slice).unwrap_or(&[]);
 
         if let Some(element) = taxonomy.find_element_by_id(concept_id) {
             if element.is_tuple() && !element.is_abstract {
@@ -475,9 +479,9 @@ impl InstanceDocument {
                         Some(Fact::Tuple(t)) => t.children_mut(),
                         _ => unreachable!(),
                     };
-                    for arc in &children {
+                    for arc in children {
                         Self::populate_from_tree(
-                            arcs,
+                            arc_index,
                             arc.to.as_str(),
                             taxonomy,
                             instant_ctx,
@@ -529,9 +533,9 @@ impl InstanceDocument {
         }
 
         // Recurse children at the same level for non-structural presentation parents.
-        for arc in &children {
+        for arc in children {
             Self::populate_from_tree(
-                arcs,
+                arc_index,
                 arc.to.as_str(),
                 taxonomy,
                 instant_ctx,
