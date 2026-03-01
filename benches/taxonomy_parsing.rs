@@ -1,8 +1,31 @@
 use criterion::{Criterion, criterion_group, criterion_main};
+use quick_xml::Reader;
 use std::{path::PathBuf, str::FromStr, time::Duration};
-use xbrl_rs::TaxonomySet;
+use xbrl_rs::{InstanceDocument, TaxonomySet};
 
 const TAXONOMY_ENTRY_POINT: &str = "test_data/taxonomies";
+
+fn parse_and_validate_instance(c: &mut Criterion) {
+    let entry_point = PathBuf::from_str(TAXONOMY_ENTRY_POINT).unwrap();
+    let taxonomy = TaxonomySet::discover(
+                vec![
+                    "http://www.xbrl.de/taxonomies/de-gcd-2020-04-01/de-gcd-2020-04-01-shell.xsd".to_owned(),
+                    "http://www.xbrl.de/taxonomies/de-gaap-ci-2020-04-01/de-gaap-ci-2020-04-01-shell-fiscal.xsd"
+                        .to_owned(),
+                ],
+                entry_point,
+            )
+            .unwrap();
+
+    c.bench_function("parse_and_validate_instance", |b| {
+        b.iter(|| {
+            let mut reader =
+                Reader::from_file("test_data/instances/balance_sheet_v64.xml").unwrap();
+            let instance = InstanceDocument::from_xml(&mut reader).unwrap();
+            instance.validate(&taxonomy)
+        });
+    });
+}
 
 fn bench_full_dts_2020(c: &mut Criterion) {
     // All 6 entry points as used in a real HGB instance document.
@@ -53,5 +76,10 @@ fn bench_single_dts_2020(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, bench_full_dts_2020, bench_single_dts_2020);
+criterion_group!(
+    benches,
+    bench_full_dts_2020,
+    bench_single_dts_2020,
+    parse_and_validate_instance
+);
 criterion_main!(benches);
