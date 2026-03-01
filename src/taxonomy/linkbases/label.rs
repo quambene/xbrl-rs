@@ -1,6 +1,6 @@
 use crate::{
     error::{LinkbaseType, Result, XbrlError},
-    taxonomy::split_qname,
+    taxonomy::{linkbases::local_name, split_qname},
 };
 use quick_xml::{Reader, events::Event};
 use std::{collections::HashMap, io};
@@ -135,11 +135,6 @@ pub fn parse_label_linkbase(
     }
 
     Ok(labels)
-}
-
-/// Extract the local name from a possibly prefixed XML name.
-fn local_name(name: &str) -> &str {
-    name.rsplit(':').next().unwrap_or(name)
 }
 
 /// Parse a `<loc>` element's attributes into the locators map.

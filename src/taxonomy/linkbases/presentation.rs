@@ -1,6 +1,6 @@
 use crate::{
     error::{LinkbaseType, Result, XbrlError},
-    taxonomy::split_qname,
+    taxonomy::{linkbases::local_name, split_qname},
 };
 use indexmap::IndexMap;
 use quick_xml::{
@@ -129,10 +129,6 @@ fn resolve_arcs(locators: &HashMap<String, String>, arcs: &[RawArc]) -> Vec<Pres
             })
         })
         .collect()
-}
-
-fn local_name(name: &str) -> &str {
-    name.rsplit(':').next().unwrap_or(name)
 }
 
 fn extract_role(attrs: Attributes) -> String {
