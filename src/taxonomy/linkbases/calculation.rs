@@ -30,13 +30,13 @@ enum CalculationTag {
 }
 
 impl CalculationTag {
-    fn from_name(name: &[u8]) -> Self {
-        match split_qname(name).local_name {
+    fn from_name(name: &[u8]) -> Result<Self> {
+        Ok(match split_qname(name)?.local_name {
             "calculationLink" => Self::CalculationLink,
             "loc" => Self::Loc,
             "calculationArc" => Self::CalculationArc,
             _ => Self::Unknown,
-        }
+        })
     }
 }
 
@@ -60,23 +60,23 @@ pub fn parse_calculation_linkbase(
     loop {
         match reader.read_event_into(&mut buf) {
             Ok(Event::Start(ref e)) => {
-                let tag = CalculationTag::from_name(e.name().as_ref());
+                let tag = CalculationTag::from_name(e.name().as_ref())?;
 
                 if matches!(tag, CalculationTag::CalculationLink) {
-                    current_role = extract_role(e.attributes());
+                    current_role = extract_role(e.attributes())?;
                     locators.clear();
                     arcs.clear();
                 }
             }
             Ok(Event::Empty(ref e)) => {
-                let tag = CalculationTag::from_name(e.name().as_ref());
+                let tag = CalculationTag::from_name(e.name().as_ref())?;
 
                 match tag {
                     CalculationTag::Loc => {
-                        parse_loc(e.attributes(), &mut locators);
+                        parse_loc(e.attributes(), &mut locators)?;
                     }
                     CalculationTag::CalculationArc => {
-                        if let Some(arc) = parse_arc(e.attributes()) {
+                        if let Some(arc) = parse_arc(e.attributes())? {
                             arcs.push(arc);
                         }
                     }
@@ -84,7 +84,7 @@ pub fn parse_calculation_linkbase(
                 }
             }
             Ok(Event::End(ref e)) => {
-                let tag = CalculationTag::from_name(e.name().as_ref());
+                let tag = CalculationTag::from_name(e.name().as_ref())?;
 
                 if matches!(tag, CalculationTag::CalculationLink) {
                     let resolved = resolve_arcs(&locators, &arcs);
@@ -132,29 +132,23 @@ fn resolve_arcs(locators: &HashMap<String, String>, arcs: &[RawCalcArc]) -> Vec<
         .collect()
 }
 
-fn local_name(name: &str) -> &str {
-    name.rsplit(':').next().unwrap_or(name)
-}
-
-fn extract_role(attrs: Attributes) -> String {
+fn extract_role(attrs: Attributes) -> Result<String> {
     for attr in attrs.flatten() {
-        let key = String::from_utf8_lossy(attr.key.as_ref());
-        if local_name(&key) == "role"
+        if split_qname(attr.key.as_ref())?.local_name == "role"
             && let Ok(val) = attr.unescape_value()
         {
-            return val.to_string();
+            return Ok(val.to_string());
         }
     }
-    String::new()
+    Ok(String::new())
 }
 
-fn parse_loc(attrs: Attributes, locators: &mut HashMap<String, String>) {
+fn parse_loc(attrs: Attributes, locators: &mut HashMap<String, String>) -> Result<()> {
     let mut href = None;
     let mut label = None;
 
     for attr in attrs.flatten() {
-        let key = String::from_utf8_lossy(attr.key.as_ref());
-        let local = local_name(&key);
+        let local = split_qname(attr.key.as_ref())?.local_name;
         match local {
             "href" => {
                 if let Ok(val) = attr.unescape_value()
@@ -173,6 +167,8 @@ fn parse_loc(attrs: Attributes, locators: &mut HashMap<String, String>) {
     if let (Some(label), Some(concept_id)) = (label, href) {
         locators.insert(label, concept_id);
     }
+
+    Ok(())
 }
 
 fn percent_decode(input: &str) -> String {
@@ -194,7 +190,7 @@ fn percent_decode(input: &str) -> String {
         i += 1;
     }
 
-    String::from_utf8_lossy(&out).into_owned()
+    String::from_utf8(out).unwrap_or_else(|_| input.to_string())
 }
 
 fn hex_value(byte: u8) -> Option<u8> {
@@ -206,15 +202,14 @@ fn hex_value(byte: u8) -> Option<u8> {
     }
 }
 
-fn parse_arc(attrs: Attributes) -> Option<RawCalcArc> {
+fn parse_arc(attrs: Attributes) -> Result<Option<RawCalcArc>> {
     let mut from = None;
     let mut to = None;
     let mut order = None;
     let mut weight = Decimal::ONE;
 
     for attr in attrs.flatten() {
-        let key = String::from_utf8_lossy(attr.key.as_ref());
-        let local = local_name(&key);
+        let local = split_qname(attr.key.as_ref())?.local_name;
         match local {
             "from" => {
                 from = attr.unescape_value().ok().map(|v| v.to_string());
@@ -241,7 +236,7 @@ fn parse_arc(attrs: Attributes) -> Option<RawCalcArc> {
         }
     }
 
-    match (from, to) {
+    Ok(match (from, to) {
         (Some(from), Some(to)) => Some(RawCalcArc {
             from,
             to,
@@ -249,5 +244,5 @@ fn parse_arc(attrs: Attributes) -> Option<RawCalcArc> {
             weight,
         }),
         _ => None,
-    }
+    })
 }

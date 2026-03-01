@@ -34,13 +34,13 @@ enum ReferenceTag {
 }
 
 impl ReferenceTag {
-    fn from_name(name: &[u8]) -> Self {
-        match split_qname(name).local_name {
+    fn from_name(name: &[u8]) -> Result<Self> {
+        Ok(match split_qname(name)?.local_name {
             "loc" => Self::Loc,
             "reference" => Self::Reference,
             "referenceArc" => Self::ReferenceArc,
             _ => Self::Unknown,
-        }
+        })
     }
 }
 
@@ -63,27 +63,27 @@ pub fn parse_reference_linkbase(
     loop {
         match reader.read_event_into(&mut buf) {
             Ok(Event::Start(ref e)) => {
-                let tag = ReferenceTag::from_name(e.name().as_ref());
+                let tag = ReferenceTag::from_name(e.name().as_ref())?;
 
                 match tag {
                     ReferenceTag::Loc => {
-                        parse_loc(e.attributes(), &mut locators);
+                        parse_loc(e.attributes(), &mut locators)?;
                     }
                     ReferenceTag::Reference => {
-                        parse_reference_resource(reader, e.attributes(), &mut resources);
+                        parse_reference_resource(reader, e.attributes(), &mut resources)?;
                     }
                     _ => {}
                 }
             }
             Ok(Event::Empty(ref e)) => {
-                let tag = ReferenceTag::from_name(e.name().as_ref());
+                let tag = ReferenceTag::from_name(e.name().as_ref())?;
 
                 match tag {
                     ReferenceTag::Loc => {
-                        parse_loc(e.attributes(), &mut locators);
+                        parse_loc(e.attributes(), &mut locators)?;
                     }
                     ReferenceTag::ReferenceArc => {
-                        if let Some(arc) = parse_arc(e.attributes()) {
+                        if let Some(arc) = parse_arc(e.attributes())? {
                             arcs.push(arc);
                         }
                     }
@@ -134,17 +134,12 @@ struct RawReference {
     parts: Vec<ReferencePart>,
 }
 
-fn local_name(name: &str) -> &str {
-    name.rsplit(':').next().unwrap_or(name)
-}
-
-fn parse_loc(attrs: Attributes, locators: &mut HashMap<String, String>) {
+fn parse_loc(attrs: Attributes, locators: &mut HashMap<String, String>) -> Result<()> {
     let mut href = None;
     let mut label = None;
 
     for attr in attrs.flatten() {
-        let key = String::from_utf8_lossy(attr.key.as_ref());
-        let local = local_name(&key);
+        let local = split_qname(attr.key.as_ref())?.local_name;
         match local {
             "href" => {
                 if let Ok(val) = attr.unescape_value()
@@ -163,15 +158,16 @@ fn parse_loc(attrs: Attributes, locators: &mut HashMap<String, String>) {
     if let (Some(label), Some(concept_id)) = (label, href) {
         locators.insert(label, concept_id);
     }
+
+    Ok(())
 }
 
-fn parse_arc(attrs: Attributes) -> Option<RawRefArc> {
+fn parse_arc(attrs: Attributes) -> Result<Option<RawRefArc>> {
     let mut from = None;
     let mut to = None;
 
     for attr in attrs.flatten() {
-        let key = String::from_utf8_lossy(attr.key.as_ref());
-        let local = local_name(&key);
+        let local = split_qname(attr.key.as_ref())?.local_name;
         match local {
             "from" => {
                 from = attr.unescape_value().ok().map(|v| v.to_string());
@@ -183,10 +179,10 @@ fn parse_arc(attrs: Attributes) -> Option<RawRefArc> {
         }
     }
 
-    match (from, to) {
+    Ok(match (from, to) {
         (Some(from), Some(to)) => Some(RawRefArc { from, to }),
         _ => None,
-    }
+    })
 }
 
 /// Parse a `<reference>` resource element: extract attributes and read child parts.
@@ -194,13 +190,12 @@ fn parse_reference_resource(
     reader: &mut Reader<impl io::BufRead>,
     attrs: Attributes,
     resources: &mut HashMap<String, RawReference>,
-) {
+) -> Result<()> {
     let mut label_key = None;
     let mut role = String::new();
 
     for attr in attrs.flatten() {
-        let key = String::from_utf8_lossy(attr.key.as_ref());
-        let local = local_name(&key);
+        let local = split_qname(attr.key.as_ref())?.local_name;
         match local {
             "label" => {
                 label_key = attr.unescape_value().ok().map(|v| v.to_string());
@@ -224,15 +219,15 @@ fn parse_reference_resource(
         match reader.read_event_into(&mut buf) {
             Ok(Event::Start(ref e)) => {
                 depth += 1;
-                let name = String::from_utf8_lossy(e.name().as_ref()).to_string();
-                current_part_name = Some(local_name(&name).to_string());
+                current_part_name = Some(split_qname(e.name().as_ref())?.local_name.to_string());
             }
             Ok(Event::Text(ref t)) => {
-                if let Some(ref part_name) = current_part_name {
-                    let value = String::from_utf8_lossy(t.as_ref()).to_string();
+                if let Some(ref part_name) = current_part_name
+                    && let Ok(value) = str::from_utf8(t.as_ref())
+                {
                     parts.push(ReferencePart {
                         name: part_name.clone(),
-                        value,
+                        value: value.to_string(),
                     });
                 }
             }
@@ -252,4 +247,6 @@ fn parse_reference_resource(
     if let Some(key) = label_key {
         resources.insert(key, RawReference { role, parts });
     }
+
+    Ok(())
 }

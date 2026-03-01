@@ -299,4 +299,15 @@ impl Fact {
             }
         }
     }
+
+    pub fn count_items(&self) -> usize {
+        match self {
+            Self::Item(_) => 1,
+            Self::Tuple(tuple_fact) => tuple_fact
+                .children
+                .iter()
+                .map(|fact| fact.count_items())
+                .sum(),
+        }
+    }
 }

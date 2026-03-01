@@ -80,9 +80,10 @@ fn parse_suite_index(path: &Path) -> Vec<String> {
                 let local = e.name().local_name();
                 if local.as_ref() == b"testcase" {
                     for attr in e.attributes().flatten() {
-                        if attr.key.local_name().as_ref() == b"uri" {
-                            let uri = String::from_utf8_lossy(&attr.value).to_string();
-                            uris.push(uri);
+                        if attr.key.local_name().as_ref() == b"uri"
+                            && let Ok(uri) = str::from_utf8(attr.value.as_ref())
+                        {
+                            uris.push(uri.to_string());
                         }
                     }
                 }
@@ -185,11 +186,12 @@ fn parse_testcase(path: &Path) -> Result<TestCase, String> {
             Ok(Event::Text(e)) => {
                 if let (Some(kind), Some(var)) = (current_file_kind.take(), &mut current_var) {
                     if in_data {
-                        let text = String::from_utf8_lossy(e.as_ref()).trim().to_string();
-                        if !text.is_empty() {
+                        if let Ok(text) = str::from_utf8(e.as_ref()).map(str::trim)
+                            && !text.is_empty()
+                        {
                             var.data_files.push(DataFile {
                                 kind,
-                                path: text,
+                                path: text.to_string(),
                                 read_me_first: current_read_me_first,
                             });
                         }
@@ -235,10 +237,11 @@ fn parse_testcase(path: &Path) -> Result<TestCase, String> {
 fn collect_attrs(attrs: quick_xml::events::attributes::Attributes<'_>) -> HashMap<String, String> {
     attrs
         .flatten()
-        .map(|a| {
-            let key = String::from_utf8_lossy(a.key.local_name().as_ref()).to_string();
-            let val = String::from_utf8_lossy(&a.value).to_string();
-            (key, val)
+        .filter_map(|attribute| {
+            let key = attribute.key.local_name();
+            let key = str::from_utf8(key.as_ref()).ok()?;
+            let val = str::from_utf8(attribute.value.as_ref()).ok()?;
+            Some((key.to_string(), val.to_string()))
         })
         .collect()
 }

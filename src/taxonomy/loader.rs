@@ -242,16 +242,19 @@ fn enqueue_schema_location_from_attrs(
     queue: &mut VecDeque<Url>,
 ) {
     for attr in element.attributes().with_checks(false).flatten() {
-        let key = String::from_utf8_lossy(attr.key.as_ref());
-        if xml_local_name(&key) != "schemaLocation"
-            && xml_local_name(&key) != "noNamespaceSchemaLocation"
+        let Ok(key) = str::from_utf8(attr.key.as_ref()) else {
+            continue;
+        };
+        if xml_local_name(key) != "schemaLocation"
+            && xml_local_name(key) != "noNamespaceSchemaLocation"
         {
             continue;
         }
 
-        let value = String::from_utf8_lossy(attr.value.as_ref());
-        for location in parse_schema_location_value(&value) {
-            enqueue_http_reference(base_url, location, queue);
+        if let Ok(value) = str::from_utf8(attr.value.as_ref()) {
+            for location in parse_schema_location_value(value) {
+                enqueue_http_reference(base_url, location, queue);
+            }
         }
     }
 }
