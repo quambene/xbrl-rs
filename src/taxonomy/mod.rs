@@ -37,7 +37,7 @@ pub use linkbases::{
 #[cfg(feature = "download")]
 pub use loader::TaxonomyLoader;
 pub use schema::{
-    ArcroleType, Balance, CyclesAllowed, DeclaredAccuracy, ElementDefinition, LinkbaseRef,
-    MaxOccurs, PeriodType, RoleType, SchemaImport, SchemaInclude, TaxonomySchema, TupleChildRef,
+    ArcroleType, Balance, Concept, CyclesAllowed, DeclaredAccuracy, LinkbaseRef, MaxOccurs,
+    PeriodType, RoleType, SchemaImport, SchemaInclude, TaxonomySchema, TupleChildRef,
 };
 pub use taxonomy_set::{ConceptId, RoleUri, SchemaRefUrl, TaxonomySet};

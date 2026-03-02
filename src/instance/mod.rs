@@ -11,7 +11,7 @@ mod writer;
 use crate::{
     PresentationArc, TaxonomySet,
     error::Result,
-    taxonomy::{ElementDefinition, PeriodType, TupleChildRef},
+    taxonomy::{Concept, PeriodType, TupleChildRef},
     validation::{self, ValidationResult},
 };
 pub use context::{Context, ContextId, EntityIdentifier, Period};
@@ -458,7 +458,7 @@ impl InstanceDocument {
         emitted_items: &mut HashSet<String>,
         emitted_tuples: &mut HashSet<String>,
         recursion_path: &mut HashSet<String>,
-        parent_tuple_element: Option<&ElementDefinition>,
+        parent_tuple_element: Option<&Concept>,
         hoisted: &mut Vec<Fact>,
     ) {
         if !recursion_path.insert(concept_id.to_string()) {
@@ -589,7 +589,7 @@ impl InstanceDocument {
 /// - Other numeric   → first pure unit (`is_pure()`)
 /// - Non-numeric     → `None` (unitRef forbidden by the XBRL spec)
 fn unit_ref_for_element(
-    element: &ElementDefinition,
+    element: &Concept,
     units: &[Unit],
     taxonomy: &TaxonomySet,
 ) -> Option<String> {
@@ -652,8 +652,8 @@ fn unit_ref_for_element(
 /// content model) or when the child's element name or substitution-group ancestry
 /// matches one of the declared `xs:element ref` entries.
 fn item_allowed_in_tuple(
-    parent_element: &ElementDefinition,
-    child_element: &ElementDefinition,
+    parent_element: &Concept,
+    child_element: &Concept,
     taxonomy: &TaxonomySet,
 ) -> bool {
     if parent_element.tuple_children.is_empty() {
@@ -669,7 +669,7 @@ fn item_allowed_in_tuple(
 /// by a direct name match or via its substitution-group ancestry chain.
 fn matches_tuple_child_ref(
     child_ref: &TupleChildRef,
-    child_element: &ElementDefinition,
+    child_element: &Concept,
     taxonomy: &TaxonomySet,
 ) -> bool {
     let allowed_local = child_ref

@@ -1,5 +1,5 @@
 use super::ValidationResult;
-use crate::{ElementDefinition, InstanceDocument, ItemFact, TaxonomySet};
+use crate::{Concept, InstanceDocument, ItemFact, TaxonomySet};
 use chrono::{NaiveDate, NaiveDateTime};
 use rust_decimal::Decimal;
 use std::{collections::HashMap, str::FromStr};
@@ -128,7 +128,7 @@ fn parse_numeric_compatible(value: &str) -> Option<Decimal> {
     Decimal::from_scientific(value).ok()
 }
 
-fn expected_value_kind(element: &ElementDefinition, taxonomy: &TaxonomySet) -> ExpectedValueKind {
+fn expected_value_kind(element: &Concept, taxonomy: &TaxonomySet) -> ExpectedValueKind {
     let Some(type_name) = element.type_name.as_deref() else {
         return ExpectedValueKind::Other;
     };

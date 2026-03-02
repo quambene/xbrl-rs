@@ -4,7 +4,7 @@
 use super::{Severity, ValidationResult, value::PreparedFactValues};
 use crate::{
     Fact, InstanceDocument, ItemFact, Period, TaxonomySet, TupleFact,
-    taxonomy::{ElementDefinition, MaxOccurs, PeriodType, TupleChildRef},
+    taxonomy::{Concept, MaxOccurs, PeriodType, TupleChildRef},
 };
 use rust_decimal::Decimal;
 use std::{
@@ -430,7 +430,7 @@ fn href_target_id(href: &str) -> Option<(Option<&str>, &str)> {
 
 fn validate_fact(
     fact: &Fact,
-    parent_tuple: Option<&ElementDefinition>,
+    parent_tuple: Option<&Concept>,
     instance: &InstanceDocument,
     taxonomy: &TaxonomySet,
     result: &mut ValidationResult,
@@ -460,10 +460,10 @@ fn validate_fact(
 
 fn validate_tuple_fact<'a>(
     fact: &TupleFact,
-    parent_tuple: Option<&'a ElementDefinition>,
+    parent_tuple: Option<&'a Concept>,
     taxonomy: &'a TaxonomySet,
     result: &mut ValidationResult,
-) -> Option<&'a ElementDefinition> {
+) -> Option<&'a Concept> {
     let local_name = fact.concept().split(':').nth(1).unwrap_or(fact.concept());
     let concept = fact.concept();
 
@@ -508,7 +508,7 @@ fn validate_tuple_fact<'a>(
     Some(element)
 }
 
-fn is_tuple_element(element: &ElementDefinition, taxonomy: &TaxonomySet) -> bool {
+fn is_tuple_element(element: &Concept, taxonomy: &TaxonomySet) -> bool {
     if element.is_tuple() {
         return true;
     }
@@ -540,7 +540,7 @@ fn is_tuple_element(element: &ElementDefinition, taxonomy: &TaxonomySet) -> bool
 fn validate_tuple_child(
     child_concept: &str,
     child_local_name: &str,
-    parent_tuple: &ElementDefinition,
+    parent_tuple: &Concept,
     taxonomy: &TaxonomySet,
     result: &mut ValidationResult,
 ) {
@@ -569,8 +569,8 @@ fn validate_tuple_child(
 }
 
 fn tuple_allows_child(
-    parent_tuple: &ElementDefinition,
-    child_element: &ElementDefinition,
+    parent_tuple: &Concept,
+    child_element: &Concept,
     taxonomy: &TaxonomySet,
 ) -> bool {
     parent_tuple
@@ -581,7 +581,7 @@ fn tuple_allows_child(
 
 fn validate_required_tuple_children(
     fact: &TupleFact,
-    element: &ElementDefinition,
+    element: &Concept,
     taxonomy: &TaxonomySet,
     result: &mut ValidationResult,
 ) {
@@ -652,7 +652,7 @@ fn tuple_child_ref_matches_concept(
 
 fn tuple_child_ref_matches_element(
     child_ref: &TupleChildRef,
-    child_element: &ElementDefinition,
+    child_element: &Concept,
     taxonomy: &TaxonomySet,
 ) -> bool {
     let allowed_local = child_ref
@@ -950,7 +950,7 @@ fn validate_contexts(
 
 fn validate_unit_constraints(
     fact: &ItemFact,
-    element: &ElementDefinition,
+    element: &Concept,
     unit: &crate::instance::Unit,
     taxonomy: &TaxonomySet,
     result: &mut ValidationResult,
@@ -1108,7 +1108,7 @@ fn is_valid_numeric_lexical(value: &str) -> bool {
 }
 
 /// Determine whether an element definition is numeric based on its XSD type name.
-fn is_numeric_type(element: &ElementDefinition, taxonomy: &TaxonomySet) -> bool {
+fn is_numeric_type(element: &Concept, taxonomy: &TaxonomySet) -> bool {
     let Some(ref type_name) = element.type_name else {
         return false;
     };

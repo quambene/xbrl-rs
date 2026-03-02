@@ -1,4 +1,4 @@
-use super::schema::{DeclaredAccuracy, ElementDefinition, RoleType, TaxonomySchema};
+use super::schema::{DeclaredAccuracy, Concept, RoleType, TaxonomySchema};
 use crate::{
     error::{Result, XbrlError},
     taxonomy::linkbases::{
@@ -516,7 +516,7 @@ impl TaxonomySet {
     }
 
     /// Get all element definitions across all schemas in the DTS.
-    pub fn elements(&self) -> Vec<&ElementDefinition> {
+    pub fn elements(&self) -> Vec<&Concept> {
         self.schemas.values().flat_map(|s| &s.elements).collect()
     }
 
@@ -526,7 +526,7 @@ impl TaxonomySet {
     }
 
     /// Find an element definition by name across all schemas.
-    pub fn find_element(&self, name: &str) -> Option<&ElementDefinition> {
+    pub fn find_element(&self, name: &str) -> Option<&Concept> {
         self.schemas
             .values()
             .flat_map(|s| &s.elements)
@@ -534,7 +534,7 @@ impl TaxonomySet {
     }
 
     /// Find an element definition by its ID attribute (e.g., `de-gaap-ci_bs.ass`).
-    pub fn find_element_by_id(&self, id: &str) -> Option<&ElementDefinition> {
+    pub fn find_element_by_id(&self, id: &str) -> Option<&Concept> {
         self.schemas
             .values()
             .flat_map(|s| &s.elements)
@@ -546,7 +546,7 @@ impl TaxonomySet {
     /// A concept belongs to a tuple when its `substitutionGroup` points to an abstract
     /// head element that is listed as an `xs:element[@ref]` inside the tuple's inline
     /// `xs:complexType`. Only one level of indirection is resolved (direct parent tuple).
-    pub fn find_parent_tuple(&self, concept_id: &str) -> Option<&ElementDefinition> {
+    pub fn find_parent_tuple(&self, concept_id: &str) -> Option<&Concept> {
         let element = self.find_element_by_id(concept_id)?;
         let parent_qname = element.substitution_group.as_deref()?;
 

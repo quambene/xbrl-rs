@@ -140,7 +140,7 @@ pub struct TupleChildRef {
 
 /// An `xs:element` definition from a taxonomy schema.
 #[derive(Debug, Clone)]
-pub struct ElementDefinition {
+pub struct Concept {
     /// The element's local name (e.g., "bs.ass.fixAss").
     pub name: String,
     /// The element's id attribute (e.g., "de-gaap-ci_bs.ass.fixAss").
@@ -162,7 +162,7 @@ pub struct ElementDefinition {
     pub tuple_children: Vec<TupleChildRef>,
 }
 
-impl ElementDefinition {
+impl Concept {
     /// Returns `true` if this element is an XBRL tuple (`substitutionGroup="xbrli:tuple"`).
     pub fn is_tuple(&self) -> bool {
         self.substitution_group
@@ -268,7 +268,7 @@ pub struct TaxonomySchema {
     /// `link:arcroleType` definitions.
     pub arcrole_types: Vec<ArcroleType>,
     /// `xs:element` definitions.
-    pub elements: Vec<ElementDefinition>,
+    pub elements: Vec<Concept>,
     /// Named simple/complex type derivations: type name -> base QName.
     pub type_bases: HashMap<String, String>,
     /// Named types with declared decimals/precision attributes (fixed/default) on restrictions.
@@ -359,7 +359,7 @@ fn is_absolute_uri(value: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{Balance, ElementDefinition, PeriodType, RoleType, TaxonomySchema};
+    use super::{Balance, Concept, PeriodType, RoleType, TaxonomySchema};
     use crate::XbrlError;
     use assert_matches::assert_matches;
     use std::collections::HashMap;
@@ -376,7 +376,7 @@ mod tests {
             schema_location_refs: vec![],
             role_types: vec![],
             arcrole_types: vec![],
-            elements: vec![ElementDefinition {
+            elements: vec![Concept {
                 name: "MissingPeriodType".to_string(),
                 id: None,
                 type_name: Some("xbrli:stringItemType".to_string()),
@@ -410,7 +410,7 @@ mod tests {
             schema_location_refs: vec![],
             role_types: vec![],
             arcrole_types: vec![],
-            elements: vec![ElementDefinition {
+            elements: vec![Concept {
                 name: "NonMonetaryWithBalance".to_string(),
                 id: None,
                 type_name: Some("xbrli:stringItemType".to_string()),
@@ -444,7 +444,7 @@ mod tests {
             schema_location_refs: vec![],
             role_types: vec![],
             arcrole_types: vec![],
-            elements: vec![ElementDefinition {
+            elements: vec![Concept {
                 name: "TupleWithPeriodType".to_string(),
                 id: None,
                 type_name: Some("xbrli:stringItemType".to_string()),
@@ -478,7 +478,7 @@ mod tests {
             schema_location_refs: vec![],
             role_types: vec![],
             arcrole_types: vec![],
-            elements: vec![ElementDefinition {
+            elements: vec![Concept {
                 name: "TupleWithBalance".to_string(),
                 id: None,
                 type_name: Some("xbrli:stringItemType".to_string()),
@@ -542,7 +542,7 @@ mod tests {
             schema_location_refs: vec![],
             role_types: vec![],
             arcrole_types: vec![],
-            elements: vec![ElementDefinition {
+            elements: vec![Concept {
                 name: "Cash".to_string(),
                 id: None,
                 type_name: Some("xbrli:monetaryItemType".to_string()),

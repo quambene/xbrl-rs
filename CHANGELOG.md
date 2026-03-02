@@ -36,6 +36,7 @@
   - Put `TaxonomyLoader` behind feature flag `download`
   - Put `env::logger` behind feature flag `logger`
   - Rename `XbrlInstance` to `InstanceDocument`
+  - Rename `ElementDefinition` to `Concept`
 
 ## v0.1.1 (2026-02-18)
 

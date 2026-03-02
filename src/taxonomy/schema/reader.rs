@@ -3,8 +3,8 @@ use crate::{
     instance::Decimals,
     taxonomy::{
         schema::{
-            ArcroleType, CyclesAllowed, DeclaredAccuracy, ElementDefinition, LinkbaseRef,
-            MaxOccurs, RoleType, SchemaImport, SchemaInclude, TaxonomySchema, TupleChildRef,
+            ArcroleType, Concept, CyclesAllowed, DeclaredAccuracy, LinkbaseRef, MaxOccurs,
+            RoleType, SchemaImport, SchemaInclude, TaxonomySchema, TupleChildRef,
         },
         split_qname,
     },
@@ -1300,7 +1300,7 @@ fn parse_include(attrs: Attributes) -> Result<Option<SchemaInclude>> {
 }
 
 /// Parse an `xs:element` definition's attributes.
-fn parse_element_def(attrs: Attributes) -> Result<Option<ElementDefinition>> {
+fn parse_element_def(attrs: Attributes) -> Result<Option<Concept>> {
     let mut name = None;
     let mut id = None;
     let mut type_name = None;
@@ -1348,7 +1348,7 @@ fn parse_element_def(attrs: Attributes) -> Result<Option<ElementDefinition>> {
         }
     }
 
-    Ok(name.map(|n| ElementDefinition {
+    Ok(name.map(|n| Concept {
         name: n,
         id,
         type_name,
