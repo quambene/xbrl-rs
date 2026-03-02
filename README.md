@@ -107,7 +107,7 @@ The package manager `uv` is required to run the Python benchmarks.
 cargo bench
 
 # Python (uv creates venv in ~/.cache/uv and installs arelle-release)
-uv run benches/taxonomy_parsing.py
+uv run benches/bench_xbrl.py
 ```
 
 Benchmarked libraries:
