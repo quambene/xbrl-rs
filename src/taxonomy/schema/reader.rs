@@ -3,8 +3,9 @@ use crate::{
     instance::Decimals,
     taxonomy::{
         schema::{
-            ArcroleType, Concept, CyclesAllowed, DeclaredAccuracy, LinkbaseRef, MaxOccurs,
-            RoleType, SchemaImport, SchemaInclude, TaxonomySchema, TupleChildRef,
+            ArcroleType, Concept, CyclesAllowed, DeclaredAccuracy, LinkbaseRef, RoleType,
+            SchemaImport, SchemaInclude, TaxonomySchema,
+            concept::{MaxOccurs, TupleChildRef},
         },
         split_qname,
     },
