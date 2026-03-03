@@ -1,5 +1,5 @@
 use super::ValidationResult;
-use crate::{Concept, InstanceDocument, ItemFact, TaxonomySet};
+use crate::{Concept, InstanceDocument, ItemFact, TaxonomySet, XbrlBase};
 use chrono::{NaiveDate, NaiveDateTime};
 use rust_decimal::Decimal;
 use std::{collections::HashMap, str::FromStr};
@@ -129,9 +129,7 @@ fn parse_numeric_compatible(value: &str) -> Option<Decimal> {
 }
 
 fn expected_value_kind(element: &Concept, taxonomy: &TaxonomySet) -> ExpectedValueKind {
-    let Some(type_name) = element.type_name.as_deref() else {
-        return ExpectedValueKind::Other;
-    };
+    let type_name = element.data_type.name.local.as_str();
 
     for base in [
         "monetaryItemType",
@@ -160,30 +158,14 @@ fn expected_value_kind(element: &Concept, taxonomy: &TaxonomySet) -> ExpectedVal
         return ExpectedValueKind::Date;
     }
 
-    let lower = type_name.to_ascii_lowercase();
-    if lower.contains("monetary")
-        || lower.contains("decimal")
-        || lower.contains("float")
-        || lower.contains("double")
-        || lower.contains("integer")
-        || lower.contains("shares")
-        || lower.contains("pure")
-        || lower.contains("percent")
-        || lower.contains("pershare")
-    {
-        return ExpectedValueKind::Numeric;
-    }
-
-    if lower.contains("boolean") {
-        return ExpectedValueKind::Boolean;
-    }
-
-    if lower.contains("datetime") {
-        return ExpectedValueKind::DateTime;
-    }
-
-    if lower.contains("date") {
-        return ExpectedValueKind::Date;
+    match element.data_type.base {
+        XbrlBase::Monetary | XbrlBase::Decimal | XbrlBase::Integer => {
+            return ExpectedValueKind::Numeric;
+        }
+        XbrlBase::Boolean => return ExpectedValueKind::Boolean,
+        XbrlBase::Date => return ExpectedValueKind::Date,
+        XbrlBase::DateTime => return ExpectedValueKind::DateTime,
+        XbrlBase::String | XbrlBase::QName | XbrlBase::Pure => {}
     }
 
     ExpectedValueKind::Other

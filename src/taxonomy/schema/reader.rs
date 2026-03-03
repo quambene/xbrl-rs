@@ -1,11 +1,13 @@
 use crate::{
+    ConceptId,
     error::{Result, XbrlError},
     instance::Decimals,
     taxonomy::{
+        QName,
         schema::{
             ArcroleType, Concept, CyclesAllowed, DeclaredAccuracy, LinkbaseRef, RoleType,
             SchemaImport, SchemaInclude, TaxonomySchema,
-            concept::{MaxOccurs, TupleChildRef},
+            concept::{MaxOccurs, SubstitutionGroup, TupleChildRef, XbrlType},
         },
         split_qname,
     },
@@ -18,6 +20,7 @@ use std::{
     collections::{HashMap, HashSet},
     io,
     path::Path,
+    str::FromStr,
 };
 
 /// Parsed metadata for a named `xs:simpleType`/`xs:complexType` base relation.
@@ -74,7 +77,7 @@ impl SchemaTag {
     fn from_name(name: &[u8]) -> Result<Self> {
         let qname = split_qname(name)?;
         let _namespace = qname.namespace;
-        Ok(Self::from_local_name(qname.local_name))
+        Ok(Self::from_local_name(qname.local))
     }
 
     fn from_local_name(local: &str) -> Self {
@@ -172,7 +175,7 @@ pub(crate) fn read_schema<R: io::BufRead>(
         schema_location_refs: Vec::new(),
         role_types: Vec::new(),
         arcrole_types: Vec::new(),
-        elements: Vec::new(),
+        concepts: Vec::new(),
         type_bases: HashMap::new(),
         type_declared_accuracy: HashMap::new(),
     };
@@ -189,10 +192,10 @@ pub(crate) fn read_schema<R: io::BufRead>(
 
     loop {
         match reader.read_event_into(&mut buf) {
-            Ok(Event::Start(ref e)) => {
-                collect_schema_location_refs(e.attributes(), &mut schema.schema_location_refs)?;
+            Ok(Event::Start(ref event)) => {
+                collect_schema_location_refs(event.attributes(), &mut schema.schema_location_refs)?;
 
-                let tag = SchemaTag::from_name(e.name().as_ref())?;
+                let tag = SchemaTag::from_name(event.name().as_ref())?;
 
                 if matches!(tag, SchemaTag::Redefine) {
                     return Err(XbrlError::InvalidSchemaDocument {
@@ -204,29 +207,30 @@ pub(crate) fn read_schema<R: io::BufRead>(
                 match &tag {
                     SchemaTag::Schema => {
                         has_schema_root = true;
-                        extract_schema_attrs(e.attributes(), &mut schema);
+                        extract_schema_attrs(event.attributes(), &mut schema);
                     }
                     SchemaTag::Annotation => {
-                        let local_base = attr_xml_base(e.attributes());
+                        let local_base = attr_xml_base(event.attributes());
                         annotation_base = local_base;
                     }
                     SchemaTag::Appinfo => {
                         inside_appinfo = true;
-                        let local_base = attr_xml_base(e.attributes());
+                        let local_base = attr_xml_base(event.attributes());
                         appinfo_base = resolve_inherited_xml_base(
                             annotation_base.as_deref(),
                             local_base.as_deref(),
                         );
                     }
                     SchemaTag::LinkbaseRef if inside_appinfo => {
-                        schema
-                            .linkbase_refs
-                            .push(parse_linkbase_ref(e.attributes(), appinfo_base.as_deref())?);
+                        schema.linkbase_refs.push(parse_linkbase_ref(
+                            event.attributes(),
+                            appinfo_base.as_deref(),
+                        )?);
                     }
                     SchemaTag::RoleType if inside_appinfo => {
                         schema.role_types.push(parse_role_type(
                             reader,
-                            e.attributes(),
+                            event.attributes(),
                             path,
                             &schema.namespaces,
                         )?);
@@ -234,33 +238,33 @@ pub(crate) fn read_schema<R: io::BufRead>(
                     SchemaTag::ArcroleType if inside_appinfo => {
                         schema.arcrole_types.push(parse_arcrole_type(
                             reader,
-                            e.attributes(),
+                            event.attributes(),
                             path,
                             &schema.namespaces,
                         )?);
                     }
                     SchemaTag::Element => {
-                        let elem = parse_element_def(e.attributes())?;
-                        let tuple_decl = elem
-                            .as_ref()
-                            .and_then(|element| element.substitution_group.as_deref())
-                            .is_some_and(|substitution_group| {
-                                local_name(substitution_group) == "tuple"
-                            });
+                        let concept = parse_concept(event.attributes())?;
+                        let tuple_declaration = concept.as_ref().is_some_and(Concept::is_tuple);
 
-                        if let Some(element) = elem {
-                            schema.elements.push(element);
+                        if let Some(concept) = concept {
+                            schema.concepts.push(concept);
                         }
-                        let element_name = e.name();
+
+                        let element_name = event.name();
                         let tag_name = str::from_utf8(element_name.as_ref()).unwrap_or("");
-                        let children =
-                            skip_to_end_with_tuple_checks(reader, tag_name, tuple_decl, path)?;
-                        if tuple_decl && let Some(elem) = schema.elements.last_mut() {
+                        let children = skip_to_end_with_tuple_checks(
+                            reader,
+                            tag_name,
+                            tuple_declaration,
+                            path,
+                        )?;
+                        if tuple_declaration && let Some(elem) = schema.concepts.last_mut() {
                             elem.tuple_children = children;
                         }
                     }
                     SchemaTag::ComplexType | SchemaTag::SimpleType => {
-                        let element_name = e.name();
+                        let element_name = event.name();
                         let tag_name = str::from_utf8(element_name.as_ref()).unwrap_or("");
                         if let Some(NamedTypeBase {
                             type_name,
@@ -268,7 +272,7 @@ pub(crate) fn read_schema<R: io::BufRead>(
                             declared_decimals,
                             declared_precision,
                             has_local_element_content,
-                        }) = parse_named_type_base(reader, e.attributes(), tag_name, path)?
+                        }) = parse_named_type_base(reader, event.attributes(), tag_name, path)?
                         {
                             if has_local_element_content {
                                 complex_types_with_local_elements.insert(type_name.clone());
@@ -288,7 +292,7 @@ pub(crate) fn read_schema<R: io::BufRead>(
                     _ => {}
                 }
 
-                if attr_by_local_name(e.attributes(), "integerAttribute")?
+                if attr_by_local_name(event.attributes(), "integerAttribute")?
                     .is_some_and(|value| value.parse::<i64>().is_err())
                 {
                     return Err(XbrlError::InvalidSchemaDocument {
@@ -298,7 +302,7 @@ pub(crate) fn read_schema<R: io::BufRead>(
                 }
 
                 if matches!(tag, SchemaTag::IntegerElement) {
-                    if let Some(value) = attr_by_local_name(e.attributes(), "value")?
+                    if let Some(value) = attr_by_local_name(event.attributes(), "value")?
                         && value.parse::<i64>().is_err()
                     {
                         return Err(XbrlError::InvalidSchemaDocument {
@@ -337,7 +341,7 @@ pub(crate) fn read_schema<R: io::BufRead>(
                     }
 
                     if matches!(tag, SchemaTag::RoleRef)
-                        && let Some(uri) = attr_by_local_name(e.attributes(), "roleURI")?
+                        && let Some(uri) = attr_by_local_name(event.attributes(), "roleURI")?
                         && !linkbase_role_refs.insert(uri.clone())
                     {
                         return Err(XbrlError::InvalidSchemaDocument {
@@ -347,7 +351,7 @@ pub(crate) fn read_schema<R: io::BufRead>(
                     }
 
                     if matches!(tag, SchemaTag::ArcroleRef)
-                        && let Some(uri) = attr_by_local_name(e.attributes(), "arcroleURI")?
+                        && let Some(uri) = attr_by_local_name(event.attributes(), "arcroleURI")?
                         && !linkbase_arcrole_refs.insert(uri.clone())
                     {
                         return Err(XbrlError::InvalidSchemaDocument {
@@ -357,10 +361,10 @@ pub(crate) fn read_schema<R: io::BufRead>(
                     }
                 }
             }
-            Ok(Event::Empty(ref e)) => {
-                collect_schema_location_refs(e.attributes(), &mut schema.schema_location_refs)?;
+            Ok(Event::Empty(ref event)) => {
+                collect_schema_location_refs(event.attributes(), &mut schema.schema_location_refs)?;
 
-                let tag = SchemaTag::from_name(e.name().as_ref())?;
+                let tag = SchemaTag::from_name(event.name().as_ref())?;
 
                 if matches!(tag, SchemaTag::Redefine) {
                     return Err(XbrlError::InvalidSchemaDocument {
@@ -371,29 +375,30 @@ pub(crate) fn read_schema<R: io::BufRead>(
 
                 match &tag {
                     SchemaTag::LinkbaseRef if inside_appinfo => {
-                        schema
-                            .linkbase_refs
-                            .push(parse_linkbase_ref(e.attributes(), appinfo_base.as_deref())?);
+                        schema.linkbase_refs.push(parse_linkbase_ref(
+                            event.attributes(),
+                            appinfo_base.as_deref(),
+                        )?);
                     }
                     SchemaTag::Import => {
-                        if let Some(imp) = parse_import(e.attributes())? {
+                        if let Some(imp) = parse_import(event.attributes())? {
                             schema.imports.push(imp);
                         }
                     }
                     SchemaTag::Include => {
-                        if let Some(inc) = parse_include(e.attributes())? {
+                        if let Some(inc) = parse_include(event.attributes())? {
                             schema.includes.push(inc);
                         }
                     }
                     SchemaTag::Element => {
-                        if let Some(elem) = parse_element_def(e.attributes())? {
-                            schema.elements.push(elem);
+                        if let Some(elem) = parse_concept(event.attributes())? {
+                            schema.concepts.push(elem);
                         }
                     }
                     _ => {}
                 }
 
-                if attr_by_local_name(e.attributes(), "integerAttribute")?
+                if attr_by_local_name(event.attributes(), "integerAttribute")?
                     .is_some_and(|value| value.parse::<i64>().is_err())
                 {
                     return Err(XbrlError::InvalidSchemaDocument {
@@ -403,7 +408,7 @@ pub(crate) fn read_schema<R: io::BufRead>(
                 }
 
                 if matches!(tag, SchemaTag::IntegerElement)
-                    && attr_by_local_name(e.attributes(), "value")?
+                    && attr_by_local_name(event.attributes(), "value")?
                         .is_some_and(|value| value.parse::<i64>().is_err())
                 {
                     return Err(XbrlError::InvalidSchemaDocument {
@@ -424,7 +429,7 @@ pub(crate) fn read_schema<R: io::BufRead>(
                     }
 
                     if matches!(tag, SchemaTag::RoleRef)
-                        && let Some(uri) = attr_by_local_name(e.attributes(), "roleURI")?
+                        && let Some(uri) = attr_by_local_name(event.attributes(), "roleURI")?
                         && !linkbase_role_refs.insert(uri.clone())
                     {
                         return Err(XbrlError::InvalidSchemaDocument {
@@ -434,7 +439,7 @@ pub(crate) fn read_schema<R: io::BufRead>(
                     }
 
                     if matches!(tag, SchemaTag::ArcroleRef)
-                        && let Some(uri) = attr_by_local_name(e.attributes(), "arcroleURI")?
+                        && let Some(uri) = attr_by_local_name(event.attributes(), "arcroleURI")?
                         && !linkbase_arcrole_refs.insert(uri.clone())
                     {
                         return Err(XbrlError::InvalidSchemaDocument {
@@ -444,8 +449,8 @@ pub(crate) fn read_schema<R: io::BufRead>(
                     }
                 }
             }
-            Ok(Event::End(ref e)) => {
-                let tag = SchemaTag::from_name(e.name().as_ref())?;
+            Ok(Event::End(ref event)) => {
+                let tag = SchemaTag::from_name(event.name().as_ref())?;
                 if matches!(tag, SchemaTag::Appinfo) {
                     inside_appinfo = false;
                     appinfo_base = None;
@@ -482,23 +487,15 @@ pub(crate) fn read_schema<R: io::BufRead>(
         });
     }
 
-    for element in &schema.elements {
-        let substitution = element
-            .substitution_group
-            .as_deref()
-            .map(local_name)
-            .unwrap_or("");
-        if substitution == "item"
-            && element.type_name.as_deref().is_some_and(|type_name| {
-                complex_types_with_local_elements.contains(local_name(type_name))
-            })
+    for element in &schema.concepts {
+        if element.substitution_group.is_item()
+            && complex_types_with_local_elements.contains(element.data_type.name.local.as_str())
         {
             return Err(XbrlError::InvalidSchemaDocument {
                 path: path.to_path_buf(),
                 reason: format!(
                     "item '{}' uses complex type '{}' with local element content",
-                    element.name,
-                    element.type_name.as_deref().unwrap_or_default()
+                    element.qname.local, element.data_type.name.local
                 ),
             });
         }
@@ -510,7 +507,7 @@ pub(crate) fn read_schema<R: io::BufRead>(
 fn skip_to_end_with_tuple_checks<R: io::BufRead>(
     reader: &mut Reader<R>,
     tag_name: &str,
-    tuple_decl: bool,
+    is_tuple: bool,
     path: &Path,
 ) -> Result<Vec<TupleChildRef>> {
     let mut buf = Vec::new();
@@ -526,9 +523,9 @@ fn skip_to_end_with_tuple_checks<R: io::BufRead>(
             Ok(Event::Start(e)) => {
                 depth += 1;
 
-                if tuple_decl {
+                if is_tuple {
                     let element_name = e.name();
-                    let local = split_qname(element_name.as_ref())?.local_name;
+                    let local = split_qname(element_name.as_ref())?.local;
 
                     choice_stack.push(local == "choice");
 
@@ -566,9 +563,9 @@ fn skip_to_end_with_tuple_checks<R: io::BufRead>(
                 }
             }
             Ok(Event::Empty(e)) => {
-                if tuple_decl {
+                if is_tuple {
                     let element_name = e.name();
-                    let local = split_qname(element_name.as_ref())?.local_name;
+                    let local = split_qname(element_name.as_ref())?.local;
 
                     if local == "element"
                         && attr_by_local_name(e.attributes(), "name")?.is_some()
@@ -625,7 +622,7 @@ fn skip_to_end_with_tuple_checks<R: io::BufRead>(
                 }
             }
             Ok(Event::End(_)) => {
-                if tuple_decl {
+                if is_tuple {
                     choice_stack.pop();
                 }
                 depth -= 1;
@@ -718,7 +715,7 @@ fn is_allowed_embedded_linkbase_element(tag: &SchemaTag) -> bool {
 
 fn attr_by_local_name(attrs: Attributes, expected_local: &str) -> Result<Option<String>> {
     for attr in attrs.flatten() {
-        if split_qname(attr.key.as_ref())?.local_name == expected_local {
+        if split_qname(attr.key.as_ref())?.local == expected_local {
             return Ok(attr.unescape_value().ok().map(|value| value.to_string()));
         }
     }
@@ -734,7 +731,7 @@ fn parse_named_type_base<R: io::BufRead>(
 ) -> Result<Option<NamedTypeBase>> {
     let mut type_name = None;
     for attr in attrs.flatten() {
-        if split_qname(attr.key.as_ref())?.local_name == "name" {
+        if split_qname(attr.key.as_ref())?.local == "name" {
             type_name = attr.unescape_value().ok().map(|v| v.to_string());
             break;
         }
@@ -757,10 +754,10 @@ fn parse_named_type_base<R: io::BufRead>(
             Ok(Event::Start(e)) => {
                 depth += 1;
                 let element_name = e.name();
-                let local = split_qname(element_name.as_ref())?.local_name;
+                let local = split_qname(element_name.as_ref())?.local;
                 if local == "restriction" || local == "extension" {
                     for attr in e.attributes().flatten() {
-                        if split_qname(attr.key.as_ref())?.local_name == "base" {
+                        if split_qname(attr.key.as_ref())?.local == "base" {
                             base = attr.unescape_value().ok().map(|v| v.to_string());
                             break;
                         }
@@ -770,7 +767,7 @@ fn parse_named_type_base<R: io::BufRead>(
                     let mut fixed_value: Option<String> = None;
                     let mut default_value: Option<String> = None;
                     for attr in e.attributes().flatten() {
-                        match split_qname(attr.key.as_ref())?.local_name {
+                        match split_qname(attr.key.as_ref())?.local {
                             "name" => {
                                 attr_name = attr.unescape_value().ok().map(|v| v.to_string());
                             }
@@ -810,7 +807,7 @@ fn parse_named_type_base<R: io::BufRead>(
                 } else if local == "element" {
                     let mut has_name = false;
                     for attr in e.attributes().flatten() {
-                        if split_qname(attr.key.as_ref())?.local_name == "name" {
+                        if split_qname(attr.key.as_ref())?.local == "name" {
                             has_name = true;
                             break;
                         }
@@ -822,10 +819,10 @@ fn parse_named_type_base<R: io::BufRead>(
             }
             Ok(Event::Empty(e)) => {
                 let element_name = e.name();
-                let local = split_qname(element_name.as_ref())?.local_name;
+                let local = split_qname(element_name.as_ref())?.local;
                 if local == "restriction" || local == "extension" {
                     for attr in e.attributes().flatten() {
-                        if split_qname(attr.key.as_ref())?.local_name == "base" {
+                        if split_qname(attr.key.as_ref())?.local == "base" {
                             base = attr.unescape_value().ok().map(|v| v.to_string());
                             break;
                         }
@@ -835,7 +832,7 @@ fn parse_named_type_base<R: io::BufRead>(
                     let mut fixed_value: Option<String> = None;
                     let mut default_value: Option<String> = None;
                     for attr in e.attributes().flatten() {
-                        match split_qname(attr.key.as_ref())?.local_name {
+                        match split_qname(attr.key.as_ref())?.local {
                             "name" => {
                                 attr_name = attr.unescape_value().ok().map(|v| v.to_string());
                             }
@@ -875,7 +872,7 @@ fn parse_named_type_base<R: io::BufRead>(
                 } else if local == "element" {
                     let mut has_name = false;
                     for attr in e.attributes().flatten() {
-                        if split_qname(attr.key.as_ref())?.local_name == "name" {
+                        if split_qname(attr.key.as_ref())?.local == "name" {
                             has_name = true;
                             break;
                         }
@@ -913,11 +910,6 @@ fn parse_named_type_base<R: io::BufRead>(
     }))
 }
 
-/// Extract the local name from a possibly prefixed XML name.
-fn local_name(name: &str) -> &str {
-    name.rsplit(':').next().unwrap_or(name)
-}
-
 /// Extract targetNamespace and xmlns:* declarations from the xs:schema element.
 fn extract_schema_attrs(attrs: Attributes, schema: &mut TaxonomySchema) {
     for attr in attrs.flatten() {
@@ -950,7 +942,7 @@ fn parse_linkbase_ref(attrs: Attributes, inherited_base: Option<&str>) -> Result
 
     for attr in attrs.flatten() {
         let key = str::from_utf8(attr.key.as_ref()).ok();
-        let local = split_qname(attr.key.as_ref())?.local_name;
+        let local = split_qname(attr.key.as_ref())?.local;
         match local {
             "href" => {
                 href = attr
@@ -1077,7 +1069,7 @@ fn parse_role_type<R: io::BufRead>(
     collect_namespace_declarations(attrs.clone(), &mut role_type_namespaces);
 
     for attr in attrs.flatten() {
-        match split_qname(attr.key.as_ref())?.local_name {
+        match split_qname(attr.key.as_ref())?.local {
             "id" => {
                 id = attr
                     .unescape_value()
@@ -1105,7 +1097,7 @@ fn parse_role_type<R: io::BufRead>(
             Ok(Event::Start(ref e)) => {
                 depth += 1;
                 let element_name = e.name();
-                let local = split_qname(element_name.as_ref())?.local_name;
+                let local = split_qname(element_name.as_ref())?.local;
 
                 if local == "definition" || local == "usedOn" {
                     let mut used_on_namespaces = role_type_namespaces.clone();
@@ -1171,7 +1163,7 @@ fn parse_arcrole_type<R: io::BufRead>(
     collect_namespace_declarations(attrs.clone(), &mut arcrole_type_namespaces);
 
     for attr in attrs.flatten() {
-        match split_qname(attr.key.as_ref())?.local_name {
+        match split_qname(attr.key.as_ref())?.local {
             "id" => {
                 id = attr
                     .unescape_value()
@@ -1211,7 +1203,7 @@ fn parse_arcrole_type<R: io::BufRead>(
             Ok(Event::Start(ref e)) => {
                 depth += 1;
                 let element_name = e.name();
-                let local = split_qname(element_name.as_ref())?.local_name;
+                let local = split_qname(element_name.as_ref())?.local;
 
                 if local == "definition" || local == "usedOn" {
                     let mut used_on_namespaces = arcrole_type_namespaces.clone();
@@ -1269,7 +1261,7 @@ fn parse_import(attrs: Attributes) -> Result<Option<SchemaImport>> {
     let mut schema_location = None;
 
     for attr in attrs.flatten() {
-        match split_qname(attr.key.as_ref())?.local_name {
+        match split_qname(attr.key.as_ref())?.local {
             "namespace" => {
                 namespace = attr.unescape_value().ok().map(|v| v.to_string());
             }
@@ -1289,7 +1281,7 @@ fn parse_import(attrs: Attributes) -> Result<Option<SchemaImport>> {
 /// Parse an `xs:include` element.
 fn parse_include(attrs: Attributes) -> Result<Option<SchemaInclude>> {
     for attr in attrs.flatten() {
-        if split_qname(attr.key.as_ref())?.local_name == "schemaLocation"
+        if split_qname(attr.key.as_ref())?.local == "schemaLocation"
             && let Ok(val) = attr.unescape_value()
         {
             return Ok(Some(SchemaInclude {
@@ -1301,7 +1293,7 @@ fn parse_include(attrs: Attributes) -> Result<Option<SchemaInclude>> {
 }
 
 /// Parse an `xs:element` definition's attributes.
-fn parse_element_def(attrs: Attributes) -> Result<Option<Concept>> {
+fn parse_concept(attrs: Attributes) -> Result<Option<Concept>> {
     let mut name = None;
     let mut id = None;
     let mut type_name = None;
@@ -1312,7 +1304,7 @@ fn parse_element_def(attrs: Attributes) -> Result<Option<Concept>> {
     let mut balance = None;
 
     for attr in attrs.flatten() {
-        let attr_local = split_qname(attr.key.as_ref())?.local_name;
+        let attr_local = split_qname(attr.key.as_ref())?.local;
 
         match attr_local {
             "name" => {
@@ -1349,11 +1341,20 @@ fn parse_element_def(attrs: Attributes) -> Result<Option<Concept>> {
         }
     }
 
-    Ok(name.map(|n| Concept {
-        name: n,
+    let Some(qname_raw) = name else {
+        return Ok(None);
+    };
+    let type_name_raw = type_name.unwrap_or_else(|| "xsd:anyType".to_owned());
+    let substitution_group_raw = substitution_group.unwrap_or_default();
+
+    let qname = QName::from_prefixed(&qname_raw);
+    let id = ConceptId::from(id.unwrap_or_else(|| qname_raw.replace(':', "_")));
+
+    Ok(Some(Concept {
         id,
-        type_name,
-        substitution_group,
+        qname,
+        data_type: XbrlType::from_str(&type_name_raw)?,
+        substitution_group: SubstitutionGroup::from_str(&substitution_group_raw)?,
         nillable,
         is_abstract,
         period_type,
@@ -1364,7 +1365,7 @@ fn parse_element_def(attrs: Attributes) -> Result<Option<Concept>> {
 
 fn collect_schema_location_refs(attrs: Attributes, out: &mut Vec<String>) -> Result<()> {
     for attr in attrs.flatten() {
-        let attr_local = split_qname(attr.key.as_ref())?.local_name;
+        let attr_local = split_qname(attr.key.as_ref())?.local;
 
         if attr_local != "schemaLocation" && attr_local != "noNamespaceSchemaLocation" {
             continue;

@@ -469,7 +469,7 @@ impl InstanceDocument {
         let children = arc_index.get(concept_id).map(Vec::as_slice).unwrap_or(&[]);
 
         if let Some(element) = taxonomy.find_element_by_id(concept_id) {
-            if element.is_tuple() && !element.is_abstract {
+            if taxonomy.element_is_tuple(element) && !element.is_abstract {
                 if emitted_tuples.insert(concept_id.to_string()) {
                     let qname = taxonomy
                         .qualified_name(concept_id)
@@ -593,7 +593,7 @@ fn unit_ref_for_element(
     units: &[Unit],
     taxonomy: &TaxonomySet,
 ) -> Option<String> {
-    let type_name = element.type_name.as_deref()?;
+    let type_name = element.data_type.name.local.as_str();
 
     if taxonomy.is_type_derived_from(type_name, "monetaryItemType") {
         return units
@@ -670,7 +670,7 @@ fn item_allowed_in_tuple(
 fn matches_tuple_child_ref(
     child_ref: &TupleChildRef,
     child_element: &Concept,
-    taxonomy: &TaxonomySet,
+    _taxonomy: &TaxonomySet,
 ) -> bool {
     let allowed_local = child_ref
         .qname
@@ -678,27 +678,8 @@ fn matches_tuple_child_ref(
         .next()
         .unwrap_or(&child_ref.qname);
 
-    if child_element.name == allowed_local {
+    if child_element.qname.local == allowed_local {
         return true;
-    }
-
-    let mut seen = HashSet::new();
-    let mut current = child_element
-        .substitution_group
-        .as_deref()
-        .and_then(|sg| sg.rsplit(':').next());
-
-    while let Some(local) = current {
-        if !seen.insert(local) {
-            break;
-        }
-        if local == allowed_local {
-            return true;
-        }
-        current = taxonomy
-            .find_element(local)
-            .and_then(|e| e.substitution_group.as_deref())
-            .and_then(|sg| sg.rsplit(':').next());
     }
 
     false

@@ -4,7 +4,7 @@
 use super::{Severity, ValidationResult, value::PreparedFactValues};
 use crate::{
     Fact, InstanceDocument, ItemFact, Period, TaxonomySet, TupleFact,
-    taxonomy::{Concept, MaxOccurs, PeriodType, TupleChildRef},
+    taxonomy::{Concept, MaxOccurs, PeriodType, TupleChildRef, XbrlBase},
 };
 use rust_decimal::Decimal;
 use std::{
@@ -85,11 +85,9 @@ fn validate_essence_alias_units(
 
     let mut facts_by_element_id: HashMap<String, Vec<&ItemFact>> = HashMap::new();
     for fact in instance.item_facts() {
-        if let Some(element) = taxonomy.find_element(fact.local_name())
-            && let Some(id) = element.id.as_ref()
-        {
+        if let Some(element) = taxonomy.find_element(fact.local_name()) {
             facts_by_element_id
-                .entry(id.clone())
+                .entry(element.id.to_string())
                 .or_default()
                 .push(fact);
         }
@@ -509,32 +507,7 @@ fn validate_tuple_fact<'a>(
 }
 
 fn is_tuple_element(element: &Concept, taxonomy: &TaxonomySet) -> bool {
-    if element.is_tuple() {
-        return true;
-    }
-
-    let mut seen = HashSet::new();
-    let mut current = element
-        .substitution_group
-        .as_deref()
-        .and_then(|substitution_group| substitution_group.rsplit(':').next());
-
-    while let Some(local) = current {
-        if !seen.insert(local) {
-            break;
-        }
-
-        if local == "tuple" {
-            return true;
-        }
-
-        current = taxonomy
-            .find_element(local)
-            .and_then(|parent| parent.substitution_group.as_deref())
-            .and_then(|substitution_group| substitution_group.rsplit(':').next());
-    }
-
-    false
+    taxonomy.element_is_tuple(element)
 }
 
 fn validate_tuple_child(
@@ -561,7 +534,7 @@ fn validate_tuple_child(
         "schema.tuple_child_not_allowed",
         format!(
             "Fact '{}' is not allowed as child of tuple '{}'",
-            child_concept, parent_tuple.name
+            child_concept, parent_tuple.qname.local
         ),
         Some(child_concept),
         None,
@@ -660,31 +633,8 @@ fn tuple_child_ref_matches_element(
         .rsplit(':')
         .next()
         .unwrap_or(&child_ref.qname);
-    if child_element.name == allowed_local {
-        return true;
-    }
-
-    let mut seen = HashSet::new();
-    let mut current = child_element
-        .substitution_group
-        .as_deref()
-        .and_then(|substitution_group| substitution_group.rsplit(':').next());
-
-    while let Some(local) = current {
-        if !seen.insert(local) {
-            break;
-        }
-        if local == allowed_local {
-            return true;
-        }
-
-        current = taxonomy
-            .find_element(local)
-            .and_then(|element| element.substitution_group.as_deref())
-            .and_then(|substitution_group| substitution_group.rsplit(':').next());
-    }
-
-    false
+    let _ = taxonomy;
+    child_element.qname.local == allowed_local
 }
 
 fn validate_item_fact(
@@ -757,10 +707,8 @@ fn validate_item_fact(
 
         let has_decimals = fact.decimals().is_some();
         let has_precision = fact.precision().is_some();
-        let has_declared_accuracy = element.type_name.as_deref().is_some_and(|type_name| {
-            let acc = taxonomy.type_declared_accuracy(type_name);
-            acc.decimals.is_some() || acc.precision.is_some()
-        });
+        let acc = taxonomy.type_declared_accuracy(element.data_type.name.local.as_str());
+        let has_declared_accuracy = acc.decimals.is_some() || acc.precision.is_some();
 
         if has_decimals && has_precision {
             result.add(
@@ -915,10 +863,7 @@ fn validate_contexts(
         {
             let local = qname.rsplit(':').next().unwrap_or(qname);
             if let Some(element) = taxonomy.find_element(local)
-                && element
-                    .substitution_group
-                    .as_deref()
-                    .is_some_and(|sg| sg.contains("xbrli:item") || sg.contains("xbrli:tuple"))
+                && (taxonomy.element_is_item(element) || taxonomy.element_is_tuple(element))
             {
                 result.add(
                     Severity::Error,
@@ -1017,14 +962,16 @@ fn validate_unit_constraints(
         }
     }
 
-    let is_monetary = element
-        .type_name
-        .as_deref()
-        .is_some_and(|t| taxonomy.is_type_derived_from(t, "monetaryItemType"));
-    let is_shares = element
-        .type_name
-        .as_deref()
-        .is_some_and(|t| taxonomy.is_type_derived_from(t, "sharesItemType"));
+    let type_local = element.data_type.name.local.as_str();
+    let is_monetary = taxonomy.is_type_derived_from(type_local, "monetaryItemType")
+        || matches!(element.data_type.base, XbrlBase::Monetary);
+    let is_shares = taxonomy.is_type_derived_from(type_local, "sharesItemType")
+        || element
+            .data_type
+            .name
+            .local
+            .to_ascii_lowercase()
+            .contains("shares");
 
     if is_monetary {
         if !unit.has_single_measure_no_divide() {
@@ -1109,9 +1056,7 @@ fn is_valid_numeric_lexical(value: &str) -> bool {
 
 /// Determine whether an element definition is numeric based on its XSD type name.
 fn is_numeric_type(element: &Concept, taxonomy: &TaxonomySet) -> bool {
-    let Some(ref type_name) = element.type_name else {
-        return false;
-    };
+    let type_name = element.data_type.name.local.as_str();
 
     for base in [
         "monetaryItemType",

@@ -1,8 +1,168 @@
 use crate::{
+    ConceptId,
     error::{Result, XbrlError},
-    taxonomy::schema::local_name,
+    taxonomy::QName,
 };
 use std::{fmt, str::FromStr};
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum XbrlBase {
+    Monetary,
+    Decimal,
+    Integer,
+    Boolean,
+    String,
+    Date,
+    DateTime,
+    Pure,
+    QName,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct XbrlType {
+    /// Actual schema type
+    pub name: QName,
+    /// Resolved semantic base
+    pub base: XbrlBase,
+}
+
+impl FromStr for XbrlType {
+    type Err = XbrlError;
+
+    fn from_str(value: &str) -> Result<Self> {
+        let value = value.trim();
+        if value.is_empty() {
+            return Err(XbrlError::ParseError {
+                expected: "XbrlType",
+                value: value.to_owned(),
+            });
+        }
+
+        let name = if let Some((namespace, local)) = value.split_once(':') {
+            QName {
+                namespace: namespace.to_owned(),
+                local: local.to_owned(),
+            }
+        } else {
+            QName {
+                namespace: String::new(),
+                local: value.to_owned(),
+            }
+        };
+
+        let lower = name.local.to_ascii_lowercase();
+        let base = if lower.contains("monetary") {
+            XbrlBase::Monetary
+        } else if lower.contains("decimal")
+            || lower.contains("float")
+            || lower.contains("double")
+            || lower.contains("shares")
+            || lower.contains("fraction")
+            || lower.contains("percent")
+            || lower.contains("pershare")
+        {
+            XbrlBase::Decimal
+        } else if lower.contains("integer") {
+            XbrlBase::Integer
+        } else if lower.contains("boolean") {
+            XbrlBase::Boolean
+        } else if lower.contains("datetime") {
+            XbrlBase::DateTime
+        } else if lower.contains("date") {
+            XbrlBase::Date
+        } else if lower.contains("pure") {
+            XbrlBase::Pure
+        } else if lower.contains("qname") {
+            XbrlBase::QName
+        } else {
+            XbrlBase::String
+        };
+
+        Ok(Self { name, base })
+    }
+}
+
+/// The substitution group of an element (e.g., "xbrli:item", "xbrli:tuple",
+/// etc.).
+///
+/// XBRL 2.1 defines the following substitution groups:
+/// - `xbrli:item`: Concrete item concepts that can appear as facts in an
+///   instance document.
+/// - `xbrli:tuple`: Tuple concepts that can contain other elements as children.
+/// dimension domain.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BaseSubstitutionGroup {
+    Item,
+    Tuple,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SubstitutionGroup {
+    pub name: QName,
+    pub base: BaseSubstitutionGroup,
+}
+
+impl FromStr for SubstitutionGroup {
+    type Err = XbrlError;
+
+    fn from_str(value: &str) -> Result<Self> {
+        let value = value.trim();
+        if value.is_empty() {
+            return Err(XbrlError::ParseError {
+                expected: "SubstitutionGroup",
+                value: value.to_owned(),
+            });
+        }
+
+        let name = QName::from_prefixed(value);
+        let base = match name.local.as_str() {
+            "item" => BaseSubstitutionGroup::Item,
+            "tuple" => BaseSubstitutionGroup::Tuple,
+            _ => BaseSubstitutionGroup::Item,
+        };
+
+        Ok(Self { name, base })
+    }
+}
+
+impl SubstitutionGroup {
+    pub fn item() -> Self {
+        Self {
+            name: QName {
+                namespace: "xbrli".to_owned(),
+                local: "item".to_owned(),
+            },
+            base: BaseSubstitutionGroup::Item,
+        }
+    }
+
+    pub fn tuple() -> Self {
+        Self {
+            name: QName {
+                namespace: "xbrli".to_owned(),
+                local: "tuple".to_owned(),
+            },
+            base: BaseSubstitutionGroup::Tuple,
+        }
+    }
+
+    pub fn is_item(&self) -> bool {
+        self.name.local == "item"
+    }
+
+    pub fn is_tuple(&self) -> bool {
+        self.name.local == "tuple"
+    }
+}
+
+/// Dimensional XBRL 1.0 concepts (Hypercube, Dimension, Domain, DomainMember).
+#[allow(dead_code)]
+pub enum DimensionalType {
+    Hypercube,
+    Dimension,
+    Domain,
+    DomainMember,
+}
 
 /// The XBRL period type for a taxonomy element (`xbrli:periodType` attribute).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -95,22 +255,22 @@ pub struct TupleChildRef {
 /// An `xs:element` definition from a taxonomy schema.
 #[derive(Debug, Clone)]
 pub struct Concept {
-    /// The element's local name (e.g., "bs.ass.fixAss").
-    pub name: String,
-    /// The element's id attribute (e.g., "de-gaap-ci_bs.ass.fixAss").
-    pub id: Option<String>,
+    /// The element's id attribute (e.g., "de-gaap-ci_bs.ass.fixAss"), derived from full QName.
+    pub id: ConceptId,
+    /// The element's qualified name (e.g., "de-gaap-ci:bs.ass.fixAss").
+    pub qname: QName,
     /// The XSD type (e.g., "xbrli:monetaryItemType").
-    pub type_name: Option<String>,
+    pub data_type: XbrlType,
     /// Substitution group (e.g., "xbrli:item", "xbrli:tuple").
-    pub substitution_group: Option<String>,
-    /// Whether this element is nillable.
-    pub nillable: bool,
-    /// Whether this element is abstract.
-    pub is_abstract: bool,
+    pub substitution_group: SubstitutionGroup,
     /// The XBRL period type ("instant" or "duration").
     pub period_type: Option<PeriodType>,
     /// The XBRL balance type ("debit" or "credit").
     pub balance: Option<Balance>,
+    /// Whether this element is nillable.
+    pub nillable: bool,
+    /// Whether this element is abstract.
+    pub is_abstract: bool,
     /// For tuple elements: the child elements declared via `xs:element[@ref]`
     /// inside the tuple's inline `xs:complexType`. Empty for non-tuple elements.
     pub tuple_children: Vec<TupleChildRef>,
@@ -119,9 +279,7 @@ pub struct Concept {
 impl Concept {
     /// Returns `true` if this element is an XBRL tuple (`substitutionGroup="xbrli:tuple"`).
     pub fn is_tuple(&self) -> bool {
-        self.substitution_group
-            .as_deref()
-            .is_some_and(|s| local_name(s) == "tuple")
+        self.substitution_group.is_tuple()
     }
 
     /// Returns `true` if this element is a concrete (non-abstract) item fact.

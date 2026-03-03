@@ -35,7 +35,7 @@ enum ReferenceTag {
 
 impl ReferenceTag {
     fn from_name(name: &[u8]) -> Result<Self> {
-        Ok(match split_qname(name)?.local_name {
+        Ok(match split_qname(name)?.local {
             "loc" => Self::Loc,
             "reference" => Self::Reference,
             "referenceArc" => Self::ReferenceArc,
@@ -139,7 +139,7 @@ fn parse_loc(attrs: Attributes, locators: &mut HashMap<String, String>) -> Resul
     let mut label = None;
 
     for attr in attrs.flatten() {
-        let local = split_qname(attr.key.as_ref())?.local_name;
+        let local = split_qname(attr.key.as_ref())?.local;
         match local {
             "href" => {
                 if let Ok(val) = attr.unescape_value()
@@ -167,7 +167,7 @@ fn parse_arc(attrs: Attributes) -> Result<Option<RawRefArc>> {
     let mut to = None;
 
     for attr in attrs.flatten() {
-        let local = split_qname(attr.key.as_ref())?.local_name;
+        let local = split_qname(attr.key.as_ref())?.local;
         match local {
             "from" => {
                 from = attr.unescape_value().ok().map(|v| v.to_string());
@@ -195,7 +195,7 @@ fn parse_reference_resource(
     let mut role = String::new();
 
     for attr in attrs.flatten() {
-        let local = split_qname(attr.key.as_ref())?.local_name;
+        let local = split_qname(attr.key.as_ref())?.local;
         match local {
             "label" => {
                 label_key = attr.unescape_value().ok().map(|v| v.to_string());
@@ -219,7 +219,7 @@ fn parse_reference_resource(
         match reader.read_event_into(&mut buf) {
             Ok(Event::Start(ref e)) => {
                 depth += 1;
-                current_part_name = Some(split_qname(e.name().as_ref())?.local_name.to_string());
+                current_part_name = Some(split_qname(e.name().as_ref())?.local.to_string());
             }
             Ok(Event::Text(ref t)) => {
                 if let Some(ref part_name) = current_part_name

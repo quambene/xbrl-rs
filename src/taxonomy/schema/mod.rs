@@ -6,7 +6,10 @@ use crate::{
     error::{Result, XbrlError},
     instance::Decimals,
 };
-pub use concept::{Balance, Concept, MaxOccurs, PeriodType, TupleChildRef};
+pub use concept::{
+    Balance, BaseSubstitutionGroup, Concept, MaxOccurs, PeriodType, SubstitutionGroup,
+    TupleChildRef, XbrlBase, XbrlType,
+};
 use quick_xml::Reader;
 use std::{
     collections::{HashMap, HashSet},
@@ -143,7 +146,7 @@ pub struct TaxonomySchema {
     /// `link:arcroleType` definitions.
     pub arcrole_types: Vec<ArcroleType>,
     /// `xs:element` definitions.
-    pub elements: Vec<Concept>,
+    pub concepts: Vec<Concept>,
     /// Named simple/complex type derivations: type name -> base QName.
     pub type_bases: HashMap<String, String>,
     /// Named types with declared decimals/precision attributes (fixed/default) on restrictions.
@@ -236,11 +239,44 @@ fn is_absolute_uri(value: &str) -> bool {
 mod tests {
     use super::{Concept, RoleType, TaxonomySchema};
     use crate::{
-        XbrlError,
+        ConceptId, QName, SubstitutionGroup, XbrlBase, XbrlError, XbrlType,
         taxonomy::schema::concept::{Balance, PeriodType},
     };
     use assert_matches::assert_matches;
     use std::collections::HashMap;
+
+    fn test_concept(
+        local_name: &str,
+        type_local: &str,
+        substitution_group: SubstitutionGroup,
+        period_type: Option<PeriodType>,
+        balance: Option<Balance>,
+    ) -> Concept {
+        Concept {
+            id: ConceptId::from(local_name),
+            qname: QName {
+                namespace: "".to_string(),
+                local: local_name.to_string(),
+            },
+            data_type: XbrlType {
+                name: QName {
+                    namespace: "xbrli".to_string(),
+                    local: type_local.to_string(),
+                },
+                base: if type_local.contains("monetary") {
+                    XbrlBase::Monetary
+                } else {
+                    XbrlBase::String
+                },
+            },
+            substitution_group,
+            nillable: true,
+            is_abstract: false,
+            period_type,
+            balance,
+            tuple_children: Vec::new(),
+        }
+    }
 
     #[test]
     fn validate_requires_period_type_on_items() {
@@ -254,17 +290,13 @@ mod tests {
             schema_location_refs: vec![],
             role_types: vec![],
             arcrole_types: vec![],
-            elements: vec![Concept {
-                name: "MissingPeriodType".to_string(),
-                id: None,
-                type_name: Some("xbrli:stringItemType".to_string()),
-                substitution_group: Some("xbrli:item".to_string()),
-                nillable: true,
-                is_abstract: false,
-                period_type: None,
-                balance: None,
-                tuple_children: Vec::new(),
-            }],
+            concepts: vec![test_concept(
+                "MissingPeriodType",
+                "stringItemType",
+                SubstitutionGroup::item(),
+                None,
+                None,
+            )],
             type_bases: HashMap::new(),
             type_declared_accuracy: HashMap::new(),
         };
@@ -288,17 +320,13 @@ mod tests {
             schema_location_refs: vec![],
             role_types: vec![],
             arcrole_types: vec![],
-            elements: vec![Concept {
-                name: "NonMonetaryWithBalance".to_string(),
-                id: None,
-                type_name: Some("xbrli:stringItemType".to_string()),
-                substitution_group: Some("xbrli:item".to_string()),
-                nillable: true,
-                is_abstract: false,
-                period_type: Some(PeriodType::Duration),
-                balance: Some(Balance::Credit),
-                tuple_children: Vec::new(),
-            }],
+            concepts: vec![test_concept(
+                "NonMonetaryWithBalance",
+                "stringItemType",
+                SubstitutionGroup::item(),
+                Some(PeriodType::Duration),
+                Some(Balance::Credit),
+            )],
             type_bases: HashMap::new(),
             type_declared_accuracy: HashMap::new(),
         };
@@ -322,17 +350,13 @@ mod tests {
             schema_location_refs: vec![],
             role_types: vec![],
             arcrole_types: vec![],
-            elements: vec![Concept {
-                name: "TupleWithPeriodType".to_string(),
-                id: None,
-                type_name: Some("xbrli:stringItemType".to_string()),
-                substitution_group: Some("xbrli:tuple".to_string()),
-                nillable: true,
-                is_abstract: false,
-                period_type: Some(PeriodType::Duration),
-                balance: None,
-                tuple_children: Vec::new(),
-            }],
+            concepts: vec![test_concept(
+                "TupleWithPeriodType",
+                "stringItemType",
+                SubstitutionGroup::tuple(),
+                Some(PeriodType::Duration),
+                None,
+            )],
             type_bases: HashMap::new(),
             type_declared_accuracy: HashMap::new(),
         };
@@ -356,17 +380,13 @@ mod tests {
             schema_location_refs: vec![],
             role_types: vec![],
             arcrole_types: vec![],
-            elements: vec![Concept {
-                name: "TupleWithBalance".to_string(),
-                id: None,
-                type_name: Some("xbrli:stringItemType".to_string()),
-                substitution_group: Some("xbrli:tuple".to_string()),
-                nillable: true,
-                is_abstract: false,
-                period_type: None,
-                balance: Some(Balance::Credit),
-                tuple_children: Vec::new(),
-            }],
+            concepts: vec![test_concept(
+                "TupleWithBalance",
+                "stringItemType",
+                SubstitutionGroup::tuple(),
+                None,
+                Some(Balance::Credit),
+            )],
             type_bases: HashMap::new(),
             type_declared_accuracy: HashMap::new(),
         };
@@ -395,7 +415,7 @@ mod tests {
                 used_on: vec![],
             }],
             arcrole_types: vec![],
-            elements: vec![],
+            concepts: vec![],
             type_bases: HashMap::new(),
             type_declared_accuracy: HashMap::new(),
         };
@@ -420,17 +440,13 @@ mod tests {
             schema_location_refs: vec![],
             role_types: vec![],
             arcrole_types: vec![],
-            elements: vec![Concept {
-                name: "Cash".to_string(),
-                id: None,
-                type_name: Some("xbrli:monetaryItemType".to_string()),
-                substitution_group: Some("xbrli:item".to_string()),
-                nillable: true,
-                is_abstract: false,
-                period_type: Some(PeriodType::Instant),
-                balance: Some(Balance::Debit),
-                tuple_children: Vec::new(),
-            }],
+            concepts: vec![test_concept(
+                "Cash",
+                "monetaryItemType",
+                SubstitutionGroup::item(),
+                Some(PeriodType::Instant),
+                Some(Balance::Debit),
+            )],
             type_bases: HashMap::new(),
             type_declared_accuracy: HashMap::new(),
         };

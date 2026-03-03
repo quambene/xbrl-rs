@@ -14,8 +14,8 @@ fn schema_by_namespace() {
     let gcd = dts
         .schema_by_namespace("http://www.xbrl.de/taxonomies/de-gcd-2020-04-01")
         .expect("GCD schema not found by namespace");
-    assert!(!gcd.elements.is_empty());
-    assert!(gcd.elements.iter().any(|e| e.name == "genInfo"));
+    assert!(!gcd.concepts.is_empty());
+    assert!(gcd.concepts.iter().any(|e| e.qname.local == "genInfo"));
 }
 
 #[test]
@@ -219,7 +219,7 @@ fn find_element_by_id() {
     let elem = dts
         .find_element_by_id("de-gaap-ci_bs.ass")
         .expect("Expected to find element by ID");
-    assert_eq!(elem.name, "bs.ass");
+    assert_eq!(elem.qname.local, "bs.ass");
     assert_eq!(elem.period_type, Some(PeriodType::Instant));
     assert!(!elem.is_abstract);
 }

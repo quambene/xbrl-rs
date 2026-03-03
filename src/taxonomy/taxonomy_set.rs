@@ -1,6 +1,6 @@
 use super::schema::{Concept, DeclaredAccuracy, RoleType, TaxonomySchema};
 use crate::{
-    ConceptId, RoleUri, SchemaRefUrl,
+    BaseSubstitutionGroup, ConceptId, RoleUri, SchemaRefUrl,
     error::{Result, XbrlError},
     taxonomy::linkbases::{
         calculation::{self, CalculationArc},
@@ -317,7 +317,7 @@ impl TaxonomySet {
             }
         }
 
-        Ok(TaxonomySet {
+        let taxonomy = TaxonomySet {
             entry_point,
             schema_refs: schema_refs_map,
             schemas,
@@ -329,7 +329,17 @@ impl TaxonomySet {
             references,
             role_source_schema,
             version,
-        })
+        };
+
+        // Ensure all substitutionGroup chains resolve to either `item` or `tuple`.
+        // If any element cannot be resolved, treat the schema as invalid.
+        for schema in taxonomy.schemas.values() {
+            for element in &schema.concepts {
+                taxonomy.substitution_group_base(element)?;
+            }
+        }
+
+        Ok(taxonomy)
     }
 
     /// Get the entry point directory of taxonomy files.
@@ -367,7 +377,7 @@ impl TaxonomySet {
 
     /// Get all element definitions across all schemas in the DTS.
     pub fn elements(&self) -> Vec<&Concept> {
-        self.schemas.values().flat_map(|s| &s.elements).collect()
+        self.schemas.values().flat_map(|s| &s.concepts).collect()
     }
 
     /// Get all role type definitions across all schemas in the DTS.
@@ -379,16 +389,87 @@ impl TaxonomySet {
     pub fn find_element(&self, name: &str) -> Option<&Concept> {
         self.schemas
             .values()
-            .flat_map(|s| &s.elements)
-            .find(|e| e.name == name)
+            .flat_map(|s| &s.concepts)
+            .find(|e| e.qname.local == name)
     }
 
     /// Find an element definition by its ID attribute (e.g., `de-gaap-ci_bs.ass`).
     pub fn find_element_by_id(&self, id: &str) -> Option<&Concept> {
         self.schemas
             .values()
-            .flat_map(|s| &s.elements)
-            .find(|e| e.id.as_deref() == Some(id))
+            .flat_map(|s| &s.concepts)
+            .find(|e| e.id.as_str() == id)
+    }
+
+    /// Resolve the effective substitution-group base by following chained
+    /// substitutions until the head (`xbrli:item` or `xbrli:tuple`) is reached.
+    pub fn substitution_group_base(&self, element: &Concept) -> Result<BaseSubstitutionGroup> {
+        // Fast-path: element's substitutionGroup may directly name the XBRL
+        // head element (local name `item` or `tuple`). Check the local name
+        // rather than relying on a removed `Other` variant.
+        let start_local = element.substitution_group.name.local.as_str();
+        if start_local == "item" {
+            return Ok(BaseSubstitutionGroup::Item);
+        }
+        if start_local == "tuple" {
+            return Ok(BaseSubstitutionGroup::Tuple);
+        }
+
+        // Walk the substitution chain by following the referenced element
+        // names until we reach a declared head (item/tuple) or exhaust the
+        // chain.
+        let mut current = element.substitution_group.name.local.clone();
+        let mut seen: HashSet<String> = HashSet::new();
+
+        while seen.insert(current.clone()) {
+            let Some(parent) = self.find_element(&current) else {
+                break;
+            };
+
+            let parent_local = parent.substitution_group.name.local.as_str();
+            if parent_local == "item" {
+                return Ok(BaseSubstitutionGroup::Item);
+            }
+            if parent_local == "tuple" {
+                return Ok(BaseSubstitutionGroup::Tuple);
+            }
+
+            current = parent.substitution_group.name.local.clone();
+        }
+
+        let schema_path = self
+            .schemas
+            .iter()
+            .find_map(|(path, schema)| {
+                schema
+                    .concepts
+                    .iter()
+                    .any(|candidate| candidate.id == element.id)
+                    .then(|| path.clone())
+            })
+            .unwrap_or_else(|| self.entry_point.clone());
+
+        Err(XbrlError::InvalidSchemaDocument {
+            path: schema_path,
+            reason: format!(
+                "unable to resolve substitutionGroup '{}' for element '{}'",
+                element.substitution_group.name.local, element.qname.local
+            ),
+        })
+    }
+
+    pub fn element_is_tuple(&self, element: &Concept) -> bool {
+        matches!(
+            self.substitution_group_base(element),
+            Ok(BaseSubstitutionGroup::Tuple)
+        )
+    }
+
+    pub fn element_is_item(&self, element: &Concept) -> bool {
+        matches!(
+            self.substitution_group_base(element),
+            Ok(BaseSubstitutionGroup::Item)
+        )
     }
 
     /// Find the tuple element that directly contains the given concept, if any.
@@ -398,19 +479,13 @@ impl TaxonomySet {
     /// `xs:complexType`. Only one level of indirection is resolved (direct parent tuple).
     pub fn find_parent_tuple(&self, concept_id: &str) -> Option<&Concept> {
         let element = self.find_element_by_id(concept_id)?;
-        let parent_qname = element.substitution_group.as_deref()?;
-
-        // Skip standard XBRL substitution groups — those don't belong to a custom tuple
-        let local = parent_qname.rsplit(':').next().unwrap_or(parent_qname);
-        if local == "item" || local == "tuple" {
-            return None;
-        }
-
-        // Find a tuple whose xs:complexType references this abstract head QName
-        self.schemas
-            .values()
-            .flat_map(|s| &s.elements)
-            .find(|e| e.is_tuple() && e.tuple_children.iter().any(|c| c.qname == parent_qname))
+        // Find a tuple whose xs:complexType references this child element QName
+        self.schemas.values().flat_map(|s| &s.concepts).find(|e| {
+            self.element_is_tuple(e)
+                && e.tuple_children.iter().any(|c| {
+                    c.qname.rsplit(':').next().unwrap_or(c.qname.as_str()) == element.qname.local
+                })
+        })
     }
 
     /// Find all tuple ancestor IDs from root tuple to direct parent tuple.
@@ -423,12 +498,9 @@ impl TaxonomySet {
             let Some(parent_tuple) = self.find_parent_tuple(&current) else {
                 break;
             };
-            let Some(parent_id) = parent_tuple.id.as_ref() else {
-                break;
-            };
 
-            ancestors.push(parent_id.clone());
-            current = parent_id.clone();
+            ancestors.push(parent_tuple.id.to_string());
+            current = parent_tuple.id.to_string();
         }
 
         ancestors.reverse();
@@ -503,18 +575,14 @@ impl TaxonomySet {
     /// target namespace with a matching prefix.
     pub fn qualified_name(&self, element_id: &str) -> Option<String> {
         for schema in self.schemas.values() {
-            if let Some(elem) = schema
-                .elements
-                .iter()
-                .find(|e| e.id.as_deref() == Some(element_id))
-            {
+            if let Some(elem) = schema.concepts.iter().find(|e| e.id.as_str() == element_id) {
                 let target_ns = schema.target_namespace.as_deref()?;
                 let prefix = schema
                     .namespaces
                     .iter()
                     .find(|(_, uri)| uri.as_str() == target_ns)
                     .map(|(prefix, _)| prefix)?;
-                return Some(format!("{prefix}:{}", elem.name));
+                return Some(format!("{prefix}:{}", elem.qname.local));
             }
         }
         None

@@ -38,7 +38,7 @@ enum LabelTag {
 
 impl LabelTag {
     fn from_name(name: &[u8]) -> Result<Self> {
-        Ok(match split_qname(name)?.local_name {
+        Ok(match split_qname(name)?.local {
             "loc" => Self::Loc,
             "labelArc" => Self::LabelArc,
             "label" => Self::Label,
@@ -146,7 +146,7 @@ fn parse_loc(
     let mut label = None;
 
     for attr in attrs.flatten() {
-        let local = split_qname(attr.key.as_ref())?.local_name;
+        let local = split_qname(attr.key.as_ref())?.local;
         match local {
             "href" => {
                 if let Ok(val) = attr.unescape_value() {
@@ -176,7 +176,7 @@ fn parse_label_arc(attrs: quick_xml::events::attributes::Attributes) -> Result<O
     let mut to = None;
 
     for attr in attrs.flatten() {
-        let local = split_qname(attr.key.as_ref())?.local_name;
+        let local = split_qname(attr.key.as_ref())?.local;
         match local {
             "from" => {
                 from = attr.unescape_value().ok().map(|v| v.to_string());
@@ -205,7 +205,7 @@ fn parse_label_resource(
     let mut lang = String::new();
 
     for attr in attrs.flatten() {
-        let local = split_qname(attr.key.as_ref())?.local_name;
+        let local = split_qname(attr.key.as_ref())?.local;
         match local {
             "label" => {
                 label_key = attr.unescape_value().ok().map(|v| v.to_string());

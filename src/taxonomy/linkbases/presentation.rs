@@ -30,7 +30,7 @@ enum PresentationTag {
 
 impl PresentationTag {
     fn from_name(name: &[u8]) -> Result<Self> {
-        Ok(match split_qname(name)?.local_name {
+        Ok(match split_qname(name)?.local {
             "presentationLink" => Self::PresentationLink,
             "loc" => Self::Loc,
             "presentationArc" => Self::PresentationArc,
@@ -133,7 +133,7 @@ fn resolve_arcs(locators: &HashMap<String, String>, arcs: &[RawArc]) -> Vec<Pres
 
 fn extract_role(attrs: Attributes) -> Result<String> {
     for attr in attrs.flatten() {
-        if split_qname(attr.key.as_ref())?.local_name == "role"
+        if split_qname(attr.key.as_ref())?.local == "role"
             && let Ok(val) = attr.unescape_value()
         {
             return Ok(val.to_string());
@@ -147,7 +147,7 @@ fn parse_loc(attrs: Attributes, locators: &mut HashMap<String, String>) -> Resul
     let mut label = None;
 
     for attr in attrs.flatten() {
-        let local = split_qname(attr.key.as_ref())?.local_name;
+        let local = split_qname(attr.key.as_ref())?.local;
         match local {
             "href" => {
                 if let Ok(val) = attr.unescape_value()
@@ -176,7 +176,7 @@ fn parse_arc(attrs: Attributes) -> Result<Option<RawArc>> {
     let mut order = None;
 
     for attr in attrs.flatten() {
-        let local = split_qname(attr.key.as_ref())?.local_name;
+        let local = split_qname(attr.key.as_ref())?.local;
         match local {
             "from" => {
                 from = attr.unescape_value().ok().map(|v| v.to_string());

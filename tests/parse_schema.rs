@@ -23,8 +23,8 @@ fn from_xml_unchecked_parses_minimal_valid_schema() {
         Some("http://example.com/taxonomy")
     );
     assert_eq!(schema.imports.len(), 1);
-    assert_eq!(schema.elements.len(), 1);
-    assert_eq!(schema.elements[0].name, "Cash");
+    assert_eq!(schema.concepts.len(), 1);
+    assert_eq!(schema.concepts[0].qname.local, "Cash");
 }
 
 #[test]

@@ -31,7 +31,7 @@ enum CalculationTag {
 
 impl CalculationTag {
     fn from_name(name: &[u8]) -> Result<Self> {
-        Ok(match split_qname(name)?.local_name {
+        Ok(match split_qname(name)?.local {
             "calculationLink" => Self::CalculationLink,
             "loc" => Self::Loc,
             "calculationArc" => Self::CalculationArc,
@@ -134,7 +134,7 @@ fn resolve_arcs(locators: &HashMap<String, String>, arcs: &[RawCalcArc]) -> Vec<
 
 fn extract_role(attrs: Attributes) -> Result<String> {
     for attr in attrs.flatten() {
-        if split_qname(attr.key.as_ref())?.local_name == "role"
+        if split_qname(attr.key.as_ref())?.local == "role"
             && let Ok(val) = attr.unescape_value()
         {
             return Ok(val.to_string());
@@ -148,7 +148,7 @@ fn parse_loc(attrs: Attributes, locators: &mut HashMap<String, String>) -> Resul
     let mut label = None;
 
     for attr in attrs.flatten() {
-        let local = split_qname(attr.key.as_ref())?.local_name;
+        let local = split_qname(attr.key.as_ref())?.local;
         match local {
             "href" => {
                 if let Ok(val) = attr.unescape_value()
@@ -209,7 +209,7 @@ fn parse_arc(attrs: Attributes) -> Result<Option<RawCalcArc>> {
     let mut weight = Decimal::ONE;
 
     for attr in attrs.flatten() {
-        let local = split_qname(attr.key.as_ref())?.local_name;
+        let local = split_qname(attr.key.as_ref())?.local;
         match local {
             "from" => {
                 from = attr.unescape_value().ok().map(|v| v.to_string());

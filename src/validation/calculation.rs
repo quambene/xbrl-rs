@@ -129,9 +129,7 @@ fn effective_accuracy(fact: &ItemFact, taxonomy: &TaxonomySet) -> DeclaredAccura
     let Some(element) = taxonomy.find_element(fact.local_name()) else {
         return DeclaredAccuracy::default();
     };
-    let Some(type_name) = element.type_name.as_deref() else {
-        return DeclaredAccuracy::default();
-    };
+    let type_name = element.data_type.name.local.as_str();
 
     taxonomy.type_declared_accuracy(type_name)
 }
@@ -183,13 +181,12 @@ fn build_fact_index<'a>(
         }
         let local_name = fact.local_name();
         if let Some(element) = taxonomy.find_element(local_name)
-            && let Some(ref id) = element.id
             && let Some(context) = instance.get_context(fact.context_ref())
         {
             let Some(key) = fact_semantic_key(instance, fact, context) else {
                 continue;
             };
-            let element_index = index.entry(id.clone()).or_default();
+            let element_index = index.entry(element.id.to_string()).or_default();
             if let Some(existing) = element_index.get_mut(&key) {
                 existing.is_duplicate = true;
             } else {

@@ -5,7 +5,7 @@ mod schema;
 mod taxonomy_set;
 mod types;
 
-use crate::error::Result;
+use crate::{error::Result, taxonomy::types::ParsedQName};
 pub use linkbases::{
     calculation::CalculationArc,
     definition::DefinitionArc,
@@ -17,28 +17,21 @@ pub use linkbases::{
 #[cfg(feature = "download")]
 pub use loader::TaxonomyLoader;
 pub use schema::{
-    ArcroleType, Balance, Concept, CyclesAllowed, DeclaredAccuracy, LinkbaseRef, MaxOccurs,
-    PeriodType, RoleType, SchemaImport, SchemaInclude, TaxonomySchema, TupleChildRef,
+    ArcroleType, Balance, BaseSubstitutionGroup, Concept, CyclesAllowed, DeclaredAccuracy,
+    LinkbaseRef, MaxOccurs, PeriodType, RoleType, SchemaImport, SchemaInclude, SubstitutionGroup,
+    TaxonomySchema, TupleChildRef, XbrlBase, XbrlType,
 };
 pub use taxonomy_set::TaxonomySet;
-pub use types::{ConceptId, RoleUri, SchemaRefUrl};
+pub use types::{ConceptId, QName, RoleUri, SchemaRefUrl};
 
-pub(crate) struct QName<'a> {
-    pub namespace: &'a str,
-    pub local_name: &'a str,
-}
-
-pub(crate) fn split_qname(name: &[u8]) -> Result<QName<'_>> {
+pub(crate) fn split_qname(name: &[u8]) -> Result<ParsedQName<'_>> {
     let decoded = std::str::from_utf8(name)?;
-    if let Some((namespace, local_name)) = decoded.split_once(':') {
-        return Ok(QName {
-            namespace,
-            local_name,
-        });
+    if let Some((namespace, local)) = decoded.split_once(':') {
+        return Ok(ParsedQName { namespace, local });
     }
 
-    Ok(QName {
+    Ok(ParsedQName {
         namespace: "",
-        local_name: decoded,
+        local: decoded,
     })
 }

@@ -19,8 +19,12 @@ fn parse_instance(path: &Path) -> InstanceDocument {
 }
 
 fn discover_taxonomy(instance: &InstanceDocument, entry_point: &Path) -> TaxonomySet {
-    TaxonomySet::discover(instance.schema_refs().to_vec(), entry_point.to_path_buf())
-        .expect("failed to discover taxonomy")
+    TaxonomySet::discover(instance.schema_refs().to_vec(), entry_point.to_path_buf()).expect(
+        &format!(
+            "failed to discover taxonomy for instance with entry point '{}'",
+            entry_point.display()
+        ),
+    )
 }
 
 fn case_root() -> PathBuf {
