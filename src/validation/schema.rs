@@ -525,7 +525,7 @@ fn validate_tuple_child(
         return;
     };
 
-    if tuple_allows_child(parent_tuple, child_element, taxonomy) {
+    if tuple_allows_child(parent_tuple, child_element) {
         return;
     }
 
@@ -541,15 +541,11 @@ fn validate_tuple_child(
     );
 }
 
-fn tuple_allows_child(
-    parent_tuple: &Concept,
-    child_element: &Concept,
-    taxonomy: &TaxonomySet,
-) -> bool {
+fn tuple_allows_child(parent_tuple: &Concept, child_element: &Concept) -> bool {
     parent_tuple
         .tuple_children
         .iter()
-        .any(|child_ref| tuple_child_ref_matches_element(child_ref, child_element, taxonomy))
+        .any(|child_ref| tuple_child_ref_matches_element(child_ref, child_element))
 }
 
 fn validate_required_tuple_children(
@@ -620,20 +616,15 @@ fn tuple_child_ref_matches_concept(
         return false;
     };
 
-    tuple_child_ref_matches_element(child_ref, child_element, taxonomy)
+    tuple_child_ref_matches_element(child_ref, child_element)
 }
 
-fn tuple_child_ref_matches_element(
-    child_ref: &TupleChildRef,
-    child_element: &Concept,
-    taxonomy: &TaxonomySet,
-) -> bool {
+fn tuple_child_ref_matches_element(child_ref: &TupleChildRef, child_element: &Concept) -> bool {
     let allowed_local = child_ref
         .qname
         .rsplit(':')
         .next()
         .unwrap_or(&child_ref.qname);
-    let _ = taxonomy;
     child_element.qname.local == allowed_local
 }
 
