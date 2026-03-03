@@ -1,110 +1,18 @@
 use crate::XbrlError;
-use quick_xml::{Reader, events::Event};
+use quick_xml::{
+    Reader,
+    events::{
+        Event,
+        attributes::{self, Attributes},
+    },
+};
 use std::{
+    borrow::Cow,
     collections::HashMap,
     io::BufRead,
     path::{Path, PathBuf},
+    str::FromStr,
 };
-
-/// Represents the different XML tags that can appear in an XBRL schema
-/// document.
-enum SchemaTag {
-    /// The root <xs:schema> element.
-    Schema,
-    /// An <xs:import> definition.
-    Import,
-    /// An <xs:include> definition.
-    Include,
-    /// An <xs:element> definition.
-    Element,
-    /// An <xs:simpleType> definition.
-    SimpleType,
-    /// An <xs:complexType> definition.
-    ComplexType,
-    /// An `xs:restriction` element (used in complex type definitions).
-    Restriction,
-    /// An `xs:extension` element (used in complex type definitions).
-    Extension,
-    /// An `xs:sequence` element (used in complex type definitions).
-    Sequence,
-    /// An `xs:choice` element (used in complex type definitions).
-    Choice,
-    /// An `xs:attribute` element (used in type definitions).
-    Attribute,
-    /// An `xs:annotation` element (can contain `xs:appinfo`).
-    Annotation,
-    /// An `xs:appinfo` element.
-    Appinfo,
-    /// An `xs:redefine` element (not allowed in XBRL taxonomies).
-    Redefine,
-}
-
-impl SchemaTag {
-    fn from_name(bytes: &[u8]) -> Result<Self, XbrlError> {
-        match bytes {
-            b"xs:schema" => Ok(Self::Schema),
-            b"xs:import" => Ok(Self::Import),
-            b"xs:include" => Ok(Self::Include),
-            b"xs:element" => Ok(Self::Element),
-            b"xs:simpleType" => Ok(Self::SimpleType),
-            b"xs:complexType" => Ok(Self::ComplexType),
-            b"xs:restriction" => Ok(Self::Restriction),
-            b"xs:extension" => Ok(Self::Extension),
-            b"xs:sequence" => Ok(Self::Sequence),
-            b"xs:choice" => Ok(Self::Choice),
-            b"xs:attribute" => Ok(Self::Attribute),
-            b"xs:annotation" => Ok(Self::Annotation),
-            b"xs:appinfo" => Ok(Self::Appinfo),
-            b"xs:redefine" => Ok(Self::Redefine),
-            _ => Err(XbrlError::ParseError {
-                expected: "SchemaTag",
-                value: String::from_utf8_lossy(bytes).to_string(),
-            }),
-        }
-    }
-
-    fn from_local_name(bytes: &[u8]) -> Result<Self, XbrlError> {
-        match bytes {
-            b"schema" => Ok(Self::Schema),
-            b"import" => Ok(Self::Import),
-            b"include" => Ok(Self::Include),
-            b"element" => Ok(Self::Element),
-            b"simpleType" => Ok(Self::SimpleType),
-            b"complexType" => Ok(Self::ComplexType),
-            b"restriction" => Ok(Self::Restriction),
-            b"extension" => Ok(Self::Extension),
-            b"sequence" => Ok(Self::Sequence),
-            b"choice" => Ok(Self::Choice),
-            b"attribute" => Ok(Self::Attribute),
-            b"annotation" => Ok(Self::Annotation),
-            b"appinfo" => Ok(Self::Appinfo),
-            b"redefine" => Ok(Self::Redefine),
-            _ => Err(XbrlError::ParseError {
-                expected: "SchemaTag",
-                value: String::from_utf8_lossy(bytes).to_string(),
-            }),
-        }
-    }
-
-    fn local_name(&self) -> &'static str {
-        match self {
-            Self::Schema => "schema",
-            Self::Import => "import",
-            Self::Include => "include",
-            Self::Element => "element",
-            Self::SimpleType => "simpleType",
-            Self::ComplexType => "complexType",
-            Self::Restriction => "restriction",
-            Self::Extension => "extension",
-            Self::Sequence => "sequence",
-            Self::Choice => "choice",
-            Self::Attribute => "attribute",
-            Self::Annotation => "annotation",
-            Self::Appinfo => "appinfo",
-            Self::Redefine => "redefine",
-        }
-    }
-}
 
 /// Represents the different XML tags that can appear in `xs:appinfo` sections
 /// of an XBRL schema document.
@@ -160,6 +68,29 @@ enum LinkbaseTag {
     ArcroleRef,
 }
 
+/// The XBRL balance type for a monetary taxonomy element (`xbrli:balance` attribute).
+pub enum Balance {
+    /// An asset or expense concept (increases on the debit side).
+    Debit,
+    /// A liability, equity, or income concept (increases on the credit side).
+    Credit,
+}
+
+/// The XBRL period type for a taxonomy element (`xbrli:periodType` attribute).
+pub enum PeriodType {
+    /// The element reports a value at a specific point in time.
+    Instant,
+    /// The element reports a value over a time range.
+    Duration,
+}
+
+/// Represents the `elementFormDefault` and `attributeFormDefault` values from
+/// an XBRL schema's root `xs:schema` element.
+pub enum FormDefault {
+    Qualified,
+    Unqualified,
+}
+
 /// Represents a raw parsed XBRL schema. Contains only the syntax-level data; no
 /// resolved `Concept`s yet.
 pub struct RawSchema {
@@ -188,17 +119,17 @@ pub struct Element {
     /// The element's id attribute (optional in XBRL).
     pub id: Option<String>,
     /// The type QName (e.g., "xbrli:monetaryItemType").
-    pub type_name: Option<String>,
+    pub type_name: Option<QName>,
     /// Substitution group (e.g., "xbrli:item", "xbrli:tuple").
-    pub substitution_group: Option<String>,
+    pub substitution_group: Option<QName>,
     /// Whether this element is nillable.
     pub is_nillable: bool,
     /// Whether this element is abstract.
     pub is_abstract: bool,
     /// The XBRL period type ("instant" or "duration").
-    pub period_type: Option<String>,
+    pub period_type: Option<PeriodType>,
     /// The XBRL balance ("debit" or "credit").
-    pub balance: Option<String>,
+    pub balance: Option<Balance>,
 }
 
 /// A simple/complex type definition from the schema.
@@ -235,57 +166,113 @@ pub struct LinkbaseRef {
     pub link_type: Option<String>,
 }
 
-pub struct SchemaParser<R: BufRead> {
+pub struct QName {
+    pub prefix: Option<String>,
+    pub local_name: String,
+}
+
+fn parse_qname(value: &str) -> QName {
+    if let Some(idx) = value.find(':') {
+        QName {
+            prefix: Some(value[..idx].to_string()),
+            local_name: value[idx + 1..].to_string(),
+        }
+    } else {
+        QName {
+            prefix: None,
+            local_name: value.to_string(),
+        }
+    }
+}
+
+/// The parser for XBRL schema documents.
+pub struct SchemaParser<R> {
+    /// Path of the currently parsed schema file, used for error reporting.
+    path: PathBuf,
+    /// The XML reader for the schema document.
     reader: Reader<R>,
 }
 
 impl<R: BufRead> SchemaParser<R> {
-    pub fn new(reader: R) -> Self {
-        Self {
-            reader: Reader::from_reader(reader),
-        }
+    /// Creates a new `SchemaParser` with the given reader and file path.
+    pub fn new(reader: R, path: PathBuf) -> Self {
+        let mut reader = Reader::from_reader(reader);
+        reader.config_mut().trim_text_start = true;
+        reader.config_mut().trim_text_end = true;
+
+        Self { path, reader }
     }
 
-    pub fn parse_schema(&mut self, path: &Path) -> Result<RawSchema, XbrlError> {
+    /// Parses an XBRL schema document from the reader. Path is used for error
+    /// reporting.
+    pub fn parse_schema(&mut self) -> Result<RawSchema, XbrlError> {
+        let mut schema = RawSchema {
+            file_path: self.path.clone(),
+            target_namespace: None,
+            namespaces: HashMap::new(),
+            imports: vec![],
+            includes: vec![],
+            linkbase_refs: vec![],
+            elements: vec![],
+            types: vec![],
+        };
+
+        let mut has_schema_root = false;
         let mut buf = Vec::new();
 
         loop {
             match self.reader.read_event_into(&mut buf) {
-                Ok(quick_xml::events::Event::Start(ref event)) => {
-                    let tag = SchemaTag::from_name(event.name().as_ref())?;
+                Ok(Event::Start(ref event)) | Ok(Event::Empty(ref event)) => {
+                    let event_name = event.name();
+                    let local_name = event_name.local_name();
+                    let attributes = event.attributes();
 
-                    if matches!(tag, SchemaTag::Redefine) {
-                        return Err(XbrlError::InvalidSchemaDocument {
-                            path: path.to_path_buf(),
-                            reason: "xsd:redefine is not allowed in taxonomy schemas".to_string(),
-                        });
-                    }
-
-                    match tag {
-                        SchemaTag::Schema => todo!(),
-                        SchemaTag::Import => todo!(),
-                        SchemaTag::Include => todo!(),
-                        SchemaTag::Element => todo!(),
-                        SchemaTag::SimpleType => todo!(),
-                        SchemaTag::ComplexType => todo!(),
-                        SchemaTag::Restriction => todo!(),
-                        SchemaTag::Extension => todo!(),
-                        SchemaTag::Sequence => todo!(),
-                        SchemaTag::Choice => todo!(),
-                        SchemaTag::Attribute => todo!(),
-                        SchemaTag::Annotation => todo!(),
-                        SchemaTag::Appinfo => todo!(),
-                        SchemaTag::Redefine => todo!(),
+                    match local_name.as_ref() {
+                        b"schema" => {
+                            has_schema_root = true;
+                            self.parse_schema_root(&mut schema, attributes)?;
+                        }
+                        b"import" => self.parse_import(&mut schema, attributes)?,
+                        b"include" => self.parse_include(&mut schema, attributes)?,
+                        b"element" => self.parse_element(&mut schema, attributes)?,
+                        b"simpleType" => self.parse_simple_type(&mut schema, attributes)?,
+                        b"complexType" => self.parse_complex_type(&mut schema, attributes)?,
+                        b"restriction" => self.parse_restriction(&mut schema, attributes)?,
+                        b"extension" => self.parse_extension(&mut schema, attributes)?,
+                        b"sequence" => self.parse_sequence(&mut schema, attributes)?,
+                        b"choice" => self.parse_choice(&mut schema, attributes)?,
+                        b"attribute" => self.parse_attribute(&mut schema, attributes)?,
+                        b"annotation" => self.parse_annotation(&mut schema, attributes)?,
+                        b"appinfo" => self.parse_appinfo(&mut schema, attributes)?,
+                        b"redefine" => {
+                            return Err(XbrlError::InvalidSchemaDocument {
+                                path: self.path.clone(),
+                                reason: "xsd:redefine is not allowed in taxonomy schemas"
+                                    .to_string(),
+                            });
+                        }
+                        other => {
+                            return Err(XbrlError::InvalidSchemaDocument {
+                                path: self.path.clone(),
+                                reason: format!(
+                                    "{} is not allowed in taxonomy schemas",
+                                    String::from_utf8_lossy(other)
+                                ),
+                            });
+                        }
                     }
                 }
                 Ok(Event::End(ref event)) => {
                     todo!()
                 }
+                Ok(Event::Text(_)) => {
+                    // TODO: parse `xs:annotation` and `xs:documentation`
+                }
                 Ok(Event::Eof) => break,
                 Err(err) => {
                     return Err(XbrlError::XmlParse {
                         position: self.reader.buffer_position(),
-                        element: Some(format!("schema {}", path.display())),
+                        element: Some(format!("schema {}", self.path.display())),
                         source: err,
                     });
                 }
@@ -293,8 +280,15 @@ impl<R: BufRead> SchemaParser<R> {
             }
         }
 
+        if !has_schema_root {
+            return Err(XbrlError::InvalidSchemaDocument {
+                path: self.path.to_path_buf(),
+                reason: "missing <schema> root element".to_string(),
+            });
+        }
+
         Ok(RawSchema {
-            file_path: todo!(),
+            file_path: self.path.clone(),
             namespaces: todo!(),
             target_namespace: todo!(),
             imports: todo!(),
@@ -303,5 +297,224 @@ impl<R: BufRead> SchemaParser<R> {
             elements: todo!(),
             types: todo!(),
         })
+    }
+
+    fn parse_schema_root(
+        &mut self,
+        schema: &mut RawSchema,
+        attributes: Attributes,
+    ) -> Result<(), XbrlError> {
+        for attribute in attributes.flatten() {
+            let local_name = attribute.key.local_name();
+            let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+
+            match local_name.as_ref() {
+                b"targetNamespace" => {
+                    schema.target_namespace = Some(value.to_string());
+                }
+                b"xmlns" => {
+                    schema.namespaces.insert(
+                        str::from_utf8(local_name.as_ref())?.to_string(),
+                        value.to_string(),
+                    );
+                }
+                // Not relevant for XBRL taxonomies.
+                b"elementFormDefault" | b"attributeFormDefault" => continue,
+                _ => {}
+            }
+        }
+
+        Ok(())
+    }
+
+    fn parse_import(
+        &mut self,
+        schema: &mut RawSchema,
+        attributes: Attributes,
+    ) -> Result<(), XbrlError> {
+        let mut namespace = None;
+        let mut schema_location = None;
+
+        for attribute in attributes.flatten() {
+            let local_name = attribute.key.local_name();
+            let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+
+            match local_name.as_ref() {
+                b"namespace" => namespace = Some(value.to_string()),
+                b"schemaLocation" => schema_location = Some(value.to_string()),
+                _ => {}
+            }
+        }
+
+        schema.imports.push(SchemaImport {
+            namespace: namespace.ok_or_else(|| XbrlError::InvalidSchemaDocument {
+                path: self.path.clone(),
+                reason: "missing namespace in xsd:import".to_string(),
+            })?,
+            schema_location,
+        });
+
+        Ok(())
+    }
+
+    fn parse_include(
+        &mut self,
+        schema: &mut RawSchema,
+        attributes: Attributes,
+    ) -> Result<(), XbrlError> {
+        let mut schema_location = None;
+
+        for attribute in attributes.flatten() {
+            let local_name = attribute.key.local_name();
+            let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+
+            if local_name.as_ref() == b"schemaLocation" {
+                schema_location = Some(value.to_string());
+            }
+        }
+
+        schema.includes.push(SchemaInclude {
+            schema_location: schema_location.ok_or_else(|| XbrlError::InvalidSchemaDocument {
+                path: self.path.clone(),
+                reason: "missing schemaLocation in xsd:include".to_string(),
+            })?,
+        });
+
+        Ok(())
+    }
+
+    fn parse_element(
+        &mut self,
+        schema: &mut RawSchema,
+        attributes: Attributes,
+    ) -> Result<(), XbrlError> {
+        let mut name = None;
+        let mut id = None;
+        let mut type_name = None;
+        let mut substitution_group = None;
+        let mut is_abstract = false;
+        let mut is_nillable = false;
+        let mut period_type = None;
+        let mut balance = None;
+
+        for attribute in attributes.flatten() {
+            let qname = attribute.key;
+            let local_name = qname.local_name();
+            let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+
+            match local_name.as_ref() {
+                b"name" => name = Some(value.to_string()),
+                b"id" => id = Some(value.to_string()),
+                b"type" => type_name = Some(parse_qname(&value)),
+                b"substitutionGroup" => substitution_group = Some(parse_qname(&value)),
+                b"abstract" => is_abstract = value == "true",
+                b"nillable" => is_nillable = value == "true",
+                b"periodType" => {
+                    period_type = match value.as_ref() {
+                        "instant" => Some(PeriodType::Instant),
+                        "duration" => Some(PeriodType::Duration),
+                        _ => None,
+                    }
+                }
+                b"balance" => {
+                    balance = match value.as_ref() {
+                        "debit" => Some(Balance::Debit),
+                        "credit" => Some(Balance::Credit),
+                        _ => None,
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        let element = Element {
+            name: name.ok_or_else(|| XbrlError::InvalidSchemaDocument {
+                path: self.path.clone(),
+                reason: "missing name in xsd:element".to_string(),
+            })?,
+            id: id.clone(),
+            type_name,
+            substitution_group,
+            is_nillable,
+            is_abstract,
+            period_type,
+            balance,
+        };
+
+        schema.elements.push(element);
+
+        Ok(())
+    }
+
+    fn parse_simple_type(
+        &mut self,
+        schema: &mut RawSchema,
+        attributes: Attributes,
+    ) -> Result<(), XbrlError> {
+        todo!()
+    }
+
+    fn parse_complex_type(
+        &mut self,
+        schema: &mut RawSchema,
+        attributes: Attributes,
+    ) -> Result<(), XbrlError> {
+        todo!()
+    }
+
+    fn parse_restriction(
+        &mut self,
+        schema: &mut RawSchema,
+        attributes: Attributes,
+    ) -> Result<(), XbrlError> {
+        todo!()
+    }
+
+    fn parse_extension(
+        &mut self,
+        schema: &mut RawSchema,
+        attributes: Attributes,
+    ) -> Result<(), XbrlError> {
+        todo!()
+    }
+
+    fn parse_sequence(
+        &mut self,
+        schema: &mut RawSchema,
+        attributes: Attributes,
+    ) -> Result<(), XbrlError> {
+        todo!()
+    }
+
+    fn parse_choice(
+        &mut self,
+        schema: &mut RawSchema,
+        attributes: Attributes,
+    ) -> Result<(), XbrlError> {
+        todo!()
+    }
+
+    fn parse_attribute(
+        &mut self,
+        schema: &mut RawSchema,
+        attributes: Attributes,
+    ) -> Result<(), XbrlError> {
+        todo!()
+    }
+
+    fn parse_annotation(
+        &mut self,
+        schema: &mut RawSchema,
+        attributes: Attributes,
+    ) -> Result<(), XbrlError> {
+        todo!()
+    }
+
+    fn parse_appinfo(
+        &mut self,
+        schema: &mut RawSchema,
+        attributes: Attributes,
+    ) -> Result<(), XbrlError> {
+        todo!()
     }
 }
