@@ -107,13 +107,6 @@ impl FromStr for SubstitutionGroup {
 
     fn from_str(value: &str) -> Result<Self> {
         let value = value.trim();
-        if value.is_empty() {
-            return Err(XbrlError::ParseError {
-                expected: "SubstitutionGroup",
-                value: value.to_owned(),
-            });
-        }
-
         let name = QName::from_prefixed(value);
         let base = match name.local.as_str() {
             "item" => BaseSubstitutionGroup::Item,

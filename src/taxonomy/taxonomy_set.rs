@@ -317,7 +317,7 @@ impl TaxonomySet {
             }
         }
 
-        let taxonomy = TaxonomySet {
+        Ok(TaxonomySet {
             entry_point,
             schema_refs: schema_refs_map,
             schemas,
@@ -329,17 +329,7 @@ impl TaxonomySet {
             references,
             role_source_schema,
             version,
-        };
-
-        // Ensure all substitutionGroup chains resolve to either `item` or `tuple`.
-        // If any element cannot be resolved, treat the schema as invalid.
-        for schema in taxonomy.schemas.values() {
-            for element in &schema.concepts {
-                taxonomy.substitution_group_base(element)?;
-            }
-        }
-
-        Ok(taxonomy)
+        })
     }
 
     /// Get the entry point directory of taxonomy files.
