@@ -111,8 +111,10 @@ pub struct RawSchema {
     pub linkbase_refs: Vec<LinkbaseRef>,
     /// Parsed elements (`xs:element`) in this schema.
     pub elements: Vec<Element>,
-    /// Parsed simple/complex type definitions.
-    pub types: Vec<TypeDefinition>,
+    /// Parsed simple type definitions (`xs:simpleType`) in this schema.
+    pub simple_types: Vec<SimpleType>,
+    /// Parsed complex type definitions (`xs:complexType`) in this schema.
+    pub complex_types: Vec<ComplexType>,
 }
 
 /// A parsed XML element from the schema (xs:element).
@@ -147,11 +149,20 @@ pub struct TypeDefinition {
     pub restrictions: HashMap<String, String>,
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub enum DerivationKind {
     Extension,
     Restriction,
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub struct SimpleType {
+    pub name: Option<String>,
+    pub base: Option<QName>,
+    pub enumerations: Vec<String>,
+}
+
+#[derive(Debug, PartialEq, Eq)]
 pub struct ComplexType {
     pub name: Option<String>,
     pub base: Option<QName>,
@@ -234,7 +245,8 @@ impl<R: BufRead> SchemaParser<R> {
             includes: vec![],
             linkbase_refs: vec![],
             elements: vec![],
-            types: vec![],
+            simple_types: vec![],
+            complex_types: vec![],
         };
 
         let mut has_schema_root = false;
@@ -255,8 +267,14 @@ impl<R: BufRead> SchemaParser<R> {
                         b"import" => self.parse_import(&mut schema, attributes)?,
                         b"include" => self.parse_include(&mut schema, attributes)?,
                         b"element" => self.parse_element(&mut schema, attributes)?,
-                        b"simpleType" => self.parse_simple_type(&mut schema, attributes)?,
-                        b"complexType" => self.parse_complex_type(&mut schema, attributes)?,
+                        b"simpleType" => {
+                            let simple_type = self.parse_simple_type(attributes)?;
+                            schema.simple_types.push(simple_type);
+                        }
+                        b"complexType" => {
+                            let complex_type = self.parse_complex_type(attributes)?;
+                            schema.complex_types.push(complex_type);
+                        }
                         b"restriction" => self.parse_restriction(&mut schema, attributes)?,
                         b"extension" => self.parse_extension(&mut schema, attributes)?,
                         b"sequence" => self.parse_sequence(&mut schema, attributes)?,
@@ -308,6 +326,7 @@ impl<R: BufRead> SchemaParser<R> {
         Ok(schema)
     }
 
+    /// Parses the root `xs:schema` element.
     fn parse_schema_root(
         &mut self,
         schema: &mut RawSchema,
@@ -336,6 +355,7 @@ impl<R: BufRead> SchemaParser<R> {
         Ok(())
     }
 
+    /// Parses an `xs:import` element.
     fn parse_import(
         &mut self,
         schema: &mut RawSchema,
@@ -366,6 +386,7 @@ impl<R: BufRead> SchemaParser<R> {
         Ok(())
     }
 
+    /// Parses an `xs:include` element.
     fn parse_include(
         &mut self,
         schema: &mut RawSchema,
@@ -392,6 +413,7 @@ impl<R: BufRead> SchemaParser<R> {
         Ok(())
     }
 
+    /// Parses an `xs:element` element.
     fn parse_element(
         &mut self,
         schema: &mut RawSchema,
@@ -455,22 +477,77 @@ impl<R: BufRead> SchemaParser<R> {
         Ok(())
     }
 
-    fn parse_simple_type(
-        &mut self,
-        schema: &mut RawSchema,
-        attributes: Attributes,
-    ) -> Result<(), XbrlError> {
+    /// Parses an `xs:simpleType` element.
+    fn parse_simple_type(&mut self, attributes: Attributes) -> Result<SimpleType, XbrlError> {
+        let mut name = None;
+
+        for attribute in attributes.flatten() {
+            let qname = attribute.key;
+            let local_name = qname.local_name();
+
+            if local_name.as_ref() == b"name" {
+                let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+                name = Some(value.to_string());
+            }
+        }
+
+        let mut base = None;
+        let mut enumerations = Vec::new();
+        let mut buf = Vec::new();
+
+        loop {
+            match self.reader.read_event_into(&mut buf)? {
+                Event::Start(event) | Event::Empty(event) => {
+                    let local_name = event.name().local_name();
+                    match local_name.as_ref() {
+                        b"restriction" => {
+                            for attribute in event.attributes().flatten() {
+                                if attribute.key.as_ref() == b"base" {
+                                    let value = attribute
+                                        .decode_and_unescape_value(self.reader.decoder())?;
+                                    base = Some(parse_qname(&value));
+                                }
+                            }
+                        }
+                        b"enumeration" => {
+                            for attribute in event.attributes().flatten() {
+                                if attribute.key.as_ref() == b"value" {
+                                    let value = attribute
+                                        .decode_and_unescape_value(self.reader.decoder())?;
+                                    enumerations.push(value.to_string());
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                Event::End(event) => {
+                    let local_name = event.name().local_name();
+
+                    if local_name.as_ref() == b"simpleType" {
+                        break;
+                    }
+                }
+                Event::Eof => break,
+                _ => {}
+            }
+
+            buf.clear();
+        }
+
+        Ok(SimpleType {
+            name,
+            base,
+            enumerations,
+        })
+    }
+
+    /// Parses an `xs:complexType` element.
+    fn parse_complex_type(&mut self, attributes: Attributes) -> Result<ComplexType, XbrlError> {
         todo!()
     }
 
-    fn parse_complex_type(
-        &mut self,
-        schema: &mut RawSchema,
-        attributes: Attributes,
-    ) -> Result<(), XbrlError> {
-        todo!()
-    }
-
+    /// Parses an `xs:restriction` element.
     fn parse_restriction(
         &mut self,
         schema: &mut RawSchema,
@@ -479,6 +556,7 @@ impl<R: BufRead> SchemaParser<R> {
         todo!()
     }
 
+    /// Parses an `xs:extension` element.
     fn parse_extension(
         &mut self,
         schema: &mut RawSchema,
@@ -487,6 +565,7 @@ impl<R: BufRead> SchemaParser<R> {
         todo!()
     }
 
+    /// Parses an `xs:sequence` element.
     fn parse_sequence(
         &mut self,
         schema: &mut RawSchema,
@@ -495,6 +574,7 @@ impl<R: BufRead> SchemaParser<R> {
         todo!()
     }
 
+    /// Parses an `xs:choice` element.
     fn parse_choice(
         &mut self,
         schema: &mut RawSchema,
@@ -503,6 +583,7 @@ impl<R: BufRead> SchemaParser<R> {
         todo!()
     }
 
+    /// Parses an `xs:attribute` element.
     fn parse_attribute(
         &mut self,
         schema: &mut RawSchema,
@@ -511,6 +592,7 @@ impl<R: BufRead> SchemaParser<R> {
         todo!()
     }
 
+    /// Parses an `xs:annotation` element.
     fn parse_annotation(
         &mut self,
         schema: &mut RawSchema,
@@ -613,6 +695,65 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_simple_type_restriction() {
+        let xml = r#"<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                                targetNamespace="http://example.com"
+                                xmlns="http://example.com">
+                                <xs:simpleType name="myStringType">
+                                    <xs:restriction base="xs:string">
+                                        <xs:maxLength value="100" />
+                                    </xs:restriction>
+                                </xs:simpleType>
+                            </xs:schema>"#;
+        let mut parser = SchemaParser::new(xml.as_bytes(), PathBuf::from("test.xsd"));
+        let schema = parser.parse_schema().unwrap();
+
+        assert_eq!(schema.simple_types.len(), 1);
+        let simple_type = &schema.simple_types[0];
+        assert_eq!(
+            *simple_type,
+            SimpleType {
+                name: Some("myStringType".to_string()),
+                base: Some(QName {
+                    prefix: Some("xs".to_string()),
+                    local_name: "string".to_string()
+                }),
+                enumerations: vec![],
+            }
+        );
+    }
+
+    #[test]
+    fn test_parse_simple_type_enumeration() {
+        let xml = r#"<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                                targetNamespace="http://example.com"
+                                xmlns="http://example.com">
+                                <xs:simpleType name="StatusType">
+                                    <xs:restriction base="xs:string">
+                                        <xs:enumeration value="Open" />
+                                        <xs:enumeration value="Closed" />
+                                    </xs:restriction>
+                                </xs:simpleType>
+                            </xs:schema>"#;
+        let mut parser = SchemaParser::new(xml.as_bytes(), PathBuf::from("test.xsd"));
+        let schema = parser.parse_schema().unwrap();
+
+        assert_eq!(schema.simple_types.len(), 1);
+        let simple_type = &schema.simple_types[0];
+        assert_eq!(
+            *simple_type,
+            SimpleType {
+                name: Some("StatusType".to_string()),
+                base: Some(QName {
+                    prefix: Some("xs".to_string()),
+                    local_name: "string".to_string()
+                }),
+                enumerations: vec!["Open".to_string(), "Closed".to_string()],
+            }
+        );
+    }
+
+    #[test]
     fn test_parse_schema() {
         let xml = r#"<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
                                 targetNamespace="http://example.com"
@@ -670,11 +811,15 @@ mod tests {
                     period_type: Some(PeriodType::Duration),
                     balance: None,
                 }],
-                types: vec![TypeDefinition {
-                    name: "MyStringType".to_string(),
-                    base: Some("xs:string".to_string()),
-                    restrictions: HashMap::new(),
+                simple_types: vec![SimpleType {
+                    name: Some("MyStringType".to_string()),
+                    base: Some(QName {
+                        prefix: Some("xs".to_string()),
+                        local_name: "string".to_string()
+                    }),
+                    enumerations: vec![],
                 }],
+                complex_types: vec![],
             }
         );
     }
