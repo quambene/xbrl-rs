@@ -69,6 +69,7 @@ enum LinkbaseTag {
 }
 
 /// The XBRL balance type for a monetary taxonomy element (`xbrli:balance` attribute).
+#[derive(Debug, PartialEq, Eq)]
 pub enum Balance {
     /// An asset or expense concept (increases on the debit side).
     Debit,
@@ -77,6 +78,7 @@ pub enum Balance {
 }
 
 /// The XBRL period type for a taxonomy element (`xbrli:periodType` attribute).
+#[derive(Debug, PartialEq, Eq)]
 pub enum PeriodType {
     /// The element reports a value at a specific point in time.
     Instant,
@@ -93,6 +95,7 @@ pub enum FormDefault {
 
 /// Represents a raw parsed XBRL schema. Contains only the syntax-level data; no
 /// resolved `Concept`s yet.
+#[derive(Debug, PartialEq, Eq)]
 pub struct RawSchema {
     /// Absolute file path of this schema.
     pub file_path: PathBuf,
@@ -113,6 +116,7 @@ pub struct RawSchema {
 }
 
 /// A parsed XML element from the schema (xs:element).
+#[derive(Debug, PartialEq, Eq)]
 pub struct Element {
     /// The element's local name (e.g., "bs.ass.fixAss").
     pub name: String,
@@ -133,16 +137,29 @@ pub struct Element {
 }
 
 /// A simple/complex type definition from the schema.
+#[derive(Debug, PartialEq, Eq)]
 pub struct TypeDefinition {
     /// The type's name.
     pub name: String,
     /// The base type name, if any.
     pub base: Option<String>,
     /// Additional restrictions or facets can be stored as key-value pairs.
-    pub restrictions: std::collections::HashMap<String, String>,
+    pub restrictions: HashMap<String, String>,
+}
+
+pub enum DerivationKind {
+    Extension,
+    Restriction,
+}
+
+pub struct ComplexType {
+    pub name: Option<String>,
+    pub base: Option<QName>,
+    pub derivation: Option<DerivationKind>,
 }
 
 /// Represents an `xs:import` in the schema.
+#[derive(Debug, PartialEq, Eq)]
 pub struct SchemaImport {
     /// Namespace being imported.
     pub namespace: String,
@@ -151,12 +168,14 @@ pub struct SchemaImport {
 }
 
 /// Represents an `xs:include` in the schema.
+#[derive(Debug, PartialEq, Eq)]
 pub struct SchemaInclude {
     /// Location of the included schema file.
     pub schema_location: String,
 }
 
 /// Represents a `link:linkbaseRef` in the schema.
+#[derive(Debug, PartialEq, Eq)]
 pub struct LinkbaseRef {
     /// Href to the linkbase file.
     pub href: String,
@@ -166,6 +185,7 @@ pub struct LinkbaseRef {
     pub link_type: Option<String>,
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct QName {
     pub prefix: Option<String>,
     pub local_name: String,
@@ -262,9 +282,7 @@ impl<R: BufRead> SchemaParser<R> {
                         }
                     }
                 }
-                Ok(Event::End(ref event)) => {
-                    todo!()
-                }
+                Ok(Event::End(ref event)) => {}
                 Ok(Event::Text(_)) => {
                     // TODO: parse `xs:annotation` and `xs:documentation`
                 }
@@ -287,16 +305,7 @@ impl<R: BufRead> SchemaParser<R> {
             });
         }
 
-        Ok(RawSchema {
-            file_path: self.path.clone(),
-            namespaces: todo!(),
-            target_namespace: todo!(),
-            imports: todo!(),
-            includes: todo!(),
-            linkbase_refs: todo!(),
-            elements: todo!(),
-            types: todo!(),
-        })
+        Ok(schema)
     }
 
     fn parse_schema_root(
@@ -516,5 +525,157 @@ impl<R: BufRead> SchemaParser<R> {
         attributes: Attributes,
     ) -> Result<(), XbrlError> {
         todo!()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_import() {
+        let xml = r#"<xsd:schema
+                                xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+                                xmlns:xbrli="http://www.xbrl.org/2003/instance"
+                                targetNamespace="http://example.com/taxonomy"
+                                elementFormDefault="qualified">
+                                <xsd:import
+                                    namespace="http://www.xbrl.org/2003/instance"
+                                    schemaLocation="http://www.xbrl.org/2003/xbrl-instance-2003-12-31.xsd" />
+                            </xsd:schema>"#;
+        let mut parser = SchemaParser::new(xml.as_bytes(), PathBuf::from("test.xsd"));
+        let schema = parser.parse_schema().unwrap();
+
+        let imports = &schema.imports;
+        assert!(imports.len() == 1);
+        let import = &imports[0];
+        assert_eq!(import.namespace, "http://www.xbrl.org/2003/instance");
+        assert_eq!(
+            import.schema_location,
+            Some("http://www.xbrl.org/2003/xbrl-instance-2003-12-31.xsd".to_string())
+        );
+    }
+
+    #[test]
+    fn test_parse_include() {
+        let xml = r#"<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                                targetNamespace="http://example.com"
+                                xmlns="http://example.com">
+                                <xs:include schemaLocation="test.xsd" />
+                            </xs:schema>"#;
+        let mut parser = SchemaParser::new(xml.as_bytes(), PathBuf::from("test.xsd"));
+        let schema = parser.parse_schema().unwrap();
+
+        let includes = &schema.includes;
+        assert!(includes.len() == 1);
+        let include = &includes[0];
+        assert_eq!(include.schema_location, "test.xsd");
+    }
+
+    #[test]
+    fn test_parse_element() {
+        let xml = r#"<xsd:schema
+                                xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+                                xmlns:xbrli="http://www.xbrl.org/2003/instance">
+                                <xsd:element
+                                    name="Revenue"
+                                    id="Revenue"
+                                    type="xbrli:monetaryItemType"
+                                    substitutionGroup="xbrli:item"
+                                    xbrli:periodType="duration"
+                                    abstract="false"
+                                    nillable="true" />
+                            </xsd:schema>"#;
+        let mut parser = SchemaParser::new(xml.as_bytes(), PathBuf::from("test.xsd"));
+        let schema = parser.parse_schema().unwrap();
+
+        assert_eq!(schema.elements.len(), 1);
+        let element = &schema.elements[0];
+        assert_eq!(
+            *element,
+            Element {
+                name: "Revenue".to_string(),
+                id: Some("Revenue".to_string()),
+                type_name: Some(QName {
+                    prefix: Some("xbrli".to_string()),
+                    local_name: "monetaryItemType".to_string(),
+                }),
+                substitution_group: Some(QName {
+                    prefix: Some("xbrli".to_string()),
+                    local_name: "item".to_string(),
+                }),
+                is_nillable: true,
+                is_abstract: false,
+                period_type: Some(PeriodType::Duration),
+                balance: None,
+            }
+        );
+    }
+
+    #[test]
+    fn test_parse_schema() {
+        let xml = r#"<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                                targetNamespace="http://example.com"
+                                xmlns="http://example.com"
+                                xmlns:xbrli="http://www.xbrl.org/2003/instance">
+
+                                <xs:import namespace="http://www.xbrl.org/2003/instance"
+                                    schemaLocation="xbrl-instance.xsd" />
+
+                                <xs:simpleType name="MyStringType">
+                                    <xs:restriction base="xs:string" />
+                                </xs:simpleType>
+
+                                <xs:element name="Revenue"
+                                    type="xbrli:monetaryItemType"
+                                    substitutionGroup="xbrli:item"
+                                    xbrli:periodType="duration" />
+                            </xs:schema>"#;
+        let mut parser = SchemaParser::new(xml.as_bytes(), PathBuf::from("test.xsd"));
+        let schema = parser.parse_schema().unwrap();
+
+        assert_eq!(
+            schema,
+            RawSchema {
+                file_path: PathBuf::from("test.xsd"),
+                target_namespace: Some("http://example.com".to_string()),
+                namespaces: {
+                    let mut map = HashMap::new();
+                    map.insert("xmlns".to_string(), "http://example.com".to_string());
+                    map.insert(
+                        "xmlns:xbrli".to_string(),
+                        "http://www.xbrl.org/2003/instance".to_string(),
+                    );
+                    map
+                },
+                imports: vec![SchemaImport {
+                    namespace: "http://www.xbrl.org/2003/instance".to_string(),
+                    schema_location: Some("xbrl-instance.xsd".to_string()),
+                }],
+                includes: vec![],
+                linkbase_refs: vec![],
+                elements: vec![Element {
+                    name: "Revenue".to_string(),
+                    id: None,
+                    type_name: Some(QName {
+                        prefix: Some("xbrli".to_string()),
+                        local_name: "monetaryItemType".to_string(),
+                    }),
+                    substitution_group: Some(QName {
+                        prefix: Some("xbrli".to_string()),
+                        local_name: "item".to_string(),
+                    }),
+                    is_nillable: false,
+                    is_abstract: false,
+                    period_type: Some(PeriodType::Duration),
+                    balance: None,
+                }],
+                types: vec![TypeDefinition {
+                    name: "MyStringType".to_string(),
+                    base: Some("xs:string".to_string()),
+                    restrictions: HashMap::new(),
+                }],
+            }
+        );
     }
 }
