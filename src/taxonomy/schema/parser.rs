@@ -127,8 +127,8 @@ pub struct Element {
     pub period_type: Option<PeriodType>,
     /// The XBRL balance ("debit" or "credit").
     pub balance: Option<Balance>,
-    /// The tuple children of this element.
-    pub tuple_children: Vec<TupleChild>,
+    /// The complex type of a tuple element.
+    pub complex_type: Option<ComplexType>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -425,12 +425,22 @@ impl<R: BufRead> SchemaParser<R> {
         Ok(())
     }
 
+    /// Parses an `xs:element` element, which can be either an item or a tuple
+    /// depending on the `substitutionGroup` attribute.
     fn parse_element(&mut self, start: &BytesStart) -> Result<Element, XbrlError> {
-        todo!()
+        let mut element = self.parse_item_element(start)?;
+
+        if let Some(substitution_group) = &element.substitution_group
+            && substitution_group.local_name == "tuple"
+        {
+            self.parse_tuple_element(start, &mut element)?;
+        }
+
+        Ok(element)
     }
 
     /// Parses an `xs:element` element with `substitutionGroup="xbrli:item"`.
-    fn parse_item_element(&mut self, attributes: Attributes) -> Result<Element, XbrlError> {
+    fn parse_item_element(&mut self, start: &BytesStart) -> Result<Element, XbrlError> {
         let mut name = None;
         let mut id = None;
         let mut type_name = None;
@@ -440,7 +450,7 @@ impl<R: BufRead> SchemaParser<R> {
         let mut period_type = None;
         let mut balance = None;
 
-        for attribute in attributes.flatten() {
+        for attribute in start.attributes().flatten() {
             let qname = attribute.key;
             let local_name = qname.local_name();
             let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
@@ -482,15 +492,40 @@ impl<R: BufRead> SchemaParser<R> {
             is_abstract,
             period_type,
             balance,
-            tuple_children: vec![],
+            complex_type: None,
         };
 
         Ok(element)
     }
 
     /// Parses an `xs:element` element with `substitutionGroup="xbrli:tuple"`.
-    fn parse_tuple_element(&mut self, attributes: Attributes) -> Result<Element, XbrlError> {
-        todo!()
+    fn parse_tuple_element(
+        &mut self,
+        start: &BytesStart,
+        element: &mut Element,
+    ) -> Result<(), XbrlError> {
+        let mut buf = Vec::new();
+        let mut complex_type: Option<ComplexType> = None;
+
+        loop {
+            match self.reader.read_event_into(&mut buf)? {
+                Event::Start(ref event) => {
+                    if event.local_name().as_ref() == b"complexType" {
+                        complex_type = Some(self.parse_complex_type(event)?);
+                    }
+                }
+                Event::End(ref event) if event.name().as_ref() == start.name().as_ref() => {
+                    break;
+                }
+                Event::Eof => break,
+                _ => {}
+            }
+            buf.clear();
+        }
+
+        element.complex_type = complex_type;
+
+        Ok(())
     }
 
     /// Parses an `xs:simpleType` element.
@@ -624,7 +659,9 @@ impl<R: BufRead> SchemaParser<R> {
 
         loop {
             match self.reader.read_event_into(&mut buf)? {
-                Event::Start(ref event) if event.local_name().as_ref() == b"xsd:element" => {
+                Event::Start(ref event) | Event::Empty(ref event)
+                    if event.local_name().as_ref() == b"element" =>
+                {
                     let mut ref_name = None;
                     let mut min_occurs = 1;
                     let mut max_occurs = Some(1);
@@ -655,22 +692,14 @@ impl<R: BufRead> SchemaParser<R> {
                             max_occurs,
                         });
                     }
-
-                    // skip to end of this <element> in case it has nested content
-                    let mut depth = 1;
-                    while depth > 0 {
-                        match self.reader.read_event_into(&mut buf)? {
-                            Event::Start(_) => depth += 1,
-                            Event::End(_) => depth -= 1,
-                            Event::Eof => break,
-                            _ => {}
-                        }
-                        buf.clear();
-                    }
                 }
-                Event::End(ref event) if event.local_name().as_ref() == b"xsd:sequence" => {
+
+                Event::End(ref event)
+                    if matches!(event.local_name().as_ref(), b"sequence" | b"choice") =>
+                {
                     break;
                 }
+                Event::Eof => break,
                 _ => {}
             }
 
@@ -761,7 +790,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_element() {
+    fn test_parse_item_element() {
         let xml = r#"<xsd:schema
                                 xmlns:xsd="http://www.w3.org/2001/XMLSchema"
                                 xmlns:xbrli="http://www.xbrl.org/2003/instance">
@@ -796,7 +825,52 @@ mod tests {
                 is_abstract: false,
                 period_type: Some(PeriodType::Duration),
                 balance: None,
-                tuple_children: vec![],
+                complex_type: None,
+            }
+        );
+    }
+
+    #[test]
+    fn test_parse_tuple_element() {
+        let xml = r#"<xsd:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                            targetNamespace="http://example.com"
+                            xmlns="http://example.com"
+                            xmlns:xbrli="http://www.xbrl.org/2003/instance">
+                            <xs:element name="address" substitutionGroup="xbrli:tuple">
+                                <xs:complexType>
+                                    <xs:sequence>
+                                        <xs:element ref="my:city" />
+                                        <xs:element ref="my:country" minOccurs="0" />
+                                    </xs:sequence>
+                                </xs:complexType>
+                            </xs:element>
+                        </xsd:schema>"#;
+        let mut parser = SchemaParser::new(xml.as_bytes(), PathBuf::from("test.xsd"));
+        let mut schema = parser.parse_schema().unwrap();
+
+        assert_eq!(schema.elements.len(), 1);
+        let complex_type = schema.elements.remove(0).complex_type.unwrap();
+        assert_eq!(complex_type.children.len(), 2);
+        assert_eq!(
+            complex_type.children[0],
+            TupleChild {
+                ref_name: QName {
+                    prefix: Some("my".to_string()),
+                    local_name: "city".to_string(),
+                },
+                min_occurs: 1,
+                max_occurs: Some(1),
+            }
+        );
+        assert_eq!(
+            complex_type.children[1],
+            TupleChild {
+                ref_name: QName {
+                    prefix: Some("my".to_string()),
+                    local_name: "country".to_string(),
+                },
+                min_occurs: 0,
+                max_occurs: Some(1),
             }
         );
     }
@@ -863,29 +937,6 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_tuple_element() {
-        let xml = r#"<xsd:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
-                            targetNamespace="http://example.com"
-                            xmlns="http://example.com"
-                            xmlns:xbrli="http://www.xbrl.org/2003/instance">
-                            <xs:element name="address" substitutionGroup="xbrli:tuple">
-                                <xs:complexType>
-                                    <xs:sequence>
-                                        <xs:element ref="my:city" />
-                                        <xs:element ref="my:country" minOccurs="0" />
-                                    </xs:sequence>
-                                </xs:complexType>
-                            </xs:element>
-                        </xsd:schema>"#;
-        let mut parser = SchemaParser::new(xml.as_bytes(), PathBuf::from("test.xsd"));
-        let schema = parser.parse_schema().unwrap();
-
-        assert_eq!(schema.elements.len(), 1);
-        let tuple_children = &schema.elements[0].tuple_children;
-        assert_eq!(tuple_children.len(), 2);
-    }
-
-    #[test]
     fn test_parse_schema() {
         let xml = r#"<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
                                 targetNamespace="http://example.com"
@@ -942,7 +993,7 @@ mod tests {
                     is_abstract: false,
                     period_type: Some(PeriodType::Duration),
                     balance: None,
-                    tuple_children: vec![],
+                    complex_type: None,
                 }],
                 simple_types: vec![SimpleType {
                     name: Some("MyStringType".to_string()),
