@@ -152,6 +152,13 @@ pub enum DerivationKind {
     Restriction,
 }
 
+/// The compositor type for a complex type's content model (sequence or choice).
+#[derive(Debug, PartialEq, Eq)]
+pub enum Compositor {
+    Sequence,
+    Choice,
+}
+
 /// Represents an attribute use in a `simpleContent` extension or restriction.
 #[derive(Debug, PartialEq, Eq)]
 pub struct AttributeUse {
@@ -184,6 +191,9 @@ pub struct ComplexType {
     /// The kind of derivation (extension or restriction) if this complex type
     /// is derived from another type via `xs:simpleContent`.
     pub derivation: Option<DerivationKind>,
+    /// The compositor type for the complex type's content model (sequence or
+    /// choice).
+    pub compositor: Option<Compositor>,
     /// Attributes declared via `xs:attribute[@ref]` inside an
     /// `xs:simpleContent` of a tuple element.
     pub attributes: Vec<AttributeUse>,
@@ -661,6 +671,7 @@ impl<R: BufRead> SchemaParser<R> {
             name: None,
             base: None,
             derivation: None,
+            compositor: None,
             attributes: Vec::new(),
             children: Vec::new(),
         };
@@ -680,23 +691,40 @@ impl<R: BufRead> SchemaParser<R> {
 
         loop {
             match self.reader.read_event_into(&mut buf)? {
-                Event::Start(ref event) => match event.local_name().as_ref() {
-                    b"simpleContent" => {
-                        self.parse_simple_content(&mut complex_type)?;
+                Event::Start(ref event) | Event::Empty(ref event) => {
+                    match event.local_name().as_ref() {
+                        b"simpleContent" => {
+                            self.parse_simple_content(&mut complex_type)?;
+                        }
+                        b"sequence" => {
+                            let tuple_children = self.parse_sequence()?;
+                            complex_type.children.extend(tuple_children);
+                            complex_type.compositor = Some(Compositor::Sequence);
+                        }
+                        b"choice" => {
+                            let tuple_children = self.parse_sequence()?;
+                            complex_type.children.extend(tuple_children);
+                            complex_type.compositor = Some(Compositor::Choice);
+                        }
+                        b"restriction" => {
+                            return Err(XbrlError::InvalidSchemaDocument {
+                                path: self.path.clone(),
+                                reason: "restriction is only allowed inside simpleContent"
+                                    .to_string(),
+                            });
+                        }
+                        b"extension" => {
+                            return Err(XbrlError::InvalidSchemaDocument {
+                                path: self.path.clone(),
+                                reason: "extension is only allowed inside simpleContent"
+                                    .to_string(),
+                            });
+                        }
+                        _ => {
+                            // ignore unknown tags inside complexType
+                        }
                     }
-                    b"sequence" => {
-                        let tuple_children = self.parse_sequence()?;
-                        complex_type.children.extend(tuple_children);
-                        complex_type.derivation = Some(DerivationKind::Extension);
-                    }
-                    b"choice" => {
-                        let tuple_children = self.parse_sequence()?;
-                        complex_type.children.extend(tuple_children);
-                    }
-                    _ => {
-                        // ignore unknown tags inside complexType
-                    }
-                },
+                }
                 Event::End(ref event) if event.name().as_ref() == start.name().as_ref() => {
                     break;
                 }
@@ -901,6 +929,7 @@ impl<R: BufRead> SchemaParser<R> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use assert_matches::assert_matches;
 
     #[test]
     fn test_parse_import() {
@@ -985,7 +1014,7 @@ mod tests {
 
     // Test parsing a complexType inside a tuple element.
     #[test]
-    fn test_parse_tuple_element() {
+    fn test_parse_tuple_element_with_sequence() {
         let xml = r#"<xsd:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
                             targetNamespace="http://example.com"
                             xmlns="http://example.com"
@@ -1003,28 +1032,173 @@ mod tests {
         let mut schema = parser.parse_schema().unwrap();
 
         assert_eq!(schema.elements.len(), 1);
-        let complex_type = schema.elements.remove(0).complex_type.unwrap();
-        assert_eq!(complex_type.children.len(), 2);
+        let element = schema.elements.remove(0);
         assert_eq!(
-            complex_type.children[0],
-            TupleChild {
-                ref_name: QName {
-                    prefix: Some("my".to_string()),
-                    local_name: "city".to_string(),
-                },
-                min_occurs: 1,
-                max_occurs: Some(1),
+            element,
+            Element {
+                name: "address".to_string(),
+                id: None,
+                type_name: None,
+                substitution_group: Some(QName {
+                    prefix: Some("xbrli".to_string()),
+                    local_name: "tuple".to_string(),
+                }),
+                is_nillable: false,
+                is_abstract: false,
+                period_type: None,
+                balance: None,
+                complex_type: Some(ComplexType {
+                    name: None,
+                    base: None,
+                    derivation: None,
+                    compositor: Some(Compositor::Sequence),
+                    attributes: vec![],
+                    children: vec![
+                        TupleChild {
+                            ref_name: QName {
+                                prefix: Some("my".to_string()),
+                                local_name: "city".to_string(),
+                            },
+                            min_occurs: 1,
+                            max_occurs: Some(1),
+                        },
+                        TupleChild {
+                            ref_name: QName {
+                                prefix: Some("my".to_string()),
+                                local_name: "country".to_string(),
+                            },
+                            min_occurs: 0,
+                            max_occurs: Some(1),
+                        },
+                    ],
+                }),
             }
         );
+    }
+
+    #[test]
+    fn test_parse_tuple_element_min_max() {
+        let xml = r#"<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                            targetNamespace="http://example.com"
+                            xmlns="http://example.com"
+                            xmlns:xbrli="http://www.xbrl.org/2003/instance">
+                            <xs:element name="address" substitutionGroup="xbrli:tuple">
+                                <xs:complexType>
+                                    <xs:sequence>
+                                        <xs:element ref="my:itemA" minOccurs="2" maxOccurs="2" />
+                                        <xs:element ref="my:itemB" minOccurs="0" maxOccurs="unbounded" />
+                                    </xs:sequence>
+                                </xs:complexType>
+                            </xs:element>
+                        </xs:schema>"#;
+        let mut parser = SchemaParser::new(xml.as_bytes(), PathBuf::from("test.xsd"));
+        let mut schema = parser.parse_schema().unwrap();
+
+        assert_eq!(schema.elements.len(), 1);
+        let element = schema.elements.remove(0);
         assert_eq!(
-            complex_type.children[1],
-            TupleChild {
-                ref_name: QName {
-                    prefix: Some("my".to_string()),
-                    local_name: "country".to_string(),
-                },
-                min_occurs: 0,
-                max_occurs: Some(1),
+            element,
+            Element {
+                name: "address".to_string(),
+                id: None,
+                type_name: None,
+                substitution_group: Some(QName {
+                    prefix: Some("xbrli".to_string()),
+                    local_name: "tuple".to_string(),
+                }),
+                is_nillable: false,
+                is_abstract: false,
+                period_type: None,
+                balance: None,
+                complex_type: Some(ComplexType {
+                    name: None,
+                    base: None,
+                    derivation: None,
+                    compositor: Some(Compositor::Sequence),
+                    attributes: vec![],
+                    children: vec![
+                        TupleChild {
+                            ref_name: QName {
+                                prefix: Some("my".to_string()),
+                                local_name: "itemA".to_string(),
+                            },
+                            min_occurs: 2,
+                            max_occurs: Some(2),
+                        },
+                        TupleChild {
+                            ref_name: QName {
+                                prefix: Some("my".to_string()),
+                                local_name: "itemB".to_string(),
+                            },
+                            min_occurs: 0,
+                            max_occurs: None,
+                        },
+                    ],
+                }),
+            }
+        );
+    }
+
+    #[test]
+    fn test_parse_tuple_element_with_choice() {
+        let xml = r#"<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                            targetNamespace="http://example.com"
+                            xmlns="http://example.com"
+                            xmlns:xbrli="http://www.xbrl.org/2003/instance">
+                            <xs:element name="MyTuple" substitutionGroup="xbrli:tuple"
+                                xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                                <xs:complexType>
+                                    <xs:choice>
+                                        <xs:element ref="my:optA" />
+                                        <xs:element ref="my:optB" />
+                                    </xs:choice>
+                                </xs:complexType>
+                            </xs:element>
+                        </xs:schema>"#;
+        let mut parser = SchemaParser::new(xml.as_bytes(), PathBuf::from("test.xsd"));
+        let mut schema = parser.parse_schema().unwrap();
+
+        assert_eq!(schema.elements.len(), 1);
+        let element = schema.elements.remove(0);
+        assert_eq!(
+            element,
+            Element {
+                name: "MyTuple".to_string(),
+                id: None,
+                type_name: None,
+                substitution_group: Some(QName {
+                    prefix: Some("xbrli".to_string()),
+                    local_name: "tuple".to_string(),
+                }),
+                is_nillable: false,
+                is_abstract: false,
+                period_type: None,
+                balance: None,
+                complex_type: Some(ComplexType {
+                    name: None,
+                    base: None,
+                    derivation: None,
+                    compositor: Some(Compositor::Choice),
+                    attributes: vec![],
+                    children: vec![
+                        TupleChild {
+                            ref_name: QName {
+                                prefix: Some("my".to_string()),
+                                local_name: "optA".to_string(),
+                            },
+                            min_occurs: 1,
+                            max_occurs: Some(1),
+                        },
+                        TupleChild {
+                            ref_name: QName {
+                                prefix: Some("my".to_string()),
+                                local_name: "optB".to_string(),
+                            },
+                            min_occurs: 1,
+                            max_occurs: Some(1),
+                        },
+                    ],
+                }),
             }
         );
     }
@@ -1058,6 +1232,66 @@ mod tests {
                 enumerations: vec![],
             }
         );
+    }
+
+    #[test]
+    fn test_parse_complex_type_empty() {
+        let xml = r#"<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                            targetNamespace="http://example.com"
+                            xmlns="http://example.com"
+                            xmlns:xbrli="http://www.xbrl.org/2003/instance">
+                            <xs:complexType name="emptyType"
+                                xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                        </xs:complexType>
+                        </xs:schema>"#;
+        let mut parser = SchemaParser::new(xml.as_bytes(), PathBuf::from("test.xsd"));
+        let schema = parser.parse_schema().unwrap();
+
+        assert_eq!(schema.complex_types.len(), 1);
+        let complex_type = &schema.complex_types[0];
+        assert_eq!(
+            complex_type,
+            &ComplexType {
+                name: Some("emptyType".to_string()),
+                base: None,
+                derivation: None,
+                compositor: None,
+                attributes: vec![],
+                children: vec![],
+            }
+        );
+    }
+
+    #[test]
+    fn test_parse_complex_type_invalid_restriction() {
+        let xml = r#"<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                            targetNamespace="http://example.com"
+                            xmlns="http://example.com"
+                            xmlns:xbrli="http://www.xbrl.org/2003/instance">
+                            <xs:complexType xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                                <xs:restriction base="xbrli:decimalItemType" />
+                            </xs:complexType>
+                        </xs:schema>"#;
+        let mut parser = SchemaParser::new(xml.as_bytes(), PathBuf::from("test.xsd"));
+        let res = parser.parse_schema();
+
+        assert_matches!(res, Err(XbrlError::InvalidSchemaDocument { .. }));
+    }
+
+    #[test]
+    fn test_parse_complex_type_invalid_extension() {
+        let xml = r#"<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                            targetNamespace="http://example.com"
+                            xmlns="http://example.com"
+                            xmlns:xbrli="http://www.xbrl.org/2003/instance">
+                            <xs:complexType xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                                <xs:extension base="xbrli:decimalItemType" />
+                            </xs:complexType>
+                        </xs:schema>"#;
+        let mut parser = SchemaParser::new(xml.as_bytes(), PathBuf::from("test.xsd"));
+        let res = parser.parse_schema();
+
+        assert_matches!(res, Err(XbrlError::InvalidSchemaDocument { .. }));
     }
 
     #[test]
@@ -1119,6 +1353,7 @@ mod tests {
                     local_name: "decimalItemType".to_string(),
                 }),
                 derivation: Some(DerivationKind::Extension),
+                compositor: None,
                 attributes: vec![
                     AttributeUse {
                         ref_name: "xbrli:unitRef".to_string(),
@@ -1162,6 +1397,7 @@ mod tests {
                     local_name: "decimalItemType".to_string(),
                 }),
                 derivation: Some(DerivationKind::Restriction),
+                compositor: None,
                 attributes: vec![AttributeUse {
                     ref_name: "xbrli:unitRef".to_string(),
                     required: true,
