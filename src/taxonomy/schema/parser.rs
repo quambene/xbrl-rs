@@ -325,8 +325,6 @@ impl<R: BufRead> SchemaParser<R> {
                             let complex_type = self.parse_complex_type(event)?;
                             schema.complex_types.push(complex_type);
                         }
-                        b"annotation" => self.parse_annotation(&mut schema, attributes)?,
-                        b"appinfo" => self.parse_appinfo(&mut schema, attributes)?,
                         b"redefine" => {
                             return Err(XbrlError::InvalidSchemaDocument {
                                 path: self.path.clone(),
