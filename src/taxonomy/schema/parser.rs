@@ -131,43 +131,64 @@ pub struct Element {
     pub complex_type: Option<ComplexType>,
 }
 
+/// A child element of a tuple (`xs:element[@ref]` inside an inline
+/// `xs:complexType`).
 #[derive(Debug, PartialEq, Eq)]
 pub struct TupleChild {
+    /// The QName of the referenced element.
     pub ref_name: QName,
+    /// The minimum number of occurrences of this child element (from
+    /// `minOccurs`).
     pub min_occurs: u32,
+    /// The maximum number of occurrences of this child element (from
+    /// `maxOccurs`).
     pub max_occurs: Option<u32>,
 }
 
-/// A simple/complex type definition from the schema.
-#[derive(Debug, PartialEq, Eq)]
-pub struct TypeDefinition {
-    /// The type's name.
-    pub name: String,
-    /// The base type name, if any.
-    pub base: Option<String>,
-    /// Additional restrictions or facets can be stored as key-value pairs.
-    pub restrictions: HashMap<String, String>,
-}
-
+/// The kind of derivation in a `simpleContent` extension or restriction.
 #[derive(Debug, PartialEq, Eq)]
 pub enum DerivationKind {
     Extension,
     Restriction,
 }
 
+/// Represents an attribute use in a `simpleContent` extension or restriction.
+#[derive(Debug, PartialEq, Eq)]
+pub struct AttributeUse {
+    /// The QName of the referenced attribute.
+    pub ref_name: String,
+    /// Whether this attribute is required (use="required").
+    pub required: bool,
+}
+
+/// Represents a simple type definition (`xs:simpleType`) in the schema.
 #[derive(Debug, PartialEq, Eq)]
 pub struct SimpleType {
+    /// The name of the simple type.
     pub name: Option<String>,
+    /// The base type of the simple type.
     pub base: Option<QName>,
+    /// The enumerations of the simple type. Only relevant for simple types that
+    /// are restrictions of an enumeration.
     pub enumerations: Vec<String>,
 }
 
+/// Represents a complex type definition (`xs:complexType`) in the schema.
 #[derive(Debug, PartialEq, Eq)]
 pub struct ComplexType {
+    /// The name of the complex type.
     pub name: Option<String>,
+    /// The base type of the complex type (from `xs:extension` or
+    /// `xs:restriction`).
     pub base: Option<QName>,
+    /// The kind of derivation (extension or restriction) if this complex type
+    /// is derived from another type via `xs:simpleContent`.
+    pub derivation: Option<DerivationKind>,
+    /// Attributes declared via `xs:attribute[@ref]` inside an
+    /// `xs:simpleContent` of a tuple element.
+    pub attributes: Vec<AttributeUse>,
     /// Child elements declared via `xs:element[@ref]` inside an inline
-    /// `xs:complexType` of a tuple.
+    /// `xs:complexType` of a tuple element.
     pub children: Vec<TupleChild>,
 }
 
@@ -198,12 +219,18 @@ pub struct LinkbaseRef {
     pub link_type: Option<String>,
 }
 
+/// Represents a QName (qualified name) in the schema, which can be used for
+/// type references, substitution groups, etc.
 #[derive(Debug, PartialEq, Eq)]
 pub struct QName {
+    /// The namespace prefix (e.g., "xbrli") if present.
     pub prefix: Option<String>,
+    /// The local name (e.g., "monetaryItemType").
     pub local_name: String,
 }
 
+/// Parses a QName string (e.g., "xbrli:monetaryItemType") into a `QName`
+/// struct.
 fn parse_qname(value: &str) -> QName {
     if let Some(idx) = value.find(':') {
         QName {
@@ -218,6 +245,7 @@ fn parse_qname(value: &str) -> QName {
     }
 }
 
+/// Parses a string into a u32.
 fn parse_u32(value: &str) -> Result<u32, XbrlError> {
     value.parse::<u32>().map_err(|_| XbrlError::ParseError {
         expected: "integer",
@@ -287,11 +315,6 @@ impl<R: BufRead> SchemaParser<R> {
                             let complex_type = self.parse_complex_type(event)?;
                             schema.complex_types.push(complex_type);
                         }
-                        b"restriction" => self.parse_restriction(&mut schema, attributes)?,
-                        b"extension" => self.parse_extension(&mut schema, attributes)?,
-                        // b"sequence" => self.parse_sequence()?,
-                        b"choice" => self.parse_choice(&mut schema, attributes)?,
-                        b"attribute" => self.parse_attribute(&mut schema, attributes)?,
                         b"annotation" => self.parse_annotation(&mut schema, attributes)?,
                         b"appinfo" => self.parse_appinfo(&mut schema, attributes)?,
                         b"redefine" => {
@@ -344,7 +367,12 @@ impl<R: BufRead> SchemaParser<R> {
         schema: &mut RawSchema,
         attributes: Attributes,
     ) -> Result<(), XbrlError> {
-        for attribute in attributes.flatten() {
+        for attribute in attributes {
+            let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                position: self.reader.buffer_position(),
+                element: Some("schema".to_string()),
+                source: err.into(),
+            })?;
             let local_name = attribute.key.local_name();
             let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
 
@@ -376,7 +404,12 @@ impl<R: BufRead> SchemaParser<R> {
         let mut namespace = None;
         let mut schema_location = None;
 
-        for attribute in attributes.flatten() {
+        for attribute in attributes {
+            let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                position: self.reader.buffer_position(),
+                element: Some("import".to_string()),
+                source: err.into(),
+            })?;
             let local_name = attribute.key.local_name();
             let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
 
@@ -406,7 +439,12 @@ impl<R: BufRead> SchemaParser<R> {
     ) -> Result<(), XbrlError> {
         let mut schema_location = None;
 
-        for attribute in attributes.flatten() {
+        for attribute in attributes {
+            let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                position: self.reader.buffer_position(),
+                element: Some("include".to_string()),
+                source: err.into(),
+            })?;
             let local_name = attribute.key.local_name();
             let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
 
@@ -450,7 +488,12 @@ impl<R: BufRead> SchemaParser<R> {
         let mut period_type = None;
         let mut balance = None;
 
-        for attribute in start.attributes().flatten() {
+        for attribute in start.attributes() {
+            let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                position: self.reader.buffer_position(),
+                element: Some("element".to_string()),
+                source: err.into(),
+            })?;
             let qname = attribute.key;
             let local_name = qname.local_name();
             let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
@@ -532,7 +575,12 @@ impl<R: BufRead> SchemaParser<R> {
     fn parse_simple_type(&mut self, attributes: Attributes) -> Result<SimpleType, XbrlError> {
         let mut name = None;
 
-        for attribute in attributes.flatten() {
+        for attribute in attributes {
+            let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                position: self.reader.buffer_position(),
+                element: Some("simpleType".to_string()),
+                source: err.into(),
+            })?;
             let qname = attribute.key;
             let local_name = qname.local_name();
 
@@ -553,7 +601,13 @@ impl<R: BufRead> SchemaParser<R> {
 
                     match local_name.as_ref() {
                         b"restriction" => {
-                            for attribute in event.attributes().flatten() {
+                            for attribute in event.attributes() {
+                                let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                                    position: self.reader.buffer_position(),
+                                    element: Some("restriction".to_string()),
+                                    source: err.into(),
+                                })?;
+
                                 if attribute.key.as_ref() == b"base" {
                                     let value = attribute
                                         .decode_and_unescape_value(self.reader.decoder())?;
@@ -562,7 +616,13 @@ impl<R: BufRead> SchemaParser<R> {
                             }
                         }
                         b"enumeration" => {
-                            for attribute in event.attributes().flatten() {
+                            for attribute in event.attributes() {
+                                let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                                    position: self.reader.buffer_position(),
+                                    element: Some("enumeration".to_string()),
+                                    source: err.into(),
+                                })?;
+
                                 if attribute.key.as_ref() == b"value" {
                                     let value = attribute
                                         .decode_and_unescape_value(self.reader.decoder())?;
@@ -600,18 +660,34 @@ impl<R: BufRead> SchemaParser<R> {
         let mut complex_type = ComplexType {
             name: None,
             base: None,
+            derivation: None,
+            attributes: Vec::new(),
             children: Vec::new(),
         };
+
+        for attribute in start.attributes() {
+            let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                position: self.reader.buffer_position(),
+                element: Some("complexType".to_string()),
+                source: err.into(),
+            })?;
+
+            if attribute.key.local_name().as_ref() == b"name" {
+                let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+                complex_type.name = Some(value.to_string());
+            }
+        }
 
         loop {
             match self.reader.read_event_into(&mut buf)? {
                 Event::Start(ref event) => match event.local_name().as_ref() {
                     b"simpleContent" => {
-                        todo!()
+                        self.parse_simple_content(&mut complex_type)?;
                     }
                     b"sequence" => {
                         let tuple_children = self.parse_sequence()?;
                         complex_type.children.extend(tuple_children);
+                        complex_type.derivation = Some(DerivationKind::Extension);
                     }
                     b"choice" => {
                         let tuple_children = self.parse_sequence()?;
@@ -634,24 +710,6 @@ impl<R: BufRead> SchemaParser<R> {
         Ok(complex_type)
     }
 
-    /// Parses an `xs:restriction` element.
-    fn parse_restriction(
-        &mut self,
-        schema: &mut RawSchema,
-        attributes: Attributes,
-    ) -> Result<(), XbrlError> {
-        todo!()
-    }
-
-    /// Parses an `xs:extension` element.
-    fn parse_extension(
-        &mut self,
-        schema: &mut RawSchema,
-        attributes: Attributes,
-    ) -> Result<(), XbrlError> {
-        todo!()
-    }
-
     /// Parses an `xs:sequence` element.
     fn parse_sequence(&mut self) -> Result<Vec<TupleChild>, XbrlError> {
         let mut buf = Vec::new();
@@ -666,7 +724,12 @@ impl<R: BufRead> SchemaParser<R> {
                     let mut min_occurs = 1;
                     let mut max_occurs = Some(1);
 
-                    for attribute in event.attributes().flatten() {
+                    for attribute in event.attributes() {
+                        let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                            position: self.reader.buffer_position(),
+                            element: Some("sequence".to_string()),
+                            source: err.into(),
+                        })?;
                         let local_name = attribute.key.local_name();
                         let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
 
@@ -674,7 +737,6 @@ impl<R: BufRead> SchemaParser<R> {
                             b"ref" => ref_name = Some(parse_qname(&value)),
                             b"minOccurs" => min_occurs = parse_u32(&value)?,
                             b"maxOccurs" => {
-                                let value = value.to_string();
                                 max_occurs = if value == "unbounded" {
                                     None
                                 } else {
@@ -709,22 +771,113 @@ impl<R: BufRead> SchemaParser<R> {
         Ok(children)
     }
 
-    /// Parses an `xs:choice` element.
-    fn parse_choice(
-        &mut self,
-        schema: &mut RawSchema,
-        attributes: Attributes,
-    ) -> Result<(), XbrlError> {
-        todo!()
+    /// Parses an `xs:simpleContent` element.
+    fn parse_simple_content(&mut self, complex_type: &mut ComplexType) -> Result<(), XbrlError> {
+        let mut buf = Vec::new();
+
+        loop {
+            match self.reader.read_event_into(&mut buf)? {
+                Event::Start(ref event) => match event.local_name().as_ref() {
+                    b"extension" => {
+                        self.parse_derivation(event, complex_type)?;
+                        complex_type.derivation = Some(DerivationKind::Extension);
+                    }
+                    b"restriction" => {
+                        self.parse_derivation(event, complex_type)?;
+                        complex_type.derivation = Some(DerivationKind::Restriction);
+                    }
+                    _ => {}
+                },
+
+                Event::End(ref event) if event.local_name().as_ref() == b"simpleContent" => {
+                    break;
+                }
+
+                Event::Eof => break,
+                _ => {}
+            }
+
+            buf.clear();
+        }
+
+        Ok(())
     }
 
-    /// Parses an `xs:attribute` element.
-    fn parse_attribute(
+    /// Parses an `xs:extension` or `xs:restriction` element inside
+    /// `xs:simpleContent`.
+    fn parse_derivation(
         &mut self,
-        schema: &mut RawSchema,
-        attributes: Attributes,
+        start: &BytesStart,
+        complex_type: &mut ComplexType,
     ) -> Result<(), XbrlError> {
-        todo!()
+        let mut buf = Vec::new();
+
+        // Parse base attribute
+        for attribute in start.attributes() {
+            let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                position: self.reader.buffer_position(),
+                element: Some("extension or restriction".to_string()),
+                source: err.into(),
+            })?;
+
+            if attribute.key.local_name().as_ref() == b"base" {
+                let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+                complex_type.base = Some(parse_qname(&value));
+            }
+        }
+
+        loop {
+            match self.reader.read_event_into(&mut buf)? {
+                Event::Start(ref event) | Event::Empty(ref event)
+                    if event.local_name().as_ref() == b"attribute" =>
+                {
+                    let attribute = self.parse_attribute(event)?;
+                    complex_type.attributes.push(attribute);
+                }
+
+                Event::End(ref event) if event.name().as_ref() == start.name().as_ref() => {
+                    break;
+                }
+
+                Event::Eof => break,
+                _ => {}
+            }
+
+            buf.clear();
+        }
+
+        Ok(())
+    }
+
+    /// Parses an `xs:attribute` element inside `xs:simpleContent`.
+    fn parse_attribute(&self, start: &BytesStart) -> Result<AttributeUse, XbrlError> {
+        let mut ref_name = String::new();
+        let mut required = false;
+
+        for attribute in start.attributes() {
+            let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                position: self.reader.buffer_position(),
+                element: Some("extension or restriction attribute".to_string()),
+                source: err.into(),
+            })?;
+
+            match attribute.key.local_name().as_ref() {
+                b"ref" => {
+                    let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+                    ref_name = value.to_string();
+                }
+                b"use" => {
+                    let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+
+                    if value.as_ref() == "required" {
+                        required = true;
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        Ok(AttributeUse { ref_name, required })
     }
 
     /// Parses an `xs:annotation` element.
@@ -830,6 +983,7 @@ mod tests {
         );
     }
 
+    // Test parsing a complexType inside a tuple element.
     #[test]
     fn test_parse_tuple_element() {
         let xml = r#"<xsd:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
@@ -932,6 +1086,87 @@ mod tests {
                     local_name: "string".to_string()
                 }),
                 enumerations: vec!["Open".to_string(), "Closed".to_string()],
+            }
+        );
+    }
+
+    #[test]
+    fn test_parse_complex_type_with_simple_content_and_extension() {
+        let xml = r#"<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                            targetNamespace="http://example.com"
+                            xmlns="http://example.com"
+                            xmlns:xbrli="http://www.xbrl.org/2003/instance">
+                            <xs:complexType name="monetaryItemType">
+                                <xs:simpleContent>
+                                    <xs:extension base="xbrli:decimalItemType">
+                                        <xs:attribute ref="xbrli:unitRef" use="required" />
+                                        <xs:attribute ref="xbrli:decimals" />
+                                    </xs:extension>
+                                </xs:simpleContent>
+                            </xs:complexType>
+                        </xs:schema>"#;
+        let mut parser = SchemaParser::new(xml.as_bytes(), PathBuf::from("test.xsd"));
+        let schema = parser.parse_schema().unwrap();
+
+        assert_eq!(schema.complex_types.len(), 1);
+        let complex_type = &schema.complex_types[0];
+        assert_eq!(
+            complex_type,
+            &ComplexType {
+                name: Some("monetaryItemType".to_string()),
+                base: Some(QName {
+                    prefix: Some("xbrli".to_string()),
+                    local_name: "decimalItemType".to_string(),
+                }),
+                derivation: Some(DerivationKind::Extension),
+                attributes: vec![
+                    AttributeUse {
+                        ref_name: "xbrli:unitRef".to_string(),
+                        required: true,
+                    },
+                    AttributeUse {
+                        ref_name: "xbrli:decimals".to_string(),
+                        required: false,
+                    },
+                ],
+                children: vec![],
+            }
+        );
+    }
+
+    #[test]
+    fn test_parse_complex_type_with_simple_content_and_restriction() {
+        let xml = r#"<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                            targetNamespace="http://example.com"
+                            xmlns="http://example.com"
+                            xmlns:xbrli="http://www.xbrl.org/2003/instance">
+                            <xs:complexType name="restrictedDecimal">
+                                <xs:simpleContent>
+                                    <xs:restriction base="xbrli:decimalItemType">
+                                        <xs:attribute ref="xbrli:unitRef" use="required" />
+                                    </xs:restriction>
+                                </xs:simpleContent>
+                            </xs:complexType>
+                        </xs:schema>"#;
+        let mut parser = SchemaParser::new(xml.as_bytes(), PathBuf::from("test.xsd"));
+        let schema = parser.parse_schema().unwrap();
+
+        assert_eq!(schema.complex_types.len(), 1);
+        let complex_type = &schema.complex_types[0];
+        assert_eq!(
+            complex_type,
+            &ComplexType {
+                name: Some("restrictedDecimal".to_string()),
+                base: Some(QName {
+                    prefix: Some("xbrli".to_string()),
+                    local_name: "decimalItemType".to_string(),
+                }),
+                derivation: Some(DerivationKind::Restriction),
+                attributes: vec![AttributeUse {
+                    ref_name: "xbrli:unitRef".to_string(),
+                    required: true,
+                },],
+                children: vec![],
             }
         );
     }
