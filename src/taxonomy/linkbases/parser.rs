@@ -416,16 +416,24 @@ impl<R: BufRead> LinkbaseParser<R> {
 
     /// Parses a `calculationLink` element and its children.
     fn parse_calculation_link(&mut self, start: BytesStart) -> Result<CalculationLink, XbrlError> {
-        // Extract the xlink:role attribute
-        let role = start
-            .attributes()
-            .filter_map(Result::ok)
-            .find(|attr| attr.key.as_ref() == b"xlink:role")
-            .map(|attr| attr.unescape_value().unwrap().into_owned())
-            .ok_or_else(|| XbrlError::ParseError {
-                expected: "xlink:role on calculationLink",
-                value: "".to_string(),
+        // Extract the `xlink:role` attribute
+        let mut role = None;
+        for attribute in start.attributes() {
+            let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                position: self.reader.buffer_position(),
+                element: Some("calculationLink".to_string()),
+                source: err.into(),
             })?;
+
+            if attribute.key.as_ref() == b"xlink:role" {
+                let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+                role = Some(value.to_string());
+            }
+        }
+        let role = role.ok_or_else(|| XbrlError::ParseError {
+            expected: "xlink:role on calculationLink",
+            value: "".to_string(),
+        })?;
 
         let mut locators = Vec::new();
         let mut arcs = Vec::new();
@@ -527,8 +535,115 @@ impl<R: BufRead> LinkbaseParser<R> {
     }
 
     /// Parses a `definitionLink` element and its children.
-    fn parse_definition_link(&mut self, event: BytesStart) -> Result<DefinitionLink, XbrlError> {
-        todo!()
+    fn parse_definition_link(&mut self, start: BytesStart) -> Result<DefinitionLink, XbrlError> {
+        // Extract the `xlink:role` attribute
+        let mut role = None;
+        for attribute in start.attributes() {
+            let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                position: self.reader.buffer_position(),
+                element: Some("definitionLink".to_string()),
+                source: err.into(),
+            })?;
+
+            if attribute.key.as_ref() == b"xlink:role" {
+                let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+                role = Some(value.to_string());
+            }
+        }
+        let role = role.ok_or_else(|| XbrlError::ParseError {
+            expected: "xlink:role on definitionLink",
+            value: "".to_string(),
+        })?;
+
+        let mut locators = Vec::new();
+        let mut arcs = Vec::new();
+        let mut buf = Vec::new();
+
+        loop {
+            match self.reader.read_event_into(&mut buf)? {
+                Event::Start(event) | Event::Empty(event) => match event.local_name().as_ref() {
+                    b"loc" => {
+                        let locator = self.parse_locator(&event)?;
+                        locators.push(locator);
+                    }
+                    b"definitionArc" => {
+                        let mut from = None;
+                        let mut to = None;
+                        let mut arcrole = None;
+                        let mut order = None;
+
+                        for attribute in event.attributes() {
+                            let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                                position: self.reader.buffer_position(),
+                                element: Some("definitionArc".to_string()),
+                                source: err.into(),
+                            })?;
+
+                            match attribute.key.as_ref() {
+                                b"xlink:from" => {
+                                    let value = attribute
+                                        .decode_and_unescape_value(self.reader.decoder())?;
+                                    from = Some(value.to_string());
+                                }
+                                b"xlink:to" => {
+                                    let value = attribute
+                                        .decode_and_unescape_value(self.reader.decoder())?;
+                                    to = Some(value.to_string());
+                                }
+                                b"xlink:arcrole" => {
+                                    let value = attribute
+                                        .decode_and_unescape_value(self.reader.decoder())?;
+                                    arcrole = Some(value.to_string());
+                                }
+                                b"order" => {
+                                    let value = attribute
+                                        .decode_and_unescape_value(self.reader.decoder())?;
+                                    order = Some(parse_decimal(&value)?);
+                                }
+                                _ => {}
+                            }
+                        }
+
+                        arcs.push(DefinitionArc {
+                            from: from.ok_or_else(|| XbrlError::ParseError {
+                                expected: "xlink:from on definitionArc",
+                                value: "".to_string(),
+                            })?,
+                            to: to.ok_or_else(|| XbrlError::ParseError {
+                                expected: "xlink:to on definitionArc",
+                                value: "".to_string(),
+                            })?,
+                            arcrole: arcrole.ok_or_else(|| XbrlError::ParseError {
+                                expected: "xlink:arcrole on definitionArc",
+                                value: "".to_string(),
+                            })?,
+                            order,
+                        });
+                    }
+                    _ => {}
+                },
+                Event::End(event) => {
+                    if event.name() == start.name() {
+                        break;
+                    }
+                }
+                Event::Eof => {
+                    return Err(XbrlError::ParseError {
+                        expected: "definitionLink end tag",
+                        value: "".to_string(),
+                    });
+                }
+                _ => {}
+            }
+
+            buf.clear();
+        }
+
+        Ok(DefinitionLink {
+            role,
+            locators,
+            arcs,
+        })
     }
 
     /// Parses a `labelLink` element and its children.
@@ -682,11 +797,13 @@ mod tests {
     #[test]
     fn test_parse_linkbase_definition_link() {
         let xml = r#"<link:linkbase xmlns:link="http://www.xbrl.org/2003/linkbase">
-                            <link:definitionArc
-                                xlink:type="arc"
-                                xlink:arcrole="http://xbrl.org/int/dim/arcrole/domain-member"
-                                xlink:from="loc_domain"
-                                xlink:to="loc_member" />
+                            <link:definitionLink xlink:type="extended" xlink:role="">
+                                <link:definitionArc
+                                    xlink:type="arc"
+                                    xlink:arcrole="http://xbrl.org/int/dim/arcrole/domain-member"
+                                    xlink:from="loc_domain"
+                                    xlink:to="loc_member" />
+                            </link:definitionLink>
                         </link:linkbase>"#;
         let mut parser = LinkbaseParser::new(xml.as_bytes(), PathBuf::from("test.xml"));
         let mut linkbase = Linkbase::default();
