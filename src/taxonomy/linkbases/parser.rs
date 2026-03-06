@@ -526,4 +526,206 @@ mod tests {
             }
         );
     }
+
+    #[test]
+    fn test_parse_linkbase_calculation_link() {
+        let xml = r#"<link:linkbase xmlns:link="http://www.xbrl.org/2003/linkbase">
+                            <link:calculationArc
+                                xlink:type="arc"
+                                xlink:from="loc_assets"
+                                xlink:to="loc_cash"
+                                weight="1"
+                                order="1" />
+                        </link:linkbase>"#;
+        let mut parser = LinkbaseParser::new(xml.as_bytes(), PathBuf::from("test.xml"));
+        let mut linkbase = Linkbase::default();
+        parser.parse_linkbase(&mut linkbase).unwrap();
+
+        assert_eq!(linkbase.presentation_links.len(), 0);
+        assert_eq!(linkbase.calculation_links.len(), 1);
+        assert_eq!(linkbase.definition_links.len(), 0);
+        assert_eq!(linkbase.label_links.len(), 0);
+        assert_eq!(linkbase.reference_links.len(), 0);
+        let calculation_link = &linkbase.calculation_links[0];
+        assert_eq!(
+            calculation_link,
+            &CalculationLink {
+                role: "".to_string(),
+                locators: vec![],
+                arcs: vec![CalculationArc {
+                    from: "loc_assets".to_string(),
+                    to: "loc_cash".to_string(),
+                    order: Some(Decimal::new(1, 0)),
+                    weight: Decimal::new(1, 0),
+                }],
+            }
+        );
+    }
+
+    #[test]
+    fn test_parse_linkbase_definition_link() {
+        let xml = r#"<link:linkbase xmlns:link="http://www.xbrl.org/2003/linkbase">
+                            <link:definitionArc
+                                xlink:type="arc"
+                                xlink:arcrole="http://xbrl.org/int/dim/arcrole/domain-member"
+                                xlink:from="loc_domain"
+                                xlink:to="loc_member" />
+                        </link:linkbase>"#;
+        let mut parser = LinkbaseParser::new(xml.as_bytes(), PathBuf::from("test.xml"));
+        let mut linkbase = Linkbase::default();
+        parser.parse_linkbase(&mut linkbase).unwrap();
+
+        assert_eq!(linkbase.presentation_links.len(), 0);
+        assert_eq!(linkbase.calculation_links.len(), 0);
+        assert_eq!(linkbase.definition_links.len(), 1);
+        assert_eq!(linkbase.label_links.len(), 0);
+        assert_eq!(linkbase.reference_links.len(), 0);
+        let definition_link = &linkbase.definition_links[0];
+        assert_eq!(
+            definition_link,
+            &DefinitionLink {
+                role: "".to_string(),
+                locators: vec![],
+                arcs: vec![DefinitionArc {
+                    from: "loc_domain".to_string(),
+                    to: "loc_member".to_string(),
+                    arcrole: "http://xbrl.org/int/dim/arcrole/domain-member".to_string(),
+                    order: None,
+                }],
+            }
+        );
+    }
+
+    #[test]
+    fn test_parse_linkbase_label_link() {
+        let xml = r#"<link:linkbase xmlns:link="http://www.xbrl.org/2003/linkbase">
+                            <link:labelLink>
+                                <link:loc
+                                    xlink:type="locator"
+                                    xlink:href="taxonomy.xsd#Assets"
+                                    xlink:label="loc_assets" />
+                                <link:label
+                                    xlink:type="resource"
+                                    xlink:label="lab_assets"
+                                    xlink:role="http://www.xbrl.org/2003/role/label">
+                                    Assets
+                                </link:label>
+                                <link:labelArc
+                                    xlink:type="arc"
+                                    xlink:from="loc_assets"
+                                    xlink:to="lab_assets" />
+                            </link:labelLink>
+                        </link:linkbase>"#;
+        let mut parser = LinkbaseParser::new(xml.as_bytes(), PathBuf::from("test.xml"));
+        let mut linkbase = Linkbase::default();
+        parser.parse_linkbase(&mut linkbase).unwrap();
+
+        assert_eq!(linkbase.presentation_links.len(), 0);
+        assert_eq!(linkbase.calculation_links.len(), 0);
+        assert_eq!(linkbase.definition_links.len(), 0);
+        assert_eq!(linkbase.label_links.len(), 1);
+        assert_eq!(linkbase.reference_links.len(), 0);
+        let label_link = &linkbase.label_links[0];
+        assert_eq!(
+            label_link,
+            &LabelLink {
+                role: "".to_string(),
+                locators: vec![Locator {
+                    label: "loc_assets".to_string(),
+                    href: "taxonomy.xsd#Assets".to_string(),
+                }],
+                arcs: vec![LabelArc {
+                    from: "loc_assets".to_string(),
+                    to: "lab_assets".to_string(),
+                }],
+                labels: vec![Resource {
+                    label: "lab_assets".to_string(),
+                    role: Some("http://www.xbrl.org/2003/role/label".to_string()),
+                    text: "Assets".to_string(),
+                }],
+            }
+        );
+    }
+
+    #[test]
+    fn test_parse_linkbase_reference_link() {
+        let xml = r#"<link:linkbase xmlns:link="http://www.xbrl.org/2003/linkbase"
+                            xmlns:xlink="http://www.w3.org/1999/xlink"
+                            xmlns:my="http://example.com/my-taxonomy">
+                            <!-- Extended link for references -->
+                            <link:referenceLink xlink:type="extended" xlink:role="http://www.xbrl.org/2003/role/reference">
+                                <!-- Locators point to concepts in the taxonomy -->
+                                <link:loc xlink:type="locator" xlink:label="loc_assets" xlink:href="my-taxonomy.xsd#Assets" />
+                                <link:loc xlink:type="locator" xlink:label="loc_cash" xlink:href="my-taxonomy.xsd#Cash" />
+                                <!-- Arcs connect locators to resources -->
+                                <link:referenceArc xlink:type="arc"
+                                    xlink:from="loc_assets"
+                                    xlink:to="ref_assets"
+                                    order="1" />
+                                <link:referenceArc xlink:type="arc"
+                                    xlink:from="loc_cash"
+                                    xlink:to="ref_cash"
+                                    order="2" />
+                                <!-- Resources provide textual references -->
+                                <link:reference xlink:type="resource"
+                                    xlink:label="ref_assets"
+                                    xlink:role="http://www.xbrl.org/2003/role/statementRef">
+                                    <link:content>IFRS Conceptual Framework, Chapter 4</link:content>
+                                </link:reference>
+                                <link:reference xlink:type="resource"
+                                    xlink:label="ref_cash"
+                                    xlink:role="http://www.xbrl.org/2003/role/statementRef">
+                                    <link:content>IFRS Conceptual Framework, Chapter 5</link:content>
+                                </link:reference>
+                            </link:referenceLink>
+                        </link:linkbase>"#;
+        let mut parser = LinkbaseParser::new(xml.as_bytes(), PathBuf::from("test.xml"));
+        let mut linkbase = Linkbase::default();
+        parser.parse_linkbase(&mut linkbase).unwrap();
+
+        assert_eq!(linkbase.presentation_links.len(), 0);
+        assert_eq!(linkbase.calculation_links.len(), 0);
+        assert_eq!(linkbase.definition_links.len(), 0);
+        assert_eq!(linkbase.label_links.len(), 0);
+        assert_eq!(linkbase.reference_links.len(), 1);
+        let reference_link = &linkbase.reference_links[0];
+        assert_eq!(
+            reference_link,
+            &ReferenceLink {
+                role: "http://www.xbrl.org/2003/role/reference".to_string(),
+                locators: vec![
+                    Locator {
+                        label: "loc_assets".to_string(),
+                        href: "my-taxonomy.xsd#Assets".to_string(),
+                    },
+                    Locator {
+                        label: "loc_cash".to_string(),
+                        href: "my-taxonomy.xsd#Cash".to_string(),
+                    },
+                ],
+                arcs: vec![
+                    ReferenceArc {
+                        from: "loc_assets".to_string(),
+                        to: "ref_assets".to_string(),
+                    },
+                    ReferenceArc {
+                        from: "loc_cash".to_string(),
+                        to: "ref_cash".to_string(),
+                    },
+                ],
+                references: vec![
+                    Resource {
+                        label: "ref_assets".to_string(),
+                        role: Some("http://www.xbrl.org/2003/role/statementRef".to_string()),
+                        text: "IFRS Conceptual Framework, Chapter 4".to_string(),
+                    },
+                    Resource {
+                        label: "ref_cash".to_string(),
+                        role: Some("http://www.xbrl.org/2003/role/statementRef".to_string()),
+                        text: "IFRS Conceptual Framework, Chapter 5".to_string(),
+                    },
+                ],
+            }
+        );
+    }
 }
