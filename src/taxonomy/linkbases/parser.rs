@@ -58,6 +58,9 @@ pub struct CalculationArc {
     /// The weight of the arc, used to specify the contribution of the source
     /// element to the target element.
     pub weight: Decimal,
+    /// The preferred label of the arc, used to specify which label to use when
+    /// multiple labels are available for the same element.
+    pub preferred_label: Option<String>,
 }
 
 /// An arc in a definition link, connecting two locators.
@@ -327,43 +330,9 @@ impl<R: BufRead> LinkbaseParser<R> {
             match self.reader.read_event_into(&mut buf)? {
                 Event::Start(event) | Event::Empty(event) => match event.local_name().as_ref() {
                     b"loc" => {
-                        // Parse locator
-                        let mut label = None;
-                        let mut href = None;
-                        for attribute in event.attributes() {
-                            let attribute = attribute.map_err(|err| XbrlError::XmlParse {
-                                position: self.reader.buffer_position(),
-                                element: Some("presentationLink".to_string()),
-                                source: err.into(),
-                            })?;
-
-                            match attribute.key.as_ref() {
-                                b"xlink:label" => {
-                                    let value = attribute
-                                        .decode_and_unescape_value(self.reader.decoder())?;
-                                    label = Some(value.to_string())
-                                }
-                                b"xlink:href" => {
-                                    let value = attribute
-                                        .decode_and_unescape_value(self.reader.decoder())?;
-                                    href = Some(value.to_string())
-                                }
-                                _ => {}
-                            }
-                        }
-                        let locator = Locator {
-                            label: label.ok_or_else(|| XbrlError::ParseError {
-                                expected: "xlink:label on loc",
-                                value: "".to_string(),
-                            })?,
-                            href: href.ok_or_else(|| XbrlError::ParseError {
-                                expected: "xlink:href on loc",
-                                value: "".to_string(),
-                            })?,
-                        };
+                        let locator = self.parse_locator(&event)?;
                         locators.push(locator);
                     }
-
                     b"presentationArc" => {
                         // Parse arc
                         let mut from = None;
@@ -446,8 +415,115 @@ impl<R: BufRead> LinkbaseParser<R> {
     }
 
     /// Parses a `calculationLink` element and its children.
-    fn parse_calculation_link(&mut self, event: BytesStart) -> Result<CalculationLink, XbrlError> {
-        todo!()
+    fn parse_calculation_link(&mut self, start: BytesStart) -> Result<CalculationLink, XbrlError> {
+        // Extract the xlink:role attribute
+        let role = start
+            .attributes()
+            .filter_map(Result::ok)
+            .find(|attr| attr.key.as_ref() == b"xlink:role")
+            .map(|attr| attr.unescape_value().unwrap().into_owned())
+            .ok_or_else(|| XbrlError::ParseError {
+                expected: "xlink:role on calculationLink",
+                value: "".to_string(),
+            })?;
+
+        let mut locators = Vec::new();
+        let mut arcs = Vec::new();
+        let mut buf = Vec::new();
+
+        loop {
+            match self.reader.read_event_into(&mut buf)? {
+                Event::Start(event) | Event::Empty(event) => match event.local_name().as_ref() {
+                    b"loc" => {
+                        let locator = self.parse_locator(&event)?;
+                        locators.push(locator);
+                    }
+                    b"calculationArc" => {
+                        // Parse a calculation arc
+                        let mut from = None;
+                        let mut to = None;
+                        let mut order = None;
+                        let mut weight = None;
+                        let mut preferred_label = None;
+
+                        for attribute in event.attributes() {
+                            let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                                position: self.reader.buffer_position(),
+                                element: Some("presentationLink".to_string()),
+                                source: err.into(),
+                            })?;
+
+                            match attribute.key.as_ref() {
+                                b"xlink:from" => {
+                                    let value = attribute
+                                        .decode_and_unescape_value(self.reader.decoder())?;
+                                    from = Some(value.to_string())
+                                }
+                                b"xlink:to" => {
+                                    let value = attribute
+                                        .decode_and_unescape_value(self.reader.decoder())?;
+                                    to = Some(value.to_string())
+                                }
+                                b"order" => {
+                                    let value = attribute
+                                        .decode_and_unescape_value(self.reader.decoder())?;
+                                    order = Some(parse_decimal(&value)?);
+                                }
+                                b"weight" => {
+                                    let value = attribute
+                                        .decode_and_unescape_value(self.reader.decoder())?;
+                                    weight = Some(parse_decimal(&value)?);
+                                }
+                                b"preferredLabel" => {
+                                    let value = attribute
+                                        .decode_and_unescape_value(self.reader.decoder())?;
+                                    preferred_label = Some(value.to_string())
+                                }
+                                _ => {}
+                            }
+                        }
+
+                        arcs.push(CalculationArc {
+                            from: from.ok_or_else(|| XbrlError::ParseError {
+                                expected: "xlink:from on calculationArc",
+                                value: "".to_string(),
+                            })?,
+                            to: to.ok_or_else(|| XbrlError::ParseError {
+                                expected: "xlink:to on calculationArc",
+                                value: "".to_string(),
+                            })?,
+                            order,
+                            weight: weight.ok_or_else(|| XbrlError::ParseError {
+                                expected: "weight on calculationArc",
+                                value: "".to_string(),
+                            })?,
+                            preferred_label,
+                        });
+                    }
+                    _ => {}
+                },
+                Event::End(event) => {
+                    if event.name() == start.name() {
+                        break;
+                    }
+                }
+                Event::Eof => {
+                    return Err(XbrlError::ParseError {
+                        expected: "calculationLink end tag",
+                        value: "".to_string(),
+                    });
+                }
+                _ => {}
+            }
+
+            buf.clear();
+        }
+
+        Ok(CalculationLink {
+            role,
+            locators,
+            arcs,
+        })
     }
 
     /// Parses a `definitionLink` element and its children.
@@ -464,12 +540,50 @@ impl<R: BufRead> LinkbaseParser<R> {
     fn parse_reference_link(&mut self, event: BytesStart) -> Result<ReferenceLink, XbrlError> {
         todo!()
     }
+
+    /// Parses a `loc` element and extracts the `xlink:label` and `xlink:href`
+    /// attributes.
+    fn parse_locator(&mut self, event: &BytesStart) -> Result<Locator, XbrlError> {
+        let mut label = None;
+        let mut href = None;
+
+        for attribute in event.attributes() {
+            let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                position: self.reader.buffer_position(),
+                element: Some("presentationLink".to_string()),
+                source: err.into(),
+            })?;
+
+            match attribute.key.as_ref() {
+                b"xlink:label" => {
+                    let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+                    label = Some(value.to_string())
+                }
+                b"xlink:href" => {
+                    let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+                    href = Some(value.to_string())
+                }
+                _ => {}
+            }
+        }
+        let locator = Locator {
+            label: label.ok_or_else(|| XbrlError::ParseError {
+                expected: "xlink:label on loc",
+                value: "".to_string(),
+            })?,
+            href: href.ok_or_else(|| XbrlError::ParseError {
+                expected: "xlink:href on loc",
+                value: "".to_string(),
+            })?,
+        };
+
+        Ok(locator)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use assert_matches::assert_matches;
 
     #[test]
     fn test_parse_linkbase_presentation_link() {
@@ -530,12 +644,14 @@ mod tests {
     #[test]
     fn test_parse_linkbase_calculation_link() {
         let xml = r#"<link:linkbase xmlns:link="http://www.xbrl.org/2003/linkbase">
-                            <link:calculationArc
-                                xlink:type="arc"
-                                xlink:from="loc_assets"
-                                xlink:to="loc_cash"
-                                weight="1"
-                                order="1" />
+                            <link:calculationLink xlink:type="extended" xlink:role="">
+                                <link:calculationArc
+                                    xlink:type="arc"
+                                    xlink:from="loc_assets"
+                                    xlink:to="loc_cash"
+                                    weight="1"
+                                    order="1" />
+                            </link:calculationLink>
                         </link:linkbase>"#;
         let mut parser = LinkbaseParser::new(xml.as_bytes(), PathBuf::from("test.xml"));
         let mut linkbase = Linkbase::default();
@@ -557,6 +673,7 @@ mod tests {
                     to: "loc_cash".to_string(),
                     order: Some(Decimal::new(1, 0)),
                     weight: Decimal::new(1, 0),
+                    preferred_label: None,
                 }],
             }
         );
