@@ -15,17 +15,31 @@ pub struct Locator {
     pub href: String,
 }
 
-/// A resource in a label or reference link.
+/// A resource in a label link.
 #[derive(Debug, PartialEq, Eq)]
-pub struct Resource {
+pub struct LabelResource {
     /// The label of the resource, used to reference it in arcs.
     pub label: String,
-    /// The role of the resource, used to specify the type of label or
-    /// reference.
+    /// The role of the resource, used to specify the type of label.
     pub role: Option<String>,
-    /// The text content of the resource, containing the label or reference
-    /// information.
+    /// The text content of the resource, containing the label information.
     pub text: String,
+}
+
+/// A resource in a reference link.
+///
+/// Note: The XBRL specification does not define a specific structure for
+/// reference resources, but they are typically used to provide additional
+/// information about the referenced elements, such as citations or
+/// explanations. Therefore, we can use a similar structure to `LabelResource`,
+/// but without parsing the text content, since it can be arbitrary and may
+/// contain complex XML content.
+#[derive(Debug, PartialEq, Eq)]
+pub struct ReferenceResource {
+    /// The label of the resource, used to reference it in arcs.
+    pub label: String,
+    /// The role of the resource, used to specify the type of reference.
+    pub role: Option<String>,
 }
 
 /// An arc in a presentation link, connecting two locators.
@@ -157,7 +171,7 @@ pub struct ReferenceLink {
     pub arcs: Vec<ReferenceArc>,
     /// The resources in the reference link, used to provide additional
     /// information about the referenced elements.
-    pub references: Vec<Resource>,
+    pub references: Vec<ReferenceResource>,
 }
 
 /// A label link, containing locators, arcs, and resources.
@@ -174,7 +188,7 @@ pub struct LabelLink {
     pub arcs: Vec<LabelArc>,
     /// The labels in the label link, used to provide additional
     /// information about the referenced elements.
-    pub labels: Vec<Resource>,
+    pub labels: Vec<LabelResource>,
 }
 
 /// The complete linkbase, containing all types of links.
@@ -748,7 +762,7 @@ impl<R: BufRead> LinkbaseParser<R> {
                             .trim()
                             .to_string();
 
-                        labels.push(Resource {
+                        labels.push(LabelResource {
                             label: label.ok_or_else(|| XbrlError::ParseError {
                                 expected: "xlink:label on label",
                                 value: "".to_string(),
@@ -785,8 +799,131 @@ impl<R: BufRead> LinkbaseParser<R> {
     }
 
     /// Parses a `referenceLink` element and its children.
-    fn parse_reference_link(&mut self, event: BytesStart) -> Result<ReferenceLink, XbrlError> {
-        todo!()
+    fn parse_reference_link(&mut self, start: BytesStart) -> Result<ReferenceLink, XbrlError> {
+        // Extract the `xlink:role` attribute
+        let mut role = String::new();
+
+        for attribute in start.attributes() {
+            let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                position: self.reader.buffer_position(),
+                element: Some("referenceLink".to_string()),
+                source: err.into(),
+            })?;
+
+            if attribute.key.as_ref() == b"xlink:role" {
+                let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+                role = value.to_string();
+            }
+        }
+
+        let mut locators = Vec::new();
+        let mut arcs = Vec::new();
+        let mut references = Vec::new();
+        let mut buf = Vec::new();
+
+        loop {
+            match self.reader.read_event_into(&mut buf)? {
+                Event::Start(event) | Event::Empty(event) => match event.local_name().as_ref() {
+                    b"loc" => {
+                        let locator = self.parse_locator(&event)?;
+                        locators.push(locator);
+                    }
+                    b"referenceArc" => {
+                        let mut from = None;
+                        let mut to = None;
+
+                        for attribute in event.attributes() {
+                            let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                                position: self.reader.buffer_position(),
+                                element: Some("referenceArc".to_string()),
+                                source: err.into(),
+                            })?;
+
+                            match attribute.key.as_ref() {
+                                b"xlink:from" => {
+                                    let value = attribute
+                                        .decode_and_unescape_value(self.reader.decoder())?;
+                                    from = Some(value.to_string());
+                                }
+                                b"xlink:to" => {
+                                    let value = attribute
+                                        .decode_and_unescape_value(self.reader.decoder())?;
+                                    to = Some(value.to_string());
+                                }
+                                _ => {}
+                            }
+                        }
+
+                        arcs.push(ReferenceArc {
+                            from: from.ok_or_else(|| XbrlError::ParseError {
+                                expected: "xlink:from on referenceArc",
+                                value: "".to_string(),
+                            })?,
+                            to: to.ok_or_else(|| XbrlError::ParseError {
+                                expected: "xlink:to on referenceArc",
+                                value: "".to_string(),
+                            })?,
+                        });
+                    }
+                    b"reference" => {
+                        let mut label = None;
+                        let mut ref_role = None;
+
+                        for attribute in event.attributes() {
+                            let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                                position: self.reader.buffer_position(),
+                                element: Some("reference".to_string()),
+                                source: err.into(),
+                            })?;
+
+                            match attribute.key.as_ref() {
+                                b"xlink:label" => {
+                                    let value = attribute
+                                        .decode_and_unescape_value(self.reader.decoder())?;
+                                    label = Some(value.to_string());
+                                }
+                                b"xlink:role" => {
+                                    let value = attribute
+                                        .decode_and_unescape_value(self.reader.decoder())?;
+                                    ref_role = Some(value.to_string());
+                                }
+                                _ => {}
+                            }
+                        }
+
+                        references.push(ReferenceResource {
+                            label: label.ok_or_else(|| XbrlError::ParseError {
+                                expected: "xlink:label on reference",
+                                value: "".to_string(),
+                            })?,
+                            role: ref_role,
+                        });
+                    }
+                    _ => {}
+                },
+                Event::End(event) => {
+                    if event.name() == start.name() {
+                        break;
+                    }
+                }
+                Event::Eof => {
+                    return Err(XbrlError::ParseError {
+                        expected: "referenceLink end tag",
+                        value: "".to_string(),
+                    });
+                }
+                _ => {}
+            }
+
+            buf.clear();
+        }
+
+        Ok(ReferenceLink {
+            role,
+            locators,
+            arcs,
+            references,
+        })
     }
 
     /// Parses a `loc` element and extracts the `xlink:label` and `xlink:href`
@@ -1005,7 +1142,7 @@ mod tests {
                     from: "loc_assets".to_string(),
                     to: "lab_assets".to_string(),
                 }],
-                labels: vec![Resource {
+                labels: vec![LabelResource {
                     label: "lab_assets".to_string(),
                     role: Some("http://www.xbrl.org/2003/role/label".to_string()),
                     text: "Assets".to_string(),
@@ -1037,12 +1174,12 @@ mod tests {
                                 <link:reference xlink:type="resource"
                                     xlink:label="ref_assets"
                                     xlink:role="http://www.xbrl.org/2003/role/statementRef">
-                                    <link:content>IFRS Conceptual Framework, Chapter 4</link:content>
+                                    <link:content>Test content 1</link:content>
                                 </link:reference>
                                 <link:reference xlink:type="resource"
                                     xlink:label="ref_cash"
                                     xlink:role="http://www.xbrl.org/2003/role/statementRef">
-                                    <link:content>IFRS Conceptual Framework, Chapter 5</link:content>
+                                    <link:content>Test content 2</link:content>
                                 </link:reference>
                             </link:referenceLink>
                         </link:linkbase>"#;
@@ -1081,15 +1218,13 @@ mod tests {
                     },
                 ],
                 references: vec![
-                    Resource {
+                    ReferenceResource {
                         label: "ref_assets".to_string(),
                         role: Some("http://www.xbrl.org/2003/role/statementRef".to_string()),
-                        text: "IFRS Conceptual Framework, Chapter 4".to_string(),
                     },
-                    Resource {
+                    ReferenceResource {
                         label: "ref_cash".to_string(),
                         role: Some("http://www.xbrl.org/2003/role/statementRef".to_string()),
-                        text: "IFRS Conceptual Framework, Chapter 5".to_string(),
                     },
                 ],
             }
