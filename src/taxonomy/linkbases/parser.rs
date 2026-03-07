@@ -647,8 +647,141 @@ impl<R: BufRead> LinkbaseParser<R> {
     }
 
     /// Parses a `labelLink` element and its children.
-    fn parse_label_link(&mut self, event: BytesStart) -> Result<LabelLink, XbrlError> {
-        todo!()
+    fn parse_label_link(&mut self, start: BytesStart) -> Result<LabelLink, XbrlError> {
+        // Extract the `xlink:role` attribute
+        let mut role = String::new();
+
+        for attribute in start.attributes() {
+            let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                position: self.reader.buffer_position(),
+                element: Some("labelLink".to_string()),
+                source: err.into(),
+            })?;
+
+            if attribute.key.as_ref() == b"xlink:role" {
+                let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+                role = value.to_string();
+            }
+        }
+
+        let mut locators = Vec::new();
+        let mut arcs = Vec::new();
+        let mut labels = Vec::new();
+        let mut buf = Vec::new();
+
+        loop {
+            match self.reader.read_event_into(&mut buf)? {
+                Event::Start(event) | Event::Empty(event) => match event.local_name().as_ref() {
+                    b"loc" => {
+                        let locator = self.parse_locator(&event)?;
+                        locators.push(locator);
+                    }
+                    b"labelArc" => {
+                        let mut from = None;
+                        let mut to = None;
+
+                        for attribute in event.attributes() {
+                            let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                                position: self.reader.buffer_position(),
+                                element: Some("labelArc".to_string()),
+                                source: err.into(),
+                            })?;
+
+                            match attribute.key.as_ref() {
+                                b"xlink:from" => {
+                                    let value = attribute
+                                        .decode_and_unescape_value(self.reader.decoder())?;
+                                    from = Some(value.to_string());
+                                }
+                                b"xlink:to" => {
+                                    let value = attribute
+                                        .decode_and_unescape_value(self.reader.decoder())?;
+                                    to = Some(value.to_string());
+                                }
+                                _ => {}
+                            }
+                        }
+
+                        arcs.push(LabelArc {
+                            from: from.ok_or_else(|| XbrlError::ParseError {
+                                expected: "xlink:from on labelArc",
+                                value: "".to_string(),
+                            })?,
+                            to: to.ok_or_else(|| XbrlError::ParseError {
+                                expected: "xlink:to on labelArc",
+                                value: "".to_string(),
+                            })?,
+                        });
+                    }
+                    b"label" => {
+                        let mut label = None;
+                        let mut label_role = None;
+
+                        for attribute in event.attributes() {
+                            let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                                position: self.reader.buffer_position(),
+                                element: Some("label".to_string()),
+                                source: err.into(),
+                            })?;
+
+                            match attribute.key.as_ref() {
+                                b"xlink:label" => {
+                                    let value = attribute
+                                        .decode_and_unescape_value(self.reader.decoder())?;
+                                    label = Some(value.to_string());
+                                }
+                                b"xlink:role" => {
+                                    let value = attribute
+                                        .decode_and_unescape_value(self.reader.decoder())?;
+                                    label_role = Some(value.to_string());
+                                }
+                                _ => {}
+                            }
+                        }
+
+                        let mut text_buf = Vec::new();
+                        let bytes_text = self
+                            .reader
+                            .read_text_into(event.to_end().name(), &mut text_buf)?;
+                        let text = str::from_utf8(bytes_text.as_ref())
+                            .map_err(|err| XbrlError::Utf8(err))?
+                            .trim()
+                            .to_string();
+
+                        labels.push(Resource {
+                            label: label.ok_or_else(|| XbrlError::ParseError {
+                                expected: "xlink:label on label",
+                                value: "".to_string(),
+                            })?,
+                            role: label_role,
+                            text,
+                        });
+                    }
+                    _ => {}
+                },
+                Event::End(event) => {
+                    if event.name() == start.name() {
+                        break;
+                    }
+                }
+                Event::Eof => {
+                    return Err(XbrlError::ParseError {
+                        expected: "labelLink end tag",
+                        value: "".to_string(),
+                    });
+                }
+                _ => {}
+            }
+
+            buf.clear();
+        }
+
+        Ok(LabelLink {
+            role,
+            locators,
+            arcs,
+            labels,
+        })
     }
 
     /// Parses a `referenceLink` element and its children.
