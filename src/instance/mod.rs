@@ -3,6 +3,7 @@
 mod context;
 mod fact;
 mod footnote;
+mod parser;
 mod reader;
 mod unit;
 mod view;

@@ -93,6 +93,12 @@ pub enum XbrlError {
     #[error("Invalid schema document '{}': {reason}", path.display())]
     InvalidSchemaDocument { path: PathBuf, reason: String },
 
+    #[error("Invalid instance document '{}': {reason}", path.display())]
+    InvalidInstanceDocument { path: PathBuf, reason: String },
+
+    #[error("Invalid linkbase document '{}': {reason}", path.display())]
+    InvalidLinkbaseDocument { path: PathBuf, reason: String },
+
     /// A string value could not be parsed as the expected XBRL type.
     #[error("invalid {expected} value '{value}'")]
     ParseError {
