@@ -1,7 +1,7 @@
 use crate::XbrlError;
 use quick_xml::{
     Reader,
-    events::{Event, attributes::Attributes},
+    events::{BytesStart, Event, attributes::Attributes},
 };
 use std::{collections::HashMap, io::BufRead, path::PathBuf, str::Bytes};
 
@@ -209,6 +209,7 @@ impl<R: BufRead> InstanceParser<R> {
     /// reporting.
     pub fn parse_instance(&mut self) -> Result<RawInstance, XbrlError> {
         let mut instance = RawInstance::default();
+        instance.file_path = self.path.clone();
         let mut has_instance_root = false;
         let mut buf = Vec::new();
 
@@ -745,9 +746,69 @@ impl<R: BufRead> InstanceParser<R> {
     fn parse_fact(
         &mut self,
         instance: &mut RawInstance,
-        event: &quick_xml::events::BytesStart,
+        event: &BytesStart,
     ) -> Result<(), XbrlError> {
-        todo!()
+        let name = std::str::from_utf8(event.name().as_ref())?.to_string();
+
+        let mut context_ref = None;
+        let mut unit_ref = None;
+        let mut decimals = None;
+        let mut precision = None;
+        let mut id = None;
+
+        for attribute in event.attributes() {
+            let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                position: self.reader.buffer_position(),
+                element: Some(name.clone()),
+                source: err.into(),
+            })?;
+            let local_name = attribute.key.local_name();
+            let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+
+            match local_name.as_ref() {
+                b"contextRef" => context_ref = Some(value.into_owned()),
+                b"unitRef" => unit_ref = Some(value.into_owned()),
+                b"decimals" => decimals = Some(value.into_owned()),
+                b"precision" => precision = Some(value.into_owned()),
+                b"id" => id = Some(value.into_owned()),
+                _ => {}
+            }
+        }
+
+        // If contextRef is missing, it's not a fact element
+        let context_ref = match context_ref {
+            Some(context_ref) => context_ref,
+            None => return Ok(()),
+        };
+
+        // Read the text value
+        let mut value = String::new();
+        let mut buf = Vec::new();
+
+        loop {
+            match self.reader.read_event_into(&mut buf)? {
+                Event::Text(ref text) => {
+                    let decoded = text.xml_content().map_err(quick_xml::Error::from)?;
+                    value.push_str(&decoded);
+                }
+                Event::End(ref end) if end.name().as_ref() == event.name().as_ref() => break,
+                Event::Eof => break,
+                _ => {}
+            }
+            buf.clear();
+        }
+
+        instance.facts.push(RawFact {
+            name,
+            value,
+            context_ref,
+            unit_ref,
+            decimals,
+            precision,
+            id,
+        });
+
+        Ok(())
     }
 
     /// Parse the `link:footnoteLink` element to extract the footnote link.
