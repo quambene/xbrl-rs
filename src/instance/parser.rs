@@ -3,7 +3,7 @@ use quick_xml::{
     Reader,
     events::{Event, attributes::Attributes},
 };
-use std::{collections::HashMap, io::BufRead, path::PathBuf};
+use std::{collections::HashMap, io::BufRead, path::PathBuf, str::Bytes};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct SchemaRef {
@@ -259,6 +259,7 @@ impl<R: BufRead> InstanceParser<R> {
         Ok(instance)
     }
 
+    /// Parses the root <xbrli:xbrl> element to extract namespace declarations.
     fn parse_instance_root(
         &mut self,
         instance: &mut RawInstance,
@@ -287,6 +288,7 @@ impl<R: BufRead> InstanceParser<R> {
         Ok(())
     }
 
+    /// Parse the `link:schemaRef` element to extract the schema reference.
     fn parse_schema_ref(
         &mut self,
         instance: &mut RawInstance,
@@ -314,6 +316,7 @@ impl<R: BufRead> InstanceParser<R> {
         })
     }
 
+    /// Parse the `link:roleRef` element to extract the role reference.
     fn parse_role_ref(
         &mut self,
         instance: &mut RawInstance,
@@ -352,6 +355,7 @@ impl<R: BufRead> InstanceParser<R> {
         Ok(())
     }
 
+    /// Parse the `link:arcroleRef` element to extract the arcrole reference.
     fn parse_arcrole_ref(
         &mut self,
         instance: &mut RawInstance,
@@ -390,12 +394,244 @@ impl<R: BufRead> InstanceParser<R> {
         Ok(())
     }
 
+    /// Parse the `xbrli:context` element to extract the context definition.
     fn parse_context(
         &mut self,
         instance: &mut RawInstance,
         attributes: Attributes,
     ) -> Result<(), XbrlError> {
-        todo!()
+        let mut id = None;
+
+        for attribute in attributes {
+            let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                position: self.reader.buffer_position(),
+                element: Some("context".to_string()),
+                source: err.into(),
+            })?;
+
+            if attribute.key.local_name().as_ref() == b"id" {
+                let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+                id = Some(value.into_owned());
+            }
+        }
+
+        let id = id.ok_or_else(|| XbrlError::InvalidInstanceDocument {
+            path: self.path.clone(),
+            reason: "missing id in xbrli:context".to_string(),
+        })?;
+
+        let mut entity = None;
+        let mut period = None;
+        let mut dimensions = Vec::new();
+        let mut buf = Vec::new();
+
+        loop {
+            match self.reader.read_event_into(&mut buf)? {
+                Event::Start(ref event) => match event.local_name().as_ref() {
+                    b"entity" => {
+                        entity = Some(self.parse_entity()?);
+                    }
+                    b"period" => {
+                        period = Some(self.parse_period()?);
+                    }
+                    b"scenario" => {
+                        self.parse_dimensional_container(&mut dimensions)?;
+                    }
+                    _ => {}
+                },
+                Event::End(ref event) if event.local_name().as_ref() == b"context" => break,
+                Event::Eof => break,
+                _ => {}
+            }
+            buf.clear();
+        }
+
+        instance.contexts.push(RawContext {
+            id,
+            entity: entity.ok_or_else(|| XbrlError::InvalidInstanceDocument {
+                path: self.path.clone(),
+                reason: "missing entity in xbrli:context".to_string(),
+            })?,
+            period: period.ok_or_else(|| XbrlError::InvalidInstanceDocument {
+                path: self.path.clone(),
+                reason: "missing period in xbrli:context".to_string(),
+            })?,
+            dimensions,
+        });
+
+        Ok(())
+    }
+
+    /// Parse the `xbrli:entity` element to extract the entity identifier and
+    /// scheme.
+    fn parse_entity(&mut self) -> Result<RawEntity, XbrlError> {
+        let mut identifier = None;
+        let mut scheme = None;
+        let mut buf = Vec::new();
+
+        loop {
+            match self.reader.read_event_into(&mut buf)? {
+                Event::Start(ref event) => {
+                    match event.local_name().as_ref() {
+                        b"identifier" => {
+                            for attribute in event.attributes() {
+                                let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                                    position: self.reader.buffer_position(),
+                                    element: Some("identifier".to_string()),
+                                    source: err.into(),
+                                })?;
+
+                                if attribute.key.local_name().as_ref() == b"scheme" {
+                                    let value = attribute
+                                        .decode_and_unescape_value(self.reader.decoder())?;
+                                    scheme = Some(value.into_owned());
+                                }
+                            }
+                        }
+                        b"segment" => {
+                            // TODO: dimensions can appear in entity/segment
+                        }
+                        _ => {}
+                    }
+                }
+                Event::Text(ref text) => {
+                    if identifier.is_none() {
+                        let value = text.xml_content().map_err(quick_xml::Error::from)?;
+                        identifier = Some(value.into_owned());
+                    }
+                }
+                Event::End(ref event) if event.local_name().as_ref() == b"entity" => break,
+                Event::Eof => break,
+                _ => {}
+            }
+            buf.clear();
+        }
+
+        Ok(RawEntity {
+            identifier: identifier.ok_or_else(|| XbrlError::InvalidInstanceDocument {
+                path: self.path.clone(),
+                reason: "missing identifier in xbrli:entity".to_string(),
+            })?,
+            scheme: scheme.ok_or_else(|| XbrlError::InvalidInstanceDocument {
+                path: self.path.clone(),
+                reason: "missing scheme in xbrli:identifier".to_string(),
+            })?,
+        })
+    }
+
+    /// Parse the `xbrli:period` element to extract the period definition.
+    fn parse_period(&mut self) -> Result<RawPeriod, XbrlError> {
+        let mut instant = None;
+        let mut start_date = None;
+        let mut end_date = None;
+        let mut is_forever = false;
+        let mut current_tag: Option<String> = None;
+        let mut buf = Vec::new();
+
+        loop {
+            match self.reader.read_event_into(&mut buf)? {
+                Event::Start(ref event) | Event::Empty(ref event) => {
+                    match event.local_name().as_ref() {
+                        b"instant" => current_tag = Some("instant".to_string()),
+                        b"startDate" => current_tag = Some("startDate".to_string()),
+                        b"endDate" => current_tag = Some("endDate".to_string()),
+                        b"forever" => is_forever = true,
+                        _ => {}
+                    }
+                }
+                Event::Text(ref text) => {
+                    let value = text
+                        .xml_content()
+                        .map_err(quick_xml::Error::from)?
+                        .into_owned();
+                    match current_tag.as_deref() {
+                        Some("instant") => instant = Some(value),
+                        Some("startDate") => start_date = Some(value),
+                        Some("endDate") => end_date = Some(value),
+                        _ => {}
+                    }
+                }
+                Event::End(ref event) => match event.local_name().as_ref() {
+                    b"period" => break,
+                    _ => current_tag = None,
+                },
+                Event::Eof => break,
+                _ => {}
+            }
+            buf.clear();
+        }
+
+        if is_forever {
+            Ok(RawPeriod::Forever)
+        } else if let Some(instant) = instant {
+            Ok(RawPeriod::Instant(instant))
+        } else if let (Some(start_date), Some(end_date)) = (start_date, end_date) {
+            Ok(RawPeriod::Duration {
+                start_date,
+                end_date,
+            })
+        } else {
+            Err(XbrlError::InvalidInstanceDocument {
+                path: self.path.clone(),
+                reason: "invalid period in xbrli:context".to_string(),
+            })
+        }
+    }
+
+    /// Parse the dimensions defined in a `scenario` or `segment` element.
+    fn parse_dimensional_container(
+        &mut self,
+        dimensions: &mut Vec<RawDimension>,
+    ) -> Result<(), XbrlError> {
+        let mut buf = Vec::new();
+
+        loop {
+            match self.reader.read_event_into(&mut buf)? {
+                Event::Start(ref event) | Event::Empty(ref event) => {
+                    if event.local_name().as_ref() == b"explicitMember" {
+                        let mut dimension = None;
+
+                        for attribute in event.attributes() {
+                            let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                                position: self.reader.buffer_position(),
+                                element: Some("explicitMember".to_string()),
+                                source: err.into(),
+                            })?;
+
+                            if attribute.key.local_name().as_ref() == b"dimension" {
+                                let value =
+                                    attribute.decode_and_unescape_value(self.reader.decoder())?;
+                                dimension = Some(value.into_owned());
+                            }
+                        }
+
+                        if let Some(dimension) = dimension {
+                            let mut member_buf = Vec::new();
+
+                            if let Event::Text(ref text) =
+                                self.reader.read_event_into(&mut member_buf)?
+                            {
+                                let member = text
+                                    .xml_content()
+                                    .map_err(quick_xml::Error::from)?
+                                    .into_owned();
+                                dimensions.push(RawDimension { dimension, member });
+                            }
+                        }
+                    }
+                }
+                Event::End(ref event)
+                    if matches!(event.local_name().as_ref(), b"scenario" | b"segment") =>
+                {
+                    break;
+                }
+                Event::Eof => break,
+                _ => {}
+            }
+            buf.clear();
+        }
+
+        Ok(())
     }
 
     fn parse_unit(
@@ -428,6 +664,93 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_parse_instance_root() {
+        let xml = r#"<xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance"
+                            xmlns:ifrs="http://xbrl.ifrs.org/taxonomy/2023">
+                        </xbrli:xbrl>"#;
+        let mut parser = InstanceParser::new(xml.as_bytes(), PathBuf::from("test.xml"));
+        let instance = parser.parse_instance().unwrap();
+
+        assert_eq!(instance.namespaces.len(), 2);
+        assert_eq!(
+            instance.namespaces.get("xbrli").unwrap(),
+            "http://www.xbrl.org/2003/instance"
+        );
+        assert_eq!(
+            instance.namespaces.get("ifrs").unwrap(),
+            "http://xbrl.ifrs.org/taxonomy/2023"
+        );
+    }
+
+    #[test]
+    fn test_parse_schema_ref() {
+        let xml = r#"<xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance"
+                            xmlns:ifrs="http://xbrl.ifrs.org/taxonomy/2023">
+                            <link:schemaRef xlink:href="ifrs.xsd" />
+                        </xbrli:xbrl>"#;
+        let mut parser = InstanceParser::new(xml.as_bytes(), PathBuf::from("test.xml"));
+        let instance = parser.parse_instance().unwrap();
+
+        assert_eq!(instance.schema_refs.len(), 1);
+        assert_eq!(instance.schema_refs[0].href, "ifrs.xsd");
+    }
+
+    #[test]
+    fn test_parse_role_ref() {
+        let xml = r#"<xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance"
+                            xmlns:ifrs="http://xbrl.ifrs.org/taxonomy/2023">
+                            <link:roleRef roleURI="http://example.com/role" xlink:href="role.xml" />
+                        </xbrli:xbrl>"#;
+        let mut parser = InstanceParser::new(xml.as_bytes(), PathBuf::from("test.xml"));
+        let instance = parser.parse_instance().unwrap();
+
+        assert_eq!(instance.role_refs.len(), 1);
+        assert_eq!(instance.role_refs[0].role_uri, "http://example.com/role");
+        assert_eq!(instance.role_refs[0].href, "role.xml");
+    }
+
+    #[test]
+    fn test_parse_arcrole_ref() {
+        let xml = r#"<xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance"
+                            xmlns:ifrs="http://xbrl.ifrs.org/taxonomy/2023">
+                            <link:arcroleRef arcroleURI="http://example.com/arcrole" xlink:href="arcrole.xml" />
+                        </xbrli:xbrl>"#;
+        let mut parser = InstanceParser::new(xml.as_bytes(), PathBuf::from("test.xml"));
+        let instance = parser.parse_instance().unwrap();
+
+        assert_eq!(instance.arcrole_refs.len(), 1);
+        assert_eq!(
+            instance.arcrole_refs[0].arcrole_uri,
+            "http://example.com/arcrole"
+        );
+        assert_eq!(instance.arcrole_refs[0].href, "arcrole.xml");
+    }
+
+    #[test]
+    fn test_parse_context() {
+        let xml = r#"<xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance"
+                            xmlns:ifrs="http://xbrl.ifrs.org/taxonomy/2023">
+                            <context id="c1">
+                                <entity>
+                                    <identifier scheme="http://example.com">ABC</identifier>
+                                </entity>
+                                <period>
+                                    <instant>2024-12-31</instant>
+                                </period>
+                            </context>
+                        </xbrli:xbrl>"#;
+        let mut parser = InstanceParser::new(xml.as_bytes(), PathBuf::from("test.xml"));
+        let instance = parser.parse_instance().unwrap();
+
+        assert_eq!(instance.contexts.len(), 1);
+        let context = &instance.contexts[0];
+        assert_eq!(context.id, "c1");
+        assert_eq!(context.entity.identifier, "ABC");
+        assert_eq!(context.entity.scheme, "http://example.com");
+        assert_eq!(context.period, RawPeriod::Instant("2024-12-31".to_string()));
+    }
+
+    #[test]
     fn test_parse_instance() {
         let xml = r#"<xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance"
                             xmlns:ifrs="http://xbrl.ifrs.org/taxonomy/2023">
@@ -445,7 +768,7 @@ mod tests {
                             </unit>
                             <ifrs:Revenue contextRef="c1" unitRef="u1" decimals="-3">
                                 1200000
-                        </ifrs:Revenue>
+                            </ifrs:Revenue>
                         </xbrli:xbrl>"#;
         let mut parser = InstanceParser::new(xml.as_bytes(), PathBuf::from("test.xml"));
         let instance = parser.parse_instance().unwrap();
@@ -453,5 +776,53 @@ mod tests {
         assert_eq!(instance.contexts.len(), 1);
         assert_eq!(instance.units.len(), 1);
         assert_eq!(instance.facts.len(), 1);
+
+        assert_eq!(
+            instance,
+            RawInstance {
+                file_path: PathBuf::from("test.xml"),
+                namespaces: {
+                    let mut namespaces = HashMap::new();
+                    namespaces.insert(
+                        "xbrli".to_string(),
+                        "http://www.xbrl.org/2003/instance".to_string(),
+                    );
+                    namespaces.insert(
+                        "ifrs".to_string(),
+                        "http://xbrl.ifrs.org/taxonomy/2023".to_string(),
+                    );
+                    namespaces
+                },
+                schema_refs: vec![SchemaRef {
+                    href: "ifrs.xsd".to_string(),
+                }],
+                role_refs: vec![],
+                arcrole_refs: vec![],
+                contexts: vec![RawContext {
+                    id: "c1".to_string(),
+                    entity: RawEntity {
+                        identifier: "ABC".to_string(),
+                        scheme: "http://example.com".to_string(),
+                    },
+                    period: RawPeriod::Instant("2024-12-31".to_string()),
+                    dimensions: vec![],
+                }],
+                units: vec![RawUnit {
+                    id: "u1".to_string(),
+                    measures: vec!["iso4217:EUR".to_string()],
+                    divide: None,
+                }],
+                facts: vec![RawFact {
+                    name: "ifrs:Revenue".to_string(),
+                    value: "1200000".to_string(),
+                    context_ref: "c1".to_string(),
+                    unit_ref: Some("u1".to_string()),
+                    decimals: Some("-3".to_string()),
+                    precision: None,
+                    id: None,
+                }],
+                footnote_links: vec![],
+            }
+        );
     }
 }
