@@ -634,14 +634,114 @@ impl<R: BufRead> InstanceParser<R> {
         Ok(())
     }
 
+    /// Parse the `xbrli:unit` element to extract the unit definition, including
+    /// measures and divide units.
     fn parse_unit(
         &mut self,
         instance: &mut RawInstance,
         attributes: Attributes,
     ) -> Result<(), XbrlError> {
-        todo!()
+        let mut id = None;
+
+        for attribute in attributes {
+            let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                position: self.reader.buffer_position(),
+                element: Some("unit".to_string()),
+                source: err.into(),
+            })?;
+
+            if attribute.key.local_name().as_ref() == b"id" {
+                let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+                id = Some(value.into_owned());
+            }
+        }
+
+        let id = id.ok_or_else(|| XbrlError::InvalidInstanceDocument {
+            path: self.path.clone(),
+            reason: "missing id in xbrli:unit".to_string(),
+        })?;
+
+        let mut measures = Vec::new();
+        let mut divide = None;
+        let mut buf = Vec::new();
+
+        loop {
+            match self.reader.read_event_into(&mut buf)? {
+                Event::Start(ref event) => match event.local_name().as_ref() {
+                    b"measure" => {
+                        let mut text_buf = Vec::new();
+                        if let Event::Text(ref text) = self.reader.read_event_into(&mut text_buf)? {
+                            let value = text.xml_content().map_err(quick_xml::Error::from)?;
+                            measures.push(value.into_owned());
+                        }
+                    }
+                    b"divide" => {
+                        divide = Some(self.parse_unit_divide()?);
+                    }
+                    _ => {}
+                },
+                Event::End(ref event) if event.local_name().as_ref() == b"unit" => break,
+                Event::Eof => break,
+                _ => {}
+            }
+            buf.clear();
+        }
+
+        instance.units.push(RawUnit {
+            id,
+            measures,
+            divide,
+        });
+
+        Ok(())
     }
 
+    /// Parse the `divide` element inside a `unit` to extract the numerator and
+    /// denominator measures.
+    fn parse_unit_divide(&mut self) -> Result<RawUnitDivide, XbrlError> {
+        let mut numerator = Vec::new();
+        let mut denominator = Vec::new();
+        let mut in_numerator = false;
+        let mut in_denominator = false;
+        let mut buf = Vec::new();
+
+        loop {
+            match self.reader.read_event_into(&mut buf)? {
+                Event::Start(ref event) => match event.local_name().as_ref() {
+                    b"unitNumerator" => in_numerator = true,
+                    b"unitDenominator" => in_denominator = true,
+                    b"measure" => {
+                        let mut text_buf = Vec::new();
+                        if let Event::Text(ref text) = self.reader.read_event_into(&mut text_buf)? {
+                            let value = text.xml_content().map_err(quick_xml::Error::from)?;
+                            if in_numerator {
+                                numerator.push(value.into_owned());
+                            } else if in_denominator {
+                                denominator.push(value.into_owned());
+                            }
+                        }
+                    }
+                    _ => {}
+                },
+                Event::End(ref event) => match event.local_name().as_ref() {
+                    b"unitNumerator" => in_numerator = false,
+                    b"unitDenominator" => in_denominator = false,
+                    b"divide" => break,
+                    _ => {}
+                },
+                Event::Eof => break,
+                _ => {}
+            }
+            buf.clear();
+        }
+
+        Ok(RawUnitDivide {
+            numerator,
+            denominator,
+        })
+    }
+
+    /// Parse a fact element.
     fn parse_fact(
         &mut self,
         instance: &mut RawInstance,
@@ -650,6 +750,7 @@ impl<R: BufRead> InstanceParser<R> {
         todo!()
     }
 
+    /// Parse the `link:footnoteLink` element to extract the footnote link.
     fn parse_footnote_link(
         &mut self,
         instance: &mut RawInstance,
