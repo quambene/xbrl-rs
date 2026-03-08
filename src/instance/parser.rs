@@ -127,13 +127,13 @@ pub struct RawInstance {
     pub schema_refs: Vec<SchemaRef>,
     /// Role references
     ///
-    /// Usually defined in the linkbase, but can also be present in the instance
-    /// document.
+    /// Usually defined in the linkbase document, but can also be present in the
+    /// instance document.
     pub role_refs: Vec<RoleRef>,
     /// Arcrole references
     ///
-    /// Usually defined in the linkbase, but can also be present in the instance
-    /// document.
+    /// Usually defined in the linkbase document, but can also be present in the
+    /// instance document.
     pub arcrole_refs: Vec<ArcroleRef>,
     /// Context definitions
     pub contexts: Vec<RawContext>,
@@ -817,7 +817,148 @@ impl<R: BufRead> InstanceParser<R> {
         instance: &mut RawInstance,
         attributes: Attributes,
     ) -> Result<(), XbrlError> {
-        todo!()
+        let mut role = String::new();
+
+        for attribute in attributes {
+            let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                position: self.reader.buffer_position(),
+                element: Some("footnoteLink".to_string()),
+                source: err.into(),
+            })?;
+
+            if attribute.key.local_name().as_ref() == b"role" {
+                let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+                role = value.into_owned();
+            }
+        }
+
+        let mut locators = Vec::new();
+        let mut arcs = Vec::new();
+        let mut footnotes = Vec::new();
+        let mut buf = Vec::new();
+
+        loop {
+            match self.reader.read_event_into(&mut buf)? {
+                Event::Start(ref event) | Event::Empty(ref event) => {
+                    match event.local_name().as_ref() {
+                        b"loc" => {
+                            let mut label = None;
+                            let mut href = None;
+
+                            for attribute in event.attributes() {
+                                let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                                    position: self.reader.buffer_position(),
+                                    element: Some("loc".to_string()),
+                                    source: err.into(),
+                                })?;
+                                let local_name = attribute.key.local_name();
+                                let value =
+                                    attribute.decode_and_unescape_value(self.reader.decoder())?;
+
+                                match local_name.as_ref() {
+                                    b"label" => label = Some(value.into_owned()),
+                                    b"href" => href = Some(value.into_owned()),
+                                    _ => {}
+                                }
+                            }
+
+                            if let (Some(label), Some(href)) = (label, href) {
+                                locators.push(Locator { label, href });
+                            }
+                        }
+                        b"footnoteArc" => {
+                            let mut from = None;
+                            let mut to = None;
+
+                            for attribute in event.attributes() {
+                                let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                                    position: self.reader.buffer_position(),
+                                    element: Some("footnoteArc".to_string()),
+                                    source: err.into(),
+                                })?;
+                                let local_name = attribute.key.local_name();
+                                let value =
+                                    attribute.decode_and_unescape_value(self.reader.decoder())?;
+
+                                match local_name.as_ref() {
+                                    b"from" => from = Some(value.into_owned()),
+                                    b"to" => to = Some(value.into_owned()),
+                                    _ => {}
+                                }
+                            }
+
+                            if let (Some(from), Some(to)) = (from, to) {
+                                arcs.push(FootnoteArc { from, to });
+                            }
+                        }
+                        b"footnote" => {
+                            let mut label = None;
+                            let mut lang = None;
+
+                            for attribute in event.attributes() {
+                                let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                                    position: self.reader.buffer_position(),
+                                    element: Some("footnote".to_string()),
+                                    source: err.into(),
+                                })?;
+                                let local_name = attribute.key.local_name();
+                                let value =
+                                    attribute.decode_and_unescape_value(self.reader.decoder())?;
+
+                                match local_name.as_ref() {
+                                    b"label" => label = Some(value.into_owned()),
+                                    b"lang" => lang = Some(value.into_owned()),
+                                    _ => {}
+                                }
+                            }
+
+                            // Read footnote text content
+                            let mut text = String::new();
+                            let mut text_buf = Vec::new();
+                            loop {
+                                match self.reader.read_event_into(&mut text_buf)? {
+                                    Event::Text(ref t) => {
+                                        let decoded =
+                                            t.xml_content().map_err(quick_xml::Error::from)?;
+                                        text.push_str(&decoded);
+                                    }
+                                    Event::End(ref e) if e.local_name().as_ref() == b"footnote" => {
+                                        break;
+                                    }
+                                    Event::Eof => break,
+                                    _ => {}
+                                }
+                                text_buf.clear();
+                            }
+
+                            if let Some(label) = label {
+                                footnotes.push(FootnoteResource {
+                                    label,
+                                    lang,
+                                    text: text.trim().to_string(),
+                                });
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                Event::End(ref event) if event.local_name().as_ref() == b"footnoteLink" => {
+                    break;
+                }
+                Event::Eof => break,
+                _ => {}
+            }
+            buf.clear();
+        }
+
+        instance.footnote_links.push(RawFootnoteLink {
+            role,
+            locators,
+            arcs,
+            footnotes,
+        });
+
+        Ok(())
     }
 }
 
@@ -951,32 +1092,40 @@ mod tests {
 
     #[test]
     fn test_parse_footnote_link() {
-        let xml = r#"<xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance"
+        let xml = r##"<xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance"
                             xmlns:ifrs="http://xbrl.ifrs.org/taxonomy/2023">
                             <link:footnoteLink role="http://example.com/footnote">
-                                <link:loc xlink:label="loc1" xlink:href="\#c1" />
+                                <link:loc xlink:label="loc1" xlink:href="#c1" />
                                 <link:footnote xlink:label="fn1" xml:lang="en">
                                     This is a footnote.
                                 </link:footnote>
                                 <link:footnoteArc xlink:from="loc1" xlink:to="fn1" />
                             </link:footnoteLink>
-                        </xbrli:xbrl>"#;
+                        </xbrli:xbrl>"##;
         let mut parser = InstanceParser::new(xml.as_bytes(), PathBuf::from("test.xml"));
         let instance = parser.parse_instance().unwrap();
 
         assert_eq!(instance.footnote_links.len(), 1);
         let footnote_link = &instance.footnote_links[0];
-        assert_eq!(footnote_link.role, "http://example.com/footnote");
-        assert_eq!(footnote_link.locators.len(), 1);
-        assert_eq!(footnote_link.locators[0].label, "loc1");
-        assert_eq!(footnote_link.locators[0].href, "#c1");
-        assert_eq!(footnote_link.arcs.len(), 1);
-        assert_eq!(footnote_link.arcs[0].from, "loc1");
-        assert_eq!(footnote_link.arcs[0].to, "fn1");
-        assert_eq!(footnote_link.footnotes.len(), 1);
-        assert_eq!(footnote_link.footnotes[0].label, "fn1");
-        assert_eq!(footnote_link.footnotes[0].lang.as_deref(), Some("en"));
-        assert_eq!(footnote_link.footnotes[0].text, "This is a footnote.");
+        assert_eq!(
+            footnote_link,
+            &RawFootnoteLink {
+                role: "http://example.com/footnote".to_string(),
+                locators: vec![Locator {
+                    label: "loc1".to_string(),
+                    href: "#c1".to_string(),
+                }],
+                arcs: vec![FootnoteArc {
+                    from: "loc1".to_string(),
+                    to: "fn1".to_string(),
+                }],
+                footnotes: vec![FootnoteResource {
+                    label: "fn1".to_string(),
+                    lang: Some("en".to_string()),
+                    text: "This is a footnote.".to_string(),
+                }],
+            }
+        );
     }
 
     #[test]
