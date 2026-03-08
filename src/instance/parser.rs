@@ -126,8 +126,14 @@ pub struct RawInstance {
     /// Schema references
     pub schema_refs: Vec<SchemaRef>,
     /// Role references
+    ///
+    /// Usually defined in the linkbase, but can also be present in the instance
+    /// document.
     pub role_refs: Vec<RoleRef>,
     /// Arcrole references
+    ///
+    /// Usually defined in the linkbase, but can also be present in the instance
+    /// document.
     pub arcrole_refs: Vec<ArcroleRef>,
     /// Context definitions
     pub contexts: Vec<RawContext>,
@@ -313,7 +319,37 @@ impl<R: BufRead> InstanceParser<R> {
         instance: &mut RawInstance,
         attributes: Attributes,
     ) -> Result<(), XbrlError> {
-        todo!()
+        let mut role_uri = None;
+        let mut href = None;
+
+        for attribute in attributes {
+            let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                position: self.reader.buffer_position(),
+                element: Some("roleRef".to_string()),
+                source: err.into(),
+            })?;
+            let local_name = attribute.key.local_name();
+            let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+
+            match local_name.as_ref() {
+                b"roleURI" => role_uri = Some(value.into_owned()),
+                b"href" => href = Some(value.into_owned()),
+                _ => {}
+            }
+        }
+
+        instance.role_refs.push(RoleRef {
+            role_uri: role_uri.ok_or_else(|| XbrlError::InvalidInstanceDocument {
+                path: self.path.clone(),
+                reason: "missing roleURI in link:roleRef".to_string(),
+            })?,
+            href: href.ok_or_else(|| XbrlError::InvalidInstanceDocument {
+                path: self.path.clone(),
+                reason: "missing xlink:href in link:roleRef".to_string(),
+            })?,
+        });
+
+        Ok(())
     }
 
     fn parse_arcrole_ref(
