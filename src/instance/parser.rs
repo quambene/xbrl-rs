@@ -357,7 +357,37 @@ impl<R: BufRead> InstanceParser<R> {
         instance: &mut RawInstance,
         attributes: Attributes,
     ) -> Result<(), XbrlError> {
-        todo!()
+        let mut arcrole_uri = None;
+        let mut href = None;
+
+        for attribute in attributes {
+            let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                position: self.reader.buffer_position(),
+                element: Some("arcroleRef".to_string()),
+                source: err.into(),
+            })?;
+            let local_name = attribute.key.local_name();
+            let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+
+            match local_name.as_ref() {
+                b"arcroleURI" => arcrole_uri = Some(value.into_owned()),
+                b"href" => href = Some(value.into_owned()),
+                _ => {}
+            }
+        }
+
+        instance.arcrole_refs.push(ArcroleRef {
+            arcrole_uri: arcrole_uri.ok_or_else(|| XbrlError::InvalidInstanceDocument {
+                path: self.path.clone(),
+                reason: "missing arcroleURI in link:arcroleRef".to_string(),
+            })?,
+            href: href.ok_or_else(|| XbrlError::InvalidInstanceDocument {
+                path: self.path.clone(),
+                reason: "missing xlink:href in link:arcroleRef".to_string(),
+            })?,
+        });
+
+        Ok(())
     }
 
     fn parse_context(
