@@ -216,7 +216,7 @@ impl<R: BufRead> InstanceParser<R> {
                     match local_name.as_ref() {
                         b"xbrl" => {
                             has_instance_root = true;
-                            self.parse_xbrl_root(&mut instance, attributes)?;
+                            self.parse_instance_root(&mut instance, attributes)?;
                         }
                         b"schemaRef" => self.parse_schema_ref(&mut instance, attributes)?,
                         b"roleRef" => self.parse_role_ref(&mut instance, attributes)?,
@@ -253,12 +253,32 @@ impl<R: BufRead> InstanceParser<R> {
         Ok(instance)
     }
 
-    fn parse_xbrl_root(
+    fn parse_instance_root(
         &mut self,
         instance: &mut RawInstance,
         attributes: Attributes,
     ) -> Result<(), XbrlError> {
-        todo!()
+        for attribute in attributes {
+            let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                position: self.reader.buffer_position(),
+                element: Some("xbrl".to_string()),
+                source: err.into(),
+            })?;
+            let key = attribute.key;
+
+            if let Some(prefix) = key.prefix()
+                && prefix.as_ref() == b"xmlns"
+            {
+                let local = key.local_name();
+                let namespace_prefix = str::from_utf8(local.as_ref())?;
+                let uri = attribute.decode_and_unescape_value(self.reader.decoder())?;
+                instance
+                    .namespaces
+                    .insert(namespace_prefix.to_string(), uri.into_owned());
+            }
+        }
+
+        Ok(())
     }
 
     fn parse_schema_ref(
