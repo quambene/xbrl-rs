@@ -751,6 +751,73 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_unit() {
+        let xml = r#"<xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance"
+                            xmlns:ifrs="http://xbrl.ifrs.org/taxonomy/2023">
+                            <unit id="u1">
+                                <measure>iso4217:EUR</measure>
+                            </unit>
+                        </xbrli:xbrl>"#;
+        let mut parser = InstanceParser::new(xml.as_bytes(), PathBuf::from("test.xml"));
+        let instance = parser.parse_instance().unwrap();
+
+        assert_eq!(instance.units.len(), 1);
+        let unit = &instance.units[0];
+        assert_eq!(unit.id, "u1");
+        assert_eq!(unit.measures, vec!["iso4217:EUR".to_string()]);
+    }
+
+    #[test]
+    fn test_parse_fact() {
+        let xml = r#"<xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance"
+                            xmlns:ifrs="http://xbrl.ifrs.org/taxonomy/2023">
+                            <ifrs:Revenue contextRef="c1" unitRef="u1" decimals="-3">
+                                1200000
+                            </ifrs:Revenue>
+                        </xbrli:xbrl>"#;
+        let mut parser = InstanceParser::new(xml.as_bytes(), PathBuf::from("test.xml"));
+        let instance = parser.parse_instance().unwrap();
+
+        assert_eq!(instance.facts.len(), 1);
+        let fact = &instance.facts[0];
+        assert_eq!(fact.name, "ifrs:Revenue");
+        assert_eq!(fact.value, "1200000");
+        assert_eq!(fact.context_ref, "c1");
+        assert_eq!(fact.unit_ref.as_deref(), Some("u1"));
+        assert_eq!(fact.decimals.as_deref(), Some("-3"));
+    }
+
+    #[test]
+    fn test_parse_footnote_link() {
+        let xml = r#"<xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance"
+                            xmlns:ifrs="http://xbrl.ifrs.org/taxonomy/2023">
+                            <link:footnoteLink role="http://example.com/footnote">
+                                <link:loc xlink:label="loc1" xlink:href="\#c1" />
+                                <link:footnote xlink:label="fn1" xml:lang="en">
+                                    This is a footnote.
+                                </link:footnote>
+                                <link:footnoteArc xlink:from="loc1" xlink:to="fn1" />
+                            </link:footnoteLink>
+                        </xbrli:xbrl>"#;
+        let mut parser = InstanceParser::new(xml.as_bytes(), PathBuf::from("test.xml"));
+        let instance = parser.parse_instance().unwrap();
+
+        assert_eq!(instance.footnote_links.len(), 1);
+        let footnote_link = &instance.footnote_links[0];
+        assert_eq!(footnote_link.role, "http://example.com/footnote");
+        assert_eq!(footnote_link.locators.len(), 1);
+        assert_eq!(footnote_link.locators[0].label, "loc1");
+        assert_eq!(footnote_link.locators[0].href, "#c1");
+        assert_eq!(footnote_link.arcs.len(), 1);
+        assert_eq!(footnote_link.arcs[0].from, "loc1");
+        assert_eq!(footnote_link.arcs[0].to, "fn1");
+        assert_eq!(footnote_link.footnotes.len(), 1);
+        assert_eq!(footnote_link.footnotes[0].label, "fn1");
+        assert_eq!(footnote_link.footnotes[0].lang.as_deref(), Some("en"));
+        assert_eq!(footnote_link.footnotes[0].text, "This is a footnote.");
+    }
+
+    #[test]
     fn test_parse_instance() {
         let xml = r#"<xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance"
                             xmlns:ifrs="http://xbrl.ifrs.org/taxonomy/2023">
