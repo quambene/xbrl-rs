@@ -286,7 +286,26 @@ impl<R: BufRead> InstanceParser<R> {
         instance: &mut RawInstance,
         attributes: Attributes,
     ) -> Result<(), XbrlError> {
-        todo!()
+        for attribute in attributes {
+            let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                position: self.reader.buffer_position(),
+                element: Some("schemaRef".to_string()),
+                source: err.into(),
+            })?;
+
+            if attribute.key.local_name().as_ref() == b"href" {
+                let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+                instance.schema_refs.push(SchemaRef {
+                    href: value.into_owned(),
+                });
+                return Ok(());
+            }
+        }
+
+        Err(XbrlError::InvalidInstanceDocument {
+            path: self.path.clone(),
+            reason: "missing xlink:href in link:schemaRef".to_string(),
+        })
     }
 
     fn parse_role_ref(
