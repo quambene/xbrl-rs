@@ -9,8 +9,6 @@ use std::collections::HashMap;
 pub struct Reference {
     /// The reference role URI.
     pub role: String,
-    /// The reference parts (e.g., Name="HGB", Paragraph="242").
-    pub parts: Vec<ReferencePart>,
 }
 
 /// A single key-value part within a reference.
@@ -183,14 +181,6 @@ pub(crate) fn resolve_linkbase(linkbase: Linkbase) -> ResolvedLinkbase {
                     .or_default()
                     .push(Reference {
                         role: resource.role.clone().unwrap_or_default(),
-                        parts: resource
-                            .parts
-                            .iter()
-                            .map(|(n, v)| ReferencePart {
-                                name: n.clone(),
-                                value: v.clone(),
-                            })
-                            .collect(),
                     });
             }
         }

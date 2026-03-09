@@ -4,7 +4,7 @@ use quick_xml::{
     events::{BytesStart, Event},
 };
 use rust_decimal::Decimal;
-use std::{io::BufRead, path::PathBuf};
+use std::{io::BufRead, path::PathBuf, str};
 
 /// A locator in a presentation, calculation, or definition link.
 #[derive(Debug, PartialEq, Eq)]
@@ -22,6 +22,8 @@ pub struct LabelResource {
     pub label: String,
     /// The role of the resource, used to specify the type of label.
     pub role: Option<String>,
+    /// The language of the resource (e.g., "en", "de").
+    pub lang: String,
     /// The text content of the resource, containing the label information.
     pub text: String,
 }
@@ -42,55 +44,43 @@ pub struct ReferenceResource {
     pub role: Option<String>,
 }
 
-/// An arc in a presentation link, connecting two locators.
-#[derive(Debug, PartialEq, Eq)]
+/// A parent-child relationship from a presentation linkbase.
+#[derive(Debug, Clone, PartialEq)]
 pub struct PresentationArc {
-    /// The label of the source locator, referencing the `xlink:label` of a
-    /// `loc` element.
+    /// Parent concept element ID.
     pub from: String,
-    /// The label of the target locator, referencing the `xlink:label` of a
-    /// `loc` element.
+    /// Child concept element ID.
     pub to: String,
-    /// The order of the arc, used to specify the sequence of presentation.
+    /// Display order among siblings.
     pub order: Option<Decimal>,
-    /// The preferred label of the arc, used to specify which label to use when
-    /// multiple labels are available for the same element.
+    /// The preferred label role URI, if specified.
     pub preferred_label: Option<String>,
 }
 
-/// An arc in a calculation link, connecting two locators.
-#[derive(Debug, PartialEq, Eq)]
+/// A summation-item relationship from a calculation linkbase.
+#[derive(Debug, Clone, PartialEq)]
 pub struct CalculationArc {
-    /// The label of the source locator, referencing the `xlink:label` of a
-    /// `loc` element.
+    /// Parent (summation) concept element ID.
     pub from: String,
-    /// The label of the target locator, referencing the `xlink:label` of a
-    /// `loc` element.
+    /// Child (contributing item) concept element ID.
     pub to: String,
-    /// The order of the arc, used to specify the sequence of calculation.
+    /// Display order among siblings.
     pub order: Option<Decimal>,
-    /// The weight of the arc, used to specify the contribution of the source
-    /// element to the target element.
+    /// Weight factor (typically 1.0 or -1.0).
     pub weight: Decimal,
-    /// The preferred label of the arc, used to specify which label to use when
-    /// multiple labels are available for the same element.
-    pub preferred_label: Option<String>,
 }
 
-/// An arc in a definition link, connecting two locators.
-#[derive(Debug, PartialEq, Eq)]
+/// A dimensional relationship from a definition linkbase.
+#[derive(Debug, Clone, PartialEq)]
 pub struct DefinitionArc {
-    /// The label of the source locator, referencing the `xlink:label` of a
-    /// `loc` element.
+    /// Source concept element ID.
     pub from: String,
-    /// The label of the target locator, referencing the `xlink:label` of a
-    /// `loc` element.
+    /// Target concept element ID.
     pub to: String,
-    /// The role of the arc, used to specify the type of relationship between
-    /// the source and target elements.
-    pub arcrole: String,
-    /// The order of the arc, used to specify the sequence of definition.
+    /// Display/processing order.
     pub order: Option<Decimal>,
+    /// The arc role URI.
+    pub arcrole: String,
 }
 
 /// An arc in a label link, connecting a locator to a resource.
@@ -116,7 +106,7 @@ pub struct ReferenceArc {
 }
 
 /// A presentation link, containing locators and arcs.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq)]
 pub struct PresentationLink {
     /// The role of the presentation link, used to specify the type of
     /// presentation.
@@ -130,7 +120,7 @@ pub struct PresentationLink {
 }
 
 /// A calculation link, containing locators and arcs.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq)]
 pub struct CalculationLink {
     /// The role of the calculation link, used to specify the type of
     /// calculation.
@@ -144,7 +134,7 @@ pub struct CalculationLink {
 }
 
 /// A definition link, containing locators and arcs.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq)]
 pub struct DefinitionLink {
     /// The role of the definition link, used to specify the type of
     /// relationship.
@@ -175,6 +165,20 @@ pub struct ReferenceLink {
 }
 
 /// A label link, containing locators, arcs, and resources.
+///
+/// Locators reference concepts in the taxonomy, arcs connect locators to label
+/// resources, and label resources contain the actual label text and metadata:
+/// ```text
+/// Concept (in schema)
+///       ↑
+///    locator
+///       │
+///       │ arc
+///       ▼
+///    resource
+///       ↓
+///  human-readable content
+/// ```
 #[derive(Debug, PartialEq, Eq)]
 pub struct LabelLink {
     /// The role of the label link, used to specify the type of
@@ -192,7 +196,7 @@ pub struct LabelLink {
 }
 
 /// The complete linkbase, containing all types of links.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq)]
 pub struct Linkbase {
     /// The presentation links in the linkbase, used to specify the presentation
     /// of elements in the taxonomy.
@@ -466,12 +470,11 @@ impl<R: BufRead> LinkbaseParser<R> {
                         let mut to = None;
                         let mut order = None;
                         let mut weight = None;
-                        let mut preferred_label = None;
 
                         for attribute in event.attributes() {
                             let attribute = attribute.map_err(|err| XbrlError::XmlParse {
                                 position: self.reader.buffer_position(),
-                                element: Some("presentationLink".to_string()),
+                                element: Some("calculationLink".to_string()),
                                 source: err.into(),
                             })?;
 
@@ -496,11 +499,6 @@ impl<R: BufRead> LinkbaseParser<R> {
                                         .decode_and_unescape_value(self.reader.decoder())?;
                                     weight = Some(parse_decimal(&value)?);
                                 }
-                                b"preferredLabel" => {
-                                    let value = attribute
-                                        .decode_and_unescape_value(self.reader.decoder())?;
-                                    preferred_label = Some(value.to_string())
-                                }
                                 _ => {}
                             }
                         }
@@ -519,7 +517,6 @@ impl<R: BufRead> LinkbaseParser<R> {
                                 expected: "weight on calculationArc",
                                 value: "".to_string(),
                             })?,
-                            preferred_label,
                         });
                     }
                     _ => {}
@@ -730,6 +727,7 @@ impl<R: BufRead> LinkbaseParser<R> {
                     b"label" => {
                         let mut label = None;
                         let mut label_role = None;
+                        let mut label_lang = None;
 
                         for attribute in event.attributes() {
                             let attribute = attribute.map_err(|err| XbrlError::XmlParse {
@@ -748,6 +746,11 @@ impl<R: BufRead> LinkbaseParser<R> {
                                     let value = attribute
                                         .decode_and_unescape_value(self.reader.decoder())?;
                                     label_role = Some(value.to_string());
+                                }
+                                b"xml:lang" => {
+                                    let value = attribute
+                                        .decode_and_unescape_value(self.reader.decoder())?;
+                                    label_lang = Some(value.to_string());
                                 }
                                 _ => {}
                             }
@@ -768,6 +771,7 @@ impl<R: BufRead> LinkbaseParser<R> {
                                 value: "".to_string(),
                             })?,
                             role: label_role,
+                            lang: label_lang.unwrap_or_default(),
                             text,
                         });
                     }
@@ -823,7 +827,7 @@ impl<R: BufRead> LinkbaseParser<R> {
 
         loop {
             match self.reader.read_event_into(&mut buf)? {
-                Event::Start(event) | Event::Empty(event) => match event.local_name().as_ref() {
+                Event::Empty(event) | Event::Start(event) => match event.local_name().as_ref() {
                     b"loc" => {
                         let locator = self.parse_locator(&event)?;
                         locators.push(locator);
@@ -1058,7 +1062,6 @@ mod tests {
                     to: "loc_cash".to_string(),
                     order: Some(Decimal::new(1, 0)),
                     weight: Decimal::new(1, 0),
-                    preferred_label: None,
                 }],
             }
         );
@@ -1111,7 +1114,8 @@ mod tests {
                                 <link:label
                                     xlink:type="resource"
                                     xlink:label="lab_assets"
-                                    xlink:role="http://www.xbrl.org/2003/role/label">
+                                    xlink:role="http://www.xbrl.org/2003/role/label"
+                                    xml:lang="en">
                                     Assets
                                 </link:label>
                                 <link:labelArc
@@ -1145,6 +1149,7 @@ mod tests {
                 labels: vec![LabelResource {
                     label: "lab_assets".to_string(),
                     role: Some("http://www.xbrl.org/2003/role/label".to_string()),
+                    lang: "en".to_string(),
                     text: "Assets".to_string(),
                 }],
             }
