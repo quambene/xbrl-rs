@@ -1,8 +1,8 @@
 category,passed,failed,skipped,total
 100-schema,76,0,0,76
-200-linkbase,128,76,0,204
-300-instance,252,53,0,305
+200-linkbase,130,74,0,204
+300-instance,254,51,0,305
 400-misc,4,7,0,11
 arc-duplication,1,3,0,4
 uniqueParticleAttribution,4,2,0,6
-TOTAL,465,141,0,606
+TOTAL,469,137,0,606

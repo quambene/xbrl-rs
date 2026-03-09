@@ -7,12 +7,8 @@ mod types;
 
 use crate::{error::Result, taxonomy::types::ParsedQName};
 pub use linkbases::{
-    calculation::CalculationArc,
-    definition::DefinitionArc,
-    label::Label,
-    presentation::PresentationArc,
+    parser::{CalculationArc, DefinitionArc, Label, PresentationArc, Reference, ReferencePart},
     reader::LinkbaseLocator,
-    reference::{Reference, ReferencePart},
 };
 #[cfg(feature = "download")]
 pub use loader::TaxonomyLoader;

@@ -230,6 +230,7 @@ mod tests {
                     from: "root".to_string(),
                     to: "child_a".to_string(),
                     order: Some(Decimal::new(1, 0)),
+                    preferred_label: None,
                 },
             ),
             (
@@ -238,6 +239,7 @@ mod tests {
                     from: "root".to_string(),
                     to: "child_b".to_string(),
                     order: Some(Decimal::new(2, 0)),
+                    preferred_label: None,
                 },
             ),
             (
@@ -246,6 +248,7 @@ mod tests {
                     from: "child_a".to_string(),
                     to: "grandchild".to_string(),
                     order: Some(Decimal::new(1, 0)),
+                    preferred_label: None,
                 },
             ),
         ];
@@ -309,6 +312,7 @@ mod tests {
                     from: "a".to_string(),
                     to: "b".to_string(),
                     order: Some(Decimal::new(1, 0)),
+                    preferred_label: None,
                 },
             ),
             (
@@ -317,6 +321,7 @@ mod tests {
                     from: "b".to_string(),
                     to: "a".to_string(),
                     order: Some(Decimal::new(1, 0)),
+                    preferred_label: None,
                 },
             ),
         ];
@@ -336,6 +341,7 @@ mod tests {
                     from: "root".to_string(),
                     to: "b".to_string(),
                     order: Some(Decimal::new(2, 0)),
+                    preferred_label: None,
                 },
             ),
             (
@@ -344,6 +350,7 @@ mod tests {
                     from: "root".to_string(),
                     to: "a".to_string(),
                     order: Some(Decimal::new(1, 0)),
+                    preferred_label: None,
                 },
             ),
         ];

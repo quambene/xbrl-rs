@@ -2,15 +2,11 @@ use super::schema::{Concept, DeclaredAccuracy, RoleType, TaxonomySchema};
 use crate::{
     BaseSubstitutionGroup, ConceptId, RoleUri, SchemaRefUrl,
     error::{Result, XbrlError},
-    taxonomy::linkbases::{
-        calculation::{self, CalculationArc},
-        definition::{self, DefinitionArc},
-        label::{self, Label},
-        presentation::{self, PresentationArc},
-        reference::{self, Reference},
+    taxonomy::linkbases::parser::{
+        CalculationArc, DefinitionArc, Label, Linkbase, LinkbaseParser, PresentationArc, Reference,
     },
 };
-use indexmap::IndexMap;
+use indexmap::{IndexMap, IndexSet};
 use quick_xml::Reader;
 use std::{
     collections::{HashMap, HashSet, VecDeque},
@@ -90,7 +86,7 @@ impl TaxonomySet {
         let mut queue: VecDeque<PathBuf> = VecDeque::new();
         let mut schemas: HashMap<PathBuf, TaxonomySchema> = HashMap::new();
         let mut schema_order: Vec<PathBuf> = Vec::new(); // BFS discovery order
-        let mut linkbase_set: HashSet<PathBuf> = HashSet::new();
+        let mut linkbase_set: IndexSet<PathBuf> = IndexSet::new();
 
         let canonical_entry_point =
             fs::canonicalize(&entry_point).map_err(|err| XbrlError::FileRead {
@@ -170,124 +166,47 @@ impl TaxonomySet {
 
         let linkbase_paths: Vec<PathBuf> = linkbase_set.into_iter().collect();
 
-        // Collect linkbase paths by type from LinkbaseRef entries, iterating schemas
-        // in BFS discovery order so that linkbases are parsed in entry-point order.
-        let mut label_paths: HashSet<PathBuf> = HashSet::new();
-        let mut presentation_paths: Vec<PathBuf> = Vec::new();
-        let mut presentation_paths_seen: HashSet<PathBuf> = HashSet::new();
-        let mut calculation_paths: HashSet<PathBuf> = HashSet::new();
-        let mut definition_paths: HashSet<PathBuf> = HashSet::new();
-        let mut reference_paths: HashSet<PathBuf> = HashSet::new();
-
-        for schema_path in &schema_order {
-            let schema = &schemas[schema_path];
-            let schema_dir = schema.file_path.parent().unwrap_or(Path::new("."));
-            for lbref in &schema.linkbase_refs {
-                let role = lbref.role.as_deref().unwrap_or("");
-                let Some(resolved) = resolve_local_path(schema_dir, &lbref.href) else {
-                    continue;
-                };
-                if !resolved.exists() {
-                    return Err(XbrlError::FileRead {
-                        path: resolved,
-                        context: "linkbase referenced from schema".to_string(),
-                        source: io::Error::new(
-                            io::ErrorKind::NotFound,
-                            "referenced linkbase file does not exist",
-                        ),
-                    });
-                }
-                let canonical =
-                    std::fs::canonicalize(&resolved).map_err(|err| XbrlError::FileRead {
-                        path: resolved.clone(),
-                        context: "linkbase referenced from schema".to_string(),
-                        source: err,
-                    })?;
-
-                if role.contains("presentationLinkbaseRef") {
-                    if presentation_paths_seen.insert(canonical.clone()) {
-                        presentation_paths.push(canonical);
-                    }
-                } else if role.contains("labelLinkbaseRef") {
-                    label_paths.insert(canonical);
-                } else if role.contains("calculationLinkbaseRef") {
-                    calculation_paths.insert(canonical);
-                } else if role.contains("definitionLinkbaseRef") {
-                    definition_paths.insert(canonical);
-                } else if role.contains("referenceLinkbaseRef") {
-                    reference_paths.insert(canonical);
-                }
-            }
-        }
-
-        // Parse label linkbases
+        // Parse all linkbase files (insertion order is preserved)
         let mut labels: HashMap<ConceptId, Vec<Label>> = HashMap::new();
-        for path in &label_paths {
+        let mut presentations: IndexMap<RoleUri, Vec<PresentationArc>> = IndexMap::new();
+        let mut calculations: HashMap<RoleUri, Vec<CalculationArc>> = HashMap::new();
+        let mut definitions: HashMap<RoleUri, Vec<DefinitionArc>> = HashMap::new();
+        let mut references: HashMap<ConceptId, Vec<Reference>> = HashMap::new();
+
+        for path in &linkbase_paths {
             let xml_file = fs::File::open(path).map_err(|err| XbrlError::FileRead {
                 path: path.clone(),
-                context: "label linkbase".to_string(),
+                context: "linkbase".to_string(),
                 source: err,
             })?;
-            let mut reader = Reader::from_reader(BufReader::new(xml_file));
-            let parsed = label::parse_label_linkbase(&mut reader)?;
-            for (id, mut vals) in parsed {
+            let mut parser = LinkbaseParser::new(BufReader::new(xml_file), path.clone());
+            let mut linkbase = Linkbase::default();
+            parser.parse_linkbase(&mut linkbase)?;
+            let resolved = linkbase.into_resolved();
+
+            for (id, mut vals) in resolved.labels {
                 labels.entry(id.into()).or_default().append(&mut vals);
             }
-        }
-
-        // Parse presentation linkbases in BFS schema order (entry-point order preserved)
-        let mut presentations: IndexMap<RoleUri, Vec<PresentationArc>> = IndexMap::new();
-        for path in &presentation_paths {
-            let xml_file = fs::File::open(path).map_err(|err| XbrlError::FileRead {
-                path: path.clone(),
-                context: "presentation linkbase".to_string(),
-                source: err,
-            })?;
-            let mut reader = Reader::from_reader(BufReader::new(xml_file));
-            let parsed = presentation::parse_presentation_linkbase(&mut reader)?;
-            for (role, mut arcs) in parsed {
+            for (role, mut arcs) in resolved.presentations {
                 presentations
                     .entry(role.into())
                     .or_default()
                     .append(&mut arcs);
             }
-        }
-
-        // Parse calculation linkbases
-        let mut calculations: HashMap<RoleUri, Vec<CalculationArc>> = HashMap::new();
-        for path in &calculation_paths {
-            let xml_file = fs::File::open(path).map_err(|err| XbrlError::FileRead {
-                path: path.clone(),
-                context: "calculation linkbase".to_string(),
-                source: err,
-            })?;
-            let mut reader = Reader::from_reader(BufReader::new(xml_file));
-            let parsed = calculation::parse_calculation_linkbase(&mut reader)?;
-
-            for (role, mut arcs) in parsed {
+            for (role, mut arcs) in resolved.calculations {
                 calculations
                     .entry(role.into())
                     .or_default()
                     .append(&mut arcs);
             }
-        }
-
-        // Parse definition linkbases
-        let mut definitions: HashMap<RoleUri, Vec<DefinitionArc>> = HashMap::new();
-        for path in &definition_paths {
-            let xml_file = fs::File::open(path).map_err(|err| XbrlError::FileRead {
-                path: path.clone(),
-                context: "definition linkbase".to_string(),
-                source: err,
-            })?;
-            let mut reader = Reader::from_reader(BufReader::new(xml_file));
-            let parsed = definition::parse_definition_linkbase(&mut reader)?;
-
-            for (role, mut arcs) in parsed {
+            for (role, mut arcs) in resolved.definitions {
                 definitions
                     .entry(role.into())
                     .or_default()
                     .append(&mut arcs);
+            }
+            for (id, mut vals) in resolved.references {
+                references.entry(id.into()).or_default().append(&mut vals);
             }
         }
 
@@ -298,22 +217,6 @@ impl TaxonomySet {
                 role_source_schema
                     .entry(role_type.role_uri.clone().into())
                     .or_insert_with(|| path.clone());
-            }
-        }
-
-        // Parse reference linkbases
-        let mut references: HashMap<ConceptId, Vec<Reference>> = HashMap::new();
-        for path in &reference_paths {
-            let xml_file = fs::File::open(path).map_err(|err| XbrlError::FileRead {
-                path: path.clone(),
-                context: "reference linkbase".to_string(),
-                source: err,
-            })?;
-            let mut reader = Reader::from_reader(BufReader::new(xml_file));
-            let parsed = reference::parse_reference_linkbase(&mut reader)?;
-
-            for (id, mut vals) in parsed {
-                references.entry(id.into()).or_default().append(&mut vals);
             }
         }
 
