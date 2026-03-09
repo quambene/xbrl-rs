@@ -1,10 +1,7 @@
 //! Document view built from the presentation linkbase.
 
 use super::fact::ItemFact;
-use crate::{
-    TaxonomySet,
-    taxonomy::{Label, PresentationArc},
-};
+use crate::{Label, TaxonomySet, taxonomy::PresentationArc};
 use std::{
     cmp::Ordering,
     collections::{HashMap, HashSet},
@@ -195,7 +192,7 @@ mod tests {
     use super::*;
     use crate::{
         ItemFact,
-        taxonomy::{Label, PresentationArc, TaxonomySet},
+        taxonomy::{PresentationArc, TaxonomySet},
     };
     use rust_decimal::Decimal;
 

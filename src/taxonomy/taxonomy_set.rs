@@ -1,9 +1,10 @@
 use super::schema::{Concept, DeclaredAccuracy, RoleType, TaxonomySchema};
 use crate::{
-    BaseSubstitutionGroup, ConceptId, RoleUri, SchemaRefUrl,
+    BaseSubstitutionGroup, ConceptId, Label, Reference, RoleUri, SchemaRefUrl,
     error::{Result, XbrlError},
-    taxonomy::linkbases::parser::{
-        CalculationArc, DefinitionArc, Label, Linkbase, LinkbaseParser, PresentationArc, Reference,
+    taxonomy::linkbases::{
+        parser::{CalculationArc, DefinitionArc, Linkbase, LinkbaseParser, PresentationArc},
+        resolver,
     },
 };
 use indexmap::{IndexMap, IndexSet};
@@ -182,7 +183,7 @@ impl TaxonomySet {
             let mut parser = LinkbaseParser::new(BufReader::new(xml_file), path.clone());
             let mut linkbase = Linkbase::default();
             parser.parse_linkbase(&mut linkbase)?;
-            let resolved = linkbase.into_resolved();
+            let resolved = resolver::resolve_linkbase(linkbase);
 
             for (id, mut vals) in resolved.labels {
                 labels.entry(id.into()).or_default().append(&mut vals);
@@ -488,7 +489,7 @@ impl TaxonomySet {
 
     /// Get labels for a specific concept by its element ID (e.g., "de-gaap-ci_bs.ass").
     pub fn labels_for(&self, concept_id: &str) -> Option<&[Label]> {
-        self.labels.get(concept_id).map(|v| v.as_slice())
+        self.labels.get(concept_id).map(|labels| labels.as_slice())
     }
 
     /// Get all presentation arcs grouped by role URI, in entry-point discovery order.
@@ -498,7 +499,7 @@ impl TaxonomySet {
 
     /// Get presentation arcs for a specific role URI.
     pub fn presentation_arcs(&self, role: &str) -> Option<&[PresentationArc]> {
-        self.presentations.get(role).map(|v| v.as_slice())
+        self.presentations.get(role).map(|arcs| arcs.as_slice())
     }
 
     /// Get all calculation arcs grouped by role URI.
@@ -528,7 +529,9 @@ impl TaxonomySet {
 
     /// Get references for a specific concept by its element ID.
     pub fn references_for(&self, concept_id: &str) -> Option<&[Reference]> {
-        self.references.get(concept_id).map(|v| v.as_slice())
+        self.references
+            .get(concept_id)
+            .map(|references| references.as_slice())
     }
 
     /// Get a schema by its target namespace.
