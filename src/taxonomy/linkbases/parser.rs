@@ -197,7 +197,7 @@ pub struct LabelLink {
 
 /// The complete linkbase, containing all types of links.
 #[derive(Debug, PartialEq)]
-pub struct Linkbase {
+pub struct Linkbases {
     /// The presentation links in the linkbase, used to specify the presentation
     /// of elements in the taxonomy.
     pub presentation_links: Vec<PresentationLink>,
@@ -215,7 +215,7 @@ pub struct Linkbase {
     pub reference_links: Vec<ReferenceLink>,
 }
 
-impl Linkbase {
+impl Linkbases {
     /// Creates a new `Linkbase` with the given links.
     pub fn new(
         presentation_links: Vec<PresentationLink>,
@@ -234,7 +234,7 @@ impl Linkbase {
     }
 }
 
-impl Default for Linkbase {
+impl Default for Linkbases {
     fn default() -> Self {
         Self {
             presentation_links: Vec::new(),
@@ -272,7 +272,7 @@ impl<R: BufRead> LinkbaseParser<R> {
         Self { path, reader }
     }
 
-    pub fn parse_linkbase(&mut self, linkbase: &mut Linkbase) -> Result<(), XbrlError> {
+    pub fn parse_linkbase(&mut self, linkbase: &mut Linkbases) -> Result<(), XbrlError> {
         let mut buf = Vec::new();
 
         loop {
@@ -996,16 +996,16 @@ mod tests {
                                 </link:presentationLink>
                             </link:linkbase>"#;
         let mut parser = LinkbaseParser::new(xml.as_bytes(), PathBuf::from("test.xml"));
-        let mut linkbase = Linkbase::default();
-        parser.parse_linkbase(&mut linkbase).unwrap();
+        let mut linkbases = Linkbases::default();
+        parser.parse_linkbase(&mut linkbases).unwrap();
 
-        assert_eq!(linkbase.presentation_links.len(), 1);
-        assert_eq!(linkbase.calculation_links.len(), 0);
-        assert_eq!(linkbase.definition_links.len(), 0);
-        assert_eq!(linkbase.label_links.len(), 0);
-        assert_eq!(linkbase.reference_links.len(), 0);
+        assert_eq!(linkbases.presentation_links.len(), 1);
+        assert_eq!(linkbases.calculation_links.len(), 0);
+        assert_eq!(linkbases.definition_links.len(), 0);
+        assert_eq!(linkbases.label_links.len(), 0);
+        assert_eq!(linkbases.reference_links.len(), 0);
 
-        let presentation_link = &linkbase.presentation_links[0];
+        let presentation_link = &linkbases.presentation_links[0];
         assert_eq!(
             presentation_link,
             &PresentationLink {
@@ -1043,15 +1043,15 @@ mod tests {
                             </link:calculationLink>
                         </link:linkbase>"#;
         let mut parser = LinkbaseParser::new(xml.as_bytes(), PathBuf::from("test.xml"));
-        let mut linkbase = Linkbase::default();
-        parser.parse_linkbase(&mut linkbase).unwrap();
+        let mut linkbases = Linkbases::default();
+        parser.parse_linkbase(&mut linkbases).unwrap();
 
-        assert_eq!(linkbase.presentation_links.len(), 0);
-        assert_eq!(linkbase.calculation_links.len(), 1);
-        assert_eq!(linkbase.definition_links.len(), 0);
-        assert_eq!(linkbase.label_links.len(), 0);
-        assert_eq!(linkbase.reference_links.len(), 0);
-        let calculation_link = &linkbase.calculation_links[0];
+        assert_eq!(linkbases.presentation_links.len(), 0);
+        assert_eq!(linkbases.calculation_links.len(), 1);
+        assert_eq!(linkbases.definition_links.len(), 0);
+        assert_eq!(linkbases.label_links.len(), 0);
+        assert_eq!(linkbases.reference_links.len(), 0);
+        let calculation_link = &linkbases.calculation_links[0];
         assert_eq!(
             calculation_link,
             &CalculationLink {
@@ -1079,15 +1079,15 @@ mod tests {
                             </link:definitionLink>
                         </link:linkbase>"#;
         let mut parser = LinkbaseParser::new(xml.as_bytes(), PathBuf::from("test.xml"));
-        let mut linkbase = Linkbase::default();
-        parser.parse_linkbase(&mut linkbase).unwrap();
+        let mut linkbases = Linkbases::default();
+        parser.parse_linkbase(&mut linkbases).unwrap();
 
-        assert_eq!(linkbase.presentation_links.len(), 0);
-        assert_eq!(linkbase.calculation_links.len(), 0);
-        assert_eq!(linkbase.definition_links.len(), 1);
-        assert_eq!(linkbase.label_links.len(), 0);
-        assert_eq!(linkbase.reference_links.len(), 0);
-        let definition_link = &linkbase.definition_links[0];
+        assert_eq!(linkbases.presentation_links.len(), 0);
+        assert_eq!(linkbases.calculation_links.len(), 0);
+        assert_eq!(linkbases.definition_links.len(), 1);
+        assert_eq!(linkbases.label_links.len(), 0);
+        assert_eq!(linkbases.reference_links.len(), 0);
+        let definition_link = &linkbases.definition_links[0];
         assert_eq!(
             definition_link,
             &DefinitionLink {
@@ -1125,15 +1125,15 @@ mod tests {
                             </link:labelLink>
                         </link:linkbase>"#;
         let mut parser = LinkbaseParser::new(xml.as_bytes(), PathBuf::from("test.xml"));
-        let mut linkbase = Linkbase::default();
-        parser.parse_linkbase(&mut linkbase).unwrap();
+        let mut linkbases = Linkbases::default();
+        parser.parse_linkbase(&mut linkbases).unwrap();
 
-        assert_eq!(linkbase.presentation_links.len(), 0);
-        assert_eq!(linkbase.calculation_links.len(), 0);
-        assert_eq!(linkbase.definition_links.len(), 0);
-        assert_eq!(linkbase.label_links.len(), 1);
-        assert_eq!(linkbase.reference_links.len(), 0);
-        let label_link = &linkbase.label_links[0];
+        assert_eq!(linkbases.presentation_links.len(), 0);
+        assert_eq!(linkbases.calculation_links.len(), 0);
+        assert_eq!(linkbases.definition_links.len(), 0);
+        assert_eq!(linkbases.label_links.len(), 1);
+        assert_eq!(linkbases.reference_links.len(), 0);
+        let label_link = &linkbases.label_links[0];
         assert_eq!(
             label_link,
             &LabelLink {
@@ -1189,15 +1189,15 @@ mod tests {
                             </link:referenceLink>
                         </link:linkbase>"#;
         let mut parser = LinkbaseParser::new(xml.as_bytes(), PathBuf::from("test.xml"));
-        let mut linkbase = Linkbase::default();
-        parser.parse_linkbase(&mut linkbase).unwrap();
+        let mut linkbases = Linkbases::default();
+        parser.parse_linkbase(&mut linkbases).unwrap();
 
-        assert_eq!(linkbase.presentation_links.len(), 0);
-        assert_eq!(linkbase.calculation_links.len(), 0);
-        assert_eq!(linkbase.definition_links.len(), 0);
-        assert_eq!(linkbase.label_links.len(), 0);
-        assert_eq!(linkbase.reference_links.len(), 1);
-        let reference_link = &linkbase.reference_links[0];
+        assert_eq!(linkbases.presentation_links.len(), 0);
+        assert_eq!(linkbases.calculation_links.len(), 0);
+        assert_eq!(linkbases.definition_links.len(), 0);
+        assert_eq!(linkbases.label_links.len(), 0);
+        assert_eq!(linkbases.reference_links.len(), 1);
+        let reference_link = &linkbases.reference_links[0];
         assert_eq!(
             reference_link,
             &ReferenceLink {

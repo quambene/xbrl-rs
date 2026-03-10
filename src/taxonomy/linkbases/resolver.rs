@@ -1,5 +1,8 @@
-use crate::taxonomy::linkbases::parser::{
-    CalculationArc, DefinitionArc, LabelResource, Linkbase, PresentationArc, ReferenceResource,
+use crate::{
+    ConceptId, RoleUri, XbrlError,
+    taxonomy::linkbases::parser::{
+        CalculationArc, DefinitionArc, LabelResource, Linkbases, PresentationArc, ReferenceResource,
+    },
 };
 use indexmap::IndexMap;
 use std::collections::HashMap;
@@ -32,23 +35,33 @@ pub struct Label {
 }
 
 /// Resolved linkbase data suitable for use in `TaxonomySet`.
-pub(crate) struct ResolvedLinkbase {
-    pub labels: HashMap<String, Vec<Label>>,
-    pub presentations: IndexMap<String, Vec<PresentationArc>>,
-    pub calculations: HashMap<String, Vec<CalculationArc>>,
-    pub definitions: HashMap<String, Vec<DefinitionArc>>,
-    pub references: HashMap<String, Vec<Reference>>,
+#[derive(Debug, Default)]
+pub(crate) struct ResolvedLinkbases {
+    /// Concept labels parsed from label linkbase files.
+    /// Keyed by concept element ID (e.g., "de-gaap-ci_bs.ass").
+    pub labels: HashMap<ConceptId, Vec<Label>>,
+    /// Presentation arcs grouped by role URI, in the order roles were first
+    /// encountered during schema discovery.
+    pub presentations: IndexMap<RoleUri, Vec<PresentationArc>>,
+    /// Calculation arcs grouped by role URI.
+    pub calculations: HashMap<RoleUri, Vec<CalculationArc>>,
+    /// Definition arcs grouped by role URI.
+    pub definitions: HashMap<RoleUri, Vec<DefinitionArc>>,
+    /// Concept references parsed from reference linkbase files.
+    /// Keyed by concept element ID.
+    pub references: HashMap<ConceptId, Vec<Reference>>,
 }
 
-/// Resolve locator references and convert into typed domain collections.
-pub(crate) fn resolve_linkbase(linkbase: Linkbase) -> ResolvedLinkbase {
-    let mut labels: HashMap<String, Vec<Label>> = HashMap::new();
-    let mut presentations: IndexMap<String, Vec<PresentationArc>> = IndexMap::new();
-    let mut calculations: HashMap<String, Vec<CalculationArc>> = HashMap::new();
-    let mut definitions: HashMap<String, Vec<DefinitionArc>> = HashMap::new();
-    let mut references: HashMap<String, Vec<Reference>> = HashMap::new();
+/// Resolve locator references from a linkbase and merge them into the provided
+/// accumulator maps.
+pub(crate) fn resolve_linkbases(linkbases: Linkbases) -> Result<ResolvedLinkbases, XbrlError> {
+    let mut labels: HashMap<ConceptId, Vec<Label>> = HashMap::new();
+    let mut presentations: IndexMap<RoleUri, Vec<PresentationArc>> = IndexMap::new();
+    let mut calculations: HashMap<RoleUri, Vec<CalculationArc>> = HashMap::new();
+    let mut definitions: HashMap<RoleUri, Vec<DefinitionArc>> = HashMap::new();
+    let mut references: HashMap<ConceptId, Vec<Reference>> = HashMap::new();
 
-    for link in linkbase.label_links {
+    for link in linkbases.label_links {
         let locator_map: HashMap<&str, &str> = link
             .locators
             .iter()
@@ -67,19 +80,16 @@ pub(crate) fn resolve_linkbase(linkbase: Linkbase) -> ResolvedLinkbase {
                 locator_map.get(arc.from.as_str()),
                 resource_map.get(arc.to.as_str()),
             ) {
-                labels
-                    .entry(concept_id.to_string())
-                    .or_default()
-                    .push(Label {
-                        role: resource.role.clone().unwrap_or_default(),
-                        lang: resource.lang.clone(),
-                        text: resource.text.clone(),
-                    });
+                labels.entry(concept_id.into()).or_default().push(Label {
+                    role: resource.role.clone().unwrap_or_default(),
+                    lang: resource.lang.clone(),
+                    text: resource.text.clone(),
+                });
             }
         }
     }
 
-    for link in linkbase.presentation_links {
+    for link in linkbases.presentation_links {
         let locator_map: HashMap<&str, &str> = link
             .locators
             .iter()
@@ -101,11 +111,14 @@ pub(crate) fn resolve_linkbase(linkbase: Linkbase) -> ResolvedLinkbase {
             .collect();
 
         if !arcs.is_empty() {
-            presentations.entry(link.role).or_default().extend(arcs);
+            presentations
+                .entry(link.role.into())
+                .or_default()
+                .extend(arcs);
         }
     }
 
-    for link in linkbase.calculation_links {
+    for link in linkbases.calculation_links {
         let locator_map: HashMap<&str, &str> = link
             .locators
             .iter()
@@ -127,11 +140,14 @@ pub(crate) fn resolve_linkbase(linkbase: Linkbase) -> ResolvedLinkbase {
             .collect();
 
         if !arcs.is_empty() {
-            calculations.entry(link.role).or_default().extend(arcs);
+            calculations
+                .entry(link.role.into())
+                .or_default()
+                .extend(arcs);
         }
     }
 
-    for link in linkbase.definition_links {
+    for link in linkbases.definition_links {
         let locator_map: HashMap<&str, &str> = link
             .locators
             .iter()
@@ -153,11 +169,14 @@ pub(crate) fn resolve_linkbase(linkbase: Linkbase) -> ResolvedLinkbase {
             .collect();
 
         if !arcs.is_empty() {
-            definitions.entry(link.role).or_default().extend(arcs);
+            definitions
+                .entry(link.role.into())
+                .or_default()
+                .extend(arcs);
         }
     }
 
-    for link in linkbase.reference_links {
+    for link in linkbases.reference_links {
         let locator_map: HashMap<&str, &str> = link
             .locators
             .iter()
@@ -177,7 +196,7 @@ pub(crate) fn resolve_linkbase(linkbase: Linkbase) -> ResolvedLinkbase {
                 resource_map.get(arc.to.as_str()),
             ) {
                 references
-                    .entry(concept_id.to_string())
+                    .entry(concept_id.into())
                     .or_default()
                     .push(Reference {
                         role: resource.role.clone().unwrap_or_default(),
@@ -186,13 +205,13 @@ pub(crate) fn resolve_linkbase(linkbase: Linkbase) -> ResolvedLinkbase {
         }
     }
 
-    ResolvedLinkbase {
+    Ok(ResolvedLinkbases {
         labels,
         presentations,
         calculations,
         definitions,
         references,
-    }
+    })
 }
 
 /// Extract the fragment (after `#`) from an xlink:href.

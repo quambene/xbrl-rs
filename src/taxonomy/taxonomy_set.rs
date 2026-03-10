@@ -3,15 +3,15 @@ use crate::{
     BaseSubstitutionGroup, ConceptId, Label, Reference, RoleUri, SchemaRefUrl,
     error::{Result, XbrlError},
     taxonomy::linkbases::{
-        parser::{CalculationArc, DefinitionArc, Linkbase, LinkbaseParser, PresentationArc},
-        resolver,
+        parser::{CalculationArc, DefinitionArc, LinkbaseParser, Linkbases, PresentationArc},
+        resolver::{self, ResolvedLinkbases},
     },
 };
 use indexmap::{IndexMap, IndexSet};
 use quick_xml::Reader;
 use std::{
     collections::{HashMap, HashSet, VecDeque},
-    fs,
+    fs::{self, File},
     io::{self, BufReader},
     path::{Path, PathBuf},
 };
@@ -32,19 +32,8 @@ pub struct TaxonomySet {
     schemas: HashMap<PathBuf, TaxonomySchema>,
     /// All linkbase file paths discovered (canonical absolute paths).
     linkbase_paths: Vec<PathBuf>,
-    /// Concept labels parsed from label linkbase files.
-    /// Keyed by concept element ID (e.g., "de-gaap-ci_bs.ass").
-    labels: HashMap<ConceptId, Vec<Label>>,
-    /// Presentation arcs grouped by role URI, in the order roles were first
-    /// encountered during schema discovery.
-    presentations: IndexMap<RoleUri, Vec<PresentationArc>>,
-    /// Calculation arcs grouped by role URI.
-    calculations: HashMap<RoleUri, Vec<CalculationArc>>,
-    /// Definition arcs grouped by role URI.
-    definitions: HashMap<RoleUri, Vec<DefinitionArc>>,
-    /// Concept references parsed from reference linkbase files.
-    /// Keyed by concept element ID.
-    references: HashMap<ConceptId, Vec<Reference>>,
+    /// Resolved linkbase data merged from all linkbase files.
+    linkbases: ResolvedLinkbases,
     /// Maps each role URI to the schema file that defines it (`link:roleType`).
     role_source_schema: HashMap<RoleUri, PathBuf>,
     /// Taxonomy version extracted from the schema ref URLs.
@@ -166,50 +155,19 @@ impl TaxonomySet {
         }
 
         let linkbase_paths: Vec<PathBuf> = linkbase_set.into_iter().collect();
-
-        // Parse all linkbase files (insertion order is preserved)
-        let mut labels: HashMap<ConceptId, Vec<Label>> = HashMap::new();
-        let mut presentations: IndexMap<RoleUri, Vec<PresentationArc>> = IndexMap::new();
-        let mut calculations: HashMap<RoleUri, Vec<CalculationArc>> = HashMap::new();
-        let mut definitions: HashMap<RoleUri, Vec<DefinitionArc>> = HashMap::new();
-        let mut references: HashMap<ConceptId, Vec<Reference>> = HashMap::new();
+        let mut linkbases = Linkbases::default();
 
         for path in &linkbase_paths {
-            let xml_file = fs::File::open(path).map_err(|err| XbrlError::FileRead {
+            let xml_file = File::open(path).map_err(|err| XbrlError::FileRead {
                 path: path.clone(),
                 context: "linkbase".to_string(),
                 source: err,
             })?;
             let mut parser = LinkbaseParser::new(BufReader::new(xml_file), path.clone());
-            let mut linkbase = Linkbase::default();
-            parser.parse_linkbase(&mut linkbase)?;
-            let resolved = resolver::resolve_linkbase(linkbase);
-
-            for (id, mut vals) in resolved.labels {
-                labels.entry(id.into()).or_default().append(&mut vals);
-            }
-            for (role, mut arcs) in resolved.presentations {
-                presentations
-                    .entry(role.into())
-                    .or_default()
-                    .append(&mut arcs);
-            }
-            for (role, mut arcs) in resolved.calculations {
-                calculations
-                    .entry(role.into())
-                    .or_default()
-                    .append(&mut arcs);
-            }
-            for (role, mut arcs) in resolved.definitions {
-                definitions
-                    .entry(role.into())
-                    .or_default()
-                    .append(&mut arcs);
-            }
-            for (id, mut vals) in resolved.references {
-                references.entry(id.into()).or_default().append(&mut vals);
-            }
+            parser.parse_linkbase(&mut linkbases)?;
         }
+
+        let linkbases = resolver::resolve_linkbases(linkbases)?;
 
         // Build role → source schema map
         let mut role_source_schema: HashMap<RoleUri, PathBuf> = HashMap::new();
@@ -226,11 +184,7 @@ impl TaxonomySet {
             schema_refs: schema_refs_map,
             schemas,
             linkbase_paths,
-            labels,
-            presentations,
-            calculations,
-            definitions,
-            references,
+            linkbases,
             role_source_schema,
             version,
         })
@@ -484,52 +438,59 @@ impl TaxonomySet {
 
     /// Get all concept labels.
     pub fn labels(&self) -> &HashMap<ConceptId, Vec<Label>> {
-        &self.labels
+        &self.linkbases.labels
     }
 
     /// Get labels for a specific concept by its element ID (e.g., "de-gaap-ci_bs.ass").
     pub fn labels_for(&self, concept_id: &str) -> Option<&[Label]> {
-        self.labels.get(concept_id).map(|labels| labels.as_slice())
+        self.linkbases
+            .labels
+            .get(concept_id)
+            .map(|labels| labels.as_slice())
     }
 
     /// Get all presentation arcs grouped by role URI, in entry-point discovery order.
     pub fn presentations(&self) -> &IndexMap<RoleUri, Vec<PresentationArc>> {
-        &self.presentations
+        &self.linkbases.presentations
     }
 
     /// Get presentation arcs for a specific role URI.
     pub fn presentation_arcs(&self, role: &str) -> Option<&[PresentationArc]> {
-        self.presentations.get(role).map(|arcs| arcs.as_slice())
+        self.linkbases
+            .presentations
+            .get(role)
+            .map(|arcs| arcs.as_slice())
     }
 
     /// Get all calculation arcs grouped by role URI.
     pub fn calculations(&self) -> &HashMap<RoleUri, Vec<CalculationArc>> {
-        &self.calculations
+        &self.linkbases.calculations
     }
 
     /// Get calculation arcs for a specific role URI.
     pub fn calculation_arcs(&self, role: &str) -> Option<&[CalculationArc]> {
-        self.calculations.get(role).map(|v| v.as_slice())
+        self.linkbases.calculations.get(role).map(|v| v.as_slice())
     }
 
     /// Get all definition arcs grouped by role URI.
     pub fn definitions(&self) -> &HashMap<RoleUri, Vec<DefinitionArc>> {
-        &self.definitions
+        &self.linkbases.definitions
     }
 
     /// Get definition arcs for a specific role URI.
     pub fn definition_arcs(&self, role: &str) -> Option<&[DefinitionArc]> {
-        self.definitions.get(role).map(|v| v.as_slice())
+        self.linkbases.definitions.get(role).map(|v| v.as_slice())
     }
 
     /// Get all concept references.
     pub fn references(&self) -> &HashMap<ConceptId, Vec<Reference>> {
-        &self.references
+        &self.linkbases.references
     }
 
     /// Get references for a specific concept by its element ID.
     pub fn references_for(&self, concept_id: &str) -> Option<&[Reference]> {
-        self.references
+        self.linkbases
+            .references
             .get(concept_id)
             .map(|references| references.as_slice())
     }
@@ -546,12 +507,17 @@ impl TaxonomySet {
 impl TaxonomySet {
     /// Insert a presentation arc for a role URI. Used in unit tests.
     pub fn add_presentation_arc(&mut self, role: String, arc: PresentationArc) {
-        self.presentations.entry(role.into()).or_default().push(arc);
+        self.linkbases
+            .presentations
+            .entry(role.into())
+            .or_default()
+            .push(arc);
     }
 
     /// Insert a label for a concept ID. Used in unit tests.
     pub fn add_label(&mut self, concept_id: String, label: Label) {
-        self.labels
+        self.linkbases
+            .labels
             .entry(concept_id.into())
             .or_default()
             .push(label);
