@@ -139,9 +139,9 @@ impl TaxonomySet {
             }
 
             // Follow xs:import schemaLocation
-            for imp in &schema.imports {
-                if let Some(ref loc) = imp.schema_location
-                    && let Some(resolved) = resolve_local_path(schema_dir, loc)
+            for import in &schema.imports {
+                if let Some(ref location) = import.schema_location
+                    && let Some(resolved) = resolve_local_path(schema_dir, location)
                     && resolved.exists()
                     && let Ok(canonical) = std::fs::canonicalize(&resolved)
                     && visited.insert(canonical.clone())
@@ -151,8 +151,8 @@ impl TaxonomySet {
             }
 
             // Follow xs:include schemaLocation
-            for inc in &schema.includes {
-                if let Some(resolved) = resolve_local_path(schema_dir, &inc.schema_location)
+            for include in &schema.includes {
+                if let Some(resolved) = resolve_local_path(schema_dir, &include.schema_location)
                     && resolved.exists()
                     && let Ok(canonical) = std::fs::canonicalize(&resolved)
                     && visited.insert(canonical.clone())
