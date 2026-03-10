@@ -3,7 +3,7 @@ use quick_xml::{
     Reader,
     events::{BytesStart, Event, attributes::Attributes},
 };
-use std::{collections::HashMap, io::BufRead, path::PathBuf, str::Bytes};
+use std::{collections::HashMap, io::BufRead, path::PathBuf};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct SchemaRef {
