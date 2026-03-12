@@ -469,6 +469,8 @@ mod tests {
             imports: vec![],
             includes: vec![],
             linkbase_refs: vec![],
+            role_types: vec![],
+            arcrole_types: vec![],
             elements: vec![],
             simple_types: vec![],
             complex_types: vec![],

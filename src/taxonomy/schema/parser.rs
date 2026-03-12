@@ -5,17 +5,6 @@ use quick_xml::{
 };
 use std::{collections::HashMap, fmt, io::BufRead, path::PathBuf, str::FromStr};
 
-/// Represents the different XML tags that can appear in `xs:appinfo` sections
-/// of an XBRL schema document.
-enum SchemaAppInfoTag {
-    /// A `link:roleType` definition.
-    RoleType,
-    /// An `link:arcroleType` definition.
-    ArcroleType,
-    /// A `link:linkbaseRef` entry.
-    LinkbaseRef,
-}
-
 /// Represents the `elementFormDefault` and `attributeFormDefault` values from
 /// an XBRL schema's root `xs:schema` element.
 pub enum FormDefault {
@@ -23,32 +12,18 @@ pub enum FormDefault {
     Unqualified,
 }
 
-/// A `link:roleType` definition from a taxonomy schema.
-#[derive(Debug, Clone)]
-pub struct RoleType {
-    /// The id attribute (e.g., "role_balanceSheet").
-    pub id: String,
-    /// The roleURI attribute.
-    pub role_uri: String,
-    /// The human-readable definition (child `link:definition` text).
-    pub definition: Option<String>,
-    /// Which link types this role is used on (child `link:usedOn` texts).
-    pub used_on: Vec<String>,
+/// The kind of derivation in a `simpleContent` extension or restriction.
+#[derive(Debug, PartialEq, Eq)]
+pub enum DerivationKind {
+    Extension,
+    Restriction,
 }
 
-/// A `link:arcroleType` definition from a taxonomy schema.
-#[derive(Debug, Clone)]
-pub struct ArcroleType {
-    /// The id attribute.
-    pub id: String,
-    /// The arcroleURI attribute.
-    pub arcrole_uri: String,
-    /// The human-readable definition.
-    pub definition: Option<String>,
-    /// Which link types this arcrole is used on.
-    pub used_on: Vec<String>,
-    /// The cycles-allowed attribute.
-    pub cycles_allowed: Option<CyclesAllowed>,
+/// The compositor type for a complex type's content model (sequence or choice).
+#[derive(Debug, PartialEq, Eq)]
+pub enum Compositor {
+    Sequence,
+    Choice,
 }
 
 /// The allowed cycle direction for an arcrole (`cyclesAllowed` attribute).
@@ -88,51 +63,65 @@ impl fmt::Display for CyclesAllowed {
     }
 }
 
-/// Represents a raw parsed XBRL schema. Contains only the syntax-level data; no
-/// resolved `Concept`s yet.
+/// Represents an `xs:import` in the schema.
 #[derive(Debug, PartialEq, Eq)]
-pub struct RawSchema {
-    /// Absolute file path of this schema.
-    pub file_path: PathBuf,
-    /// The targetNamespace of the schema.
-    pub target_namespace: Option<String>,
-    /// Namespace declarations (prefix -> URI).
-    pub namespaces: HashMap<String, String>,
-    /// `xs:import` references.
-    pub imports: Vec<SchemaImport>,
-    /// `xs:include` references.
-    pub includes: Vec<SchemaInclude>,
-    /// `link:linkbaseRef` entries.
-    pub linkbase_refs: Vec<LinkbaseRef>,
-    /// Parsed elements (`xs:element`) in this schema.
-    pub elements: Vec<Element>,
-    /// Parsed simple type definitions (`xs:simpleType`) in this schema.
-    pub simple_types: Vec<SimpleType>,
-    /// Parsed complex type definitions (`xs:complexType`) in this schema.
-    pub complex_types: Vec<ComplexType>,
+pub struct SchemaImport {
+    /// Namespace being imported.
+    pub namespace: String,
+    /// Location of the imported schema file (from schemaLocation).
+    pub schema_location: Option<String>,
 }
 
-/// A parsed XML element from the schema (xs:element).
+/// Represents an `xs:include` in the schema.
 #[derive(Debug, PartialEq, Eq)]
-pub struct Element {
-    /// The element's local name (e.g., "bs.ass.fixAss").
-    pub name: String,
-    /// The element's id attribute (optional in XBRL).
-    pub id: Option<String>,
-    /// The type QName (e.g., "xbrli:monetaryItemType").
-    pub type_name: Option<QName>,
-    /// Substitution group (e.g., "xbrli:item", "xbrli:tuple").
-    pub substitution_group: Option<QName>,
-    /// Whether this element is nillable.
-    pub is_nillable: bool,
-    /// Whether this element is abstract.
-    pub is_abstract: bool,
-    /// The XBRL period type ("instant" or "duration").
-    pub period_type: Option<PeriodType>,
-    /// The XBRL balance ("debit" or "credit").
-    pub balance: Option<Balance>,
-    /// The complex type of a tuple element.
-    pub complex_type: Option<ComplexType>,
+pub struct SchemaInclude {
+    /// Location of the included schema file.
+    pub schema_location: String,
+}
+
+/// Represents a `link:linkbaseRef` in the schema's `xs:annotation/xs:appinfo`.
+#[derive(Debug, PartialEq, Eq)]
+pub struct LinkbaseRef {
+    /// Href to the linkbase file.
+    ///
+    /// The xlink:href value (relative path to the linkbase file).
+    pub href: String,
+    /// Role type of the linkbase.
+    ///
+    /// The xlink:role (e.g., <http://www.xbrl.org/2003/role/labelLinkbaseRef>).
+    pub role: Option<String>,
+    /// The xlink:arcrole (typically <http://www.w3.org/1999/xlink/properties/linkbase>).
+    pub arcrole: Option<String>,
+    /// Type of the linkbase (extended/simple).
+    pub link_type: Option<String>,
+}
+
+/// A `link:roleType` definition from a taxonomy schema.
+#[derive(Debug, PartialEq, Eq)]
+pub struct RoleType {
+    /// The id attribute (e.g., "role_balanceSheet").
+    pub id: String,
+    /// The roleURI attribute.
+    pub role_uri: String,
+    /// The human-readable definition (child `link:definition` text).
+    pub definition: Option<String>,
+    /// Which link types this role is used on (child `link:usedOn` texts).
+    pub used_on: Vec<String>,
+}
+
+/// A `link:arcroleType` definition from a taxonomy schema.
+#[derive(Debug, PartialEq, Eq)]
+pub struct ArcroleType {
+    /// The id attribute.
+    pub id: String,
+    /// The arcroleURI attribute.
+    pub arcrole_uri: String,
+    /// The human-readable definition.
+    pub definition: Option<String>,
+    /// Which link types this arcrole is used on.
+    pub used_on: Vec<String>,
+    /// The cycles-allowed attribute.
+    pub cycles_allowed: Option<CyclesAllowed>,
 }
 
 /// A child element of a tuple (`xs:element[@ref]` inside an inline
@@ -147,20 +136,6 @@ pub struct RawTupleChild {
     /// The maximum number of occurrences of this child element (from
     /// `maxOccurs`).
     pub max_occurs: Option<u32>,
-}
-
-/// The kind of derivation in a `simpleContent` extension or restriction.
-#[derive(Debug, PartialEq, Eq)]
-pub enum DerivationKind {
-    Extension,
-    Restriction,
-}
-
-/// The compositor type for a complex type's content model (sequence or choice).
-#[derive(Debug, PartialEq, Eq)]
-pub enum Compositor {
-    Sequence,
-    Choice,
 }
 
 /// Represents an attribute use in a `simpleContent` extension or restriction.
@@ -206,39 +181,55 @@ pub struct ComplexType {
     pub children: Vec<RawTupleChild>,
 }
 
-/// Represents an `xs:import` in the schema.
+/// A parsed XML element from the schema (xs:element).
 #[derive(Debug, PartialEq, Eq)]
-pub struct SchemaImport {
-    /// Namespace being imported.
-    pub namespace: String,
-    /// Location of the imported schema file (from schemaLocation).
-    pub schema_location: Option<String>,
+pub struct Element {
+    /// The element's local name (e.g., "bs.ass.fixAss").
+    pub name: String,
+    /// The element's id attribute (optional in XBRL).
+    pub id: Option<String>,
+    /// The type QName (e.g., "xbrli:monetaryItemType").
+    pub type_name: Option<QName>,
+    /// Substitution group (e.g., "xbrli:item", "xbrli:tuple").
+    pub substitution_group: Option<QName>,
+    /// Whether this element is nillable.
+    pub is_nillable: bool,
+    /// Whether this element is abstract.
+    pub is_abstract: bool,
+    /// The XBRL period type ("instant" or "duration").
+    pub period_type: Option<PeriodType>,
+    /// The XBRL balance ("debit" or "credit").
+    pub balance: Option<Balance>,
+    /// The complex type of a tuple element.
+    pub complex_type: Option<ComplexType>,
 }
 
-/// Represents an `xs:include` in the schema.
+/// Represents a raw parsed XBRL schema. Contains only the syntax-level data; no
+/// resolved `Concept`s yet.
 #[derive(Debug, PartialEq, Eq)]
-pub struct SchemaInclude {
-    /// Location of the included schema file.
-    pub schema_location: String,
-}
-
-/// Represents a `link:linkbaseRef` in the schema's `xs:annotation/xs:appinfo`.
-#[derive(Debug, PartialEq, Eq)]
-pub struct LinkbaseRef {
-    /// Href to the linkbase file.
-    ///
-    /// The xlink:href value (relative path to the linkbase file).
-    pub href: String,
-    /// Role type of the linkbase.
-    ///
-    /// The xlink:role (e.g., <http://www.xbrl.org/2003/role/labelLinkbaseRef>).
-    pub role: Option<String>,
-    /// Type of the linkbase (extended/simple).
-    pub link_type: Option<String>,
-    // The xlink:arcrole (typically <http://www.w3.org/1999/xlink/properties/linkbase>).
-    // pub arcrole: Option<String>,
-    // The xlink:title.
-    // pub title: Option<String>,
+pub struct RawSchema {
+    /// Absolute file path of this schema.
+    pub file_path: PathBuf,
+    /// The targetNamespace of the schema.
+    pub target_namespace: Option<String>,
+    /// Namespace declarations (prefix -> URI).
+    pub namespaces: HashMap<String, String>,
+    /// Parsed `xs:import` references.
+    pub imports: Vec<SchemaImport>,
+    /// Parsed `xs:include` references.
+    pub includes: Vec<SchemaInclude>,
+    /// Parsed `link:linkbaseRef` entries.
+    pub linkbase_refs: Vec<LinkbaseRef>,
+    /// Parsed `link:roleType` definitions.
+    pub role_types: Vec<RoleType>,
+    /// Parsed `link:arcroleType` definitions.
+    pub arcrole_types: Vec<ArcroleType>,
+    /// Parsed elements (`xs:element`) in this schema.
+    pub elements: Vec<Element>,
+    /// Parsed simple type definitions (`xs:simpleType`) in this schema.
+    pub simple_types: Vec<SimpleType>,
+    /// Parsed complex type definitions (`xs:complexType`) in this schema.
+    pub complex_types: Vec<ComplexType>,
 }
 
 /// Parses a QName string (e.g., "xbrli:monetaryItemType") into a `QName`
@@ -294,6 +285,8 @@ impl<R: BufRead> SchemaParser<R> {
             imports: vec![],
             includes: vec![],
             linkbase_refs: vec![],
+            role_types: vec![],
+            arcrole_types: vec![],
             elements: vec![],
             simple_types: vec![],
             complex_types: vec![],
@@ -316,6 +309,12 @@ impl<R: BufRead> SchemaParser<R> {
                         }
                         b"import" => self.parse_import(&mut schema, attributes)?,
                         b"include" => self.parse_include(&mut schema, attributes)?,
+                        b"linkbaseRef" => {
+                            let linkbase_ref = self.parse_linkbase_ref(attributes)?;
+                            schema.linkbase_refs.push(linkbase_ref);
+                        }
+                        b"roleType" => self.parse_role_type(&mut schema, attributes)?,
+                        b"arcroleType" => self.parse_arcrole_type(&mut schema, attributes)?,
                         b"element" => {
                             let element = self.parse_element(event)?;
                             schema.elements.push(element);
@@ -328,6 +327,7 @@ impl<R: BufRead> SchemaParser<R> {
                             let complex_type = self.parse_complex_type(event)?;
                             schema.complex_types.push(complex_type);
                         }
+                        b"annotation" => self.parse_annotation(&mut schema)?,
                         b"redefine" => {
                             return Err(XbrlError::InvalidSchemaDocument {
                                 path: self.path.clone(),
@@ -470,6 +470,145 @@ impl<R: BufRead> SchemaParser<R> {
                 reason: "missing schemaLocation in xsd:include".to_string(),
             })?,
         });
+
+        Ok(())
+    }
+
+    /// Parse a `link:linkbaseRef` element.
+    fn parse_linkbase_ref(&mut self, attributes: Attributes) -> Result<LinkbaseRef, XbrlError> {
+        let mut href = String::new();
+        let mut role = None;
+        let mut arcrole = None;
+        let mut link_type = None;
+
+        for attribute in attributes {
+            let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                position: self.reader.buffer_position(),
+                element: Some("include".to_string()),
+                source: err.into(),
+            })?;
+            let local_name = attribute.key.local_name();
+            let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+
+            match local_name.as_ref() {
+                b"href" => {
+                    href = value.to_string();
+                }
+                b"role" => {
+                    role = Some(value.to_string());
+                }
+                b"arcrole" => {
+                    arcrole = Some(value.to_string());
+                }
+                b"type" => {
+                    link_type = Some(value.to_string());
+                }
+                _ => {}
+            }
+        }
+
+        Ok(LinkbaseRef {
+            href,
+            role,
+            arcrole,
+            link_type,
+        })
+    }
+
+    /// Parses a `link:roleType` element.
+    fn parse_role_type(
+        &mut self,
+        schema: &mut RawSchema,
+        attributes: Attributes,
+    ) -> Result<(), XbrlError> {
+        todo!()
+    }
+
+    /// Parses a `link:arcroleType` element.
+    fn parse_arcrole_type(
+        &mut self,
+        schema: &mut RawSchema,
+        attributes: Attributes,
+    ) -> Result<(), XbrlError> {
+        todo!()
+    }
+
+    /// Parses an `xs:annotation` element, including its child `xs:appinfo`.
+    fn parse_annotation(&mut self, schema: &mut RawSchema) -> Result<(), XbrlError> {
+        let mut buf = Vec::new();
+
+        loop {
+            match self.reader.read_event_into(&mut buf)? {
+                Event::Start(event) => match event.local_name().as_ref() {
+                    b"appinfo" => self.parse_appinfo(schema)?,
+                    _ => self.skip_element()?,
+                },
+                Event::End(event) if event.local_name().as_ref() == b"annotation" => break,
+                _ => {}
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Parses an `xs:appinfo` element, including its child elements like
+    /// `link:roleType`, `link:arcroleType`, and `link:linkbaseRef`.
+    fn parse_appinfo(&mut self, schema: &mut RawSchema) -> Result<(), XbrlError> {
+        let mut buf = Vec::new();
+
+        loop {
+            match self.reader.read_event_into(&mut buf)? {
+                Event::Start(event) | Event::Empty(event) => match event.local_name().as_ref() {
+                    b"linkbaseRef" => {
+                        let linkbase_ref = self.parse_linkbase_ref(event.attributes())?;
+                        schema.linkbase_refs.push(linkbase_ref);
+                    }
+                    b"roleType" => self.parse_role_type(schema, event.attributes())?,
+                    b"arcroleType" => self.parse_arcrole_type(schema, event.attributes())?,
+                    _ => {}
+                },
+                Event::End(event) if event.local_name().as_ref() == b"appinfo" => break,
+                _ => {}
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Skips the current element, including all nested child elements.
+    /// The reader must be positioned at the `Start` or `Empty` event of the element.
+    fn skip_element(&mut self) -> Result<(), XbrlError> {
+        let mut buf = Vec::new();
+        let mut depth = 0;
+
+        loop {
+            match self.reader.read_event_into(&mut buf)? {
+                Event::Start(_) => {
+                    // entering a nested element
+                    depth += 1;
+                }
+                Event::End(_) => {
+                    if depth == 0 {
+                        // matched the original element's end
+                        break;
+                    } else {
+                        depth -= 1;
+                    }
+                }
+                Event::Empty(_) => {
+                    // empty element counts as start+end, so no depth change needed
+                }
+                Event::Eof => {
+                    return Err(XbrlError::ParseError {
+                        expected: "end tag while skipping element",
+                        value: "".to_string(),
+                    });
+                }
+                _ => {}
+            }
+
+            buf.clear();
+        }
 
         Ok(())
     }
@@ -908,23 +1047,6 @@ impl<R: BufRead> SchemaParser<R> {
 
         Ok(AttributeUse { ref_name, required })
     }
-
-    /// Parses an `xs:annotation` element.
-    fn parse_annotation(
-        &mut self,
-        schema: &mut RawSchema,
-        attributes: Attributes,
-    ) -> Result<(), XbrlError> {
-        todo!()
-    }
-
-    fn parse_appinfo(
-        &mut self,
-        schema: &mut RawSchema,
-        attributes: Attributes,
-    ) -> Result<(), XbrlError> {
-        todo!()
-    }
 }
 
 #[cfg(test)]
@@ -970,6 +1092,98 @@ mod tests {
         assert!(includes.len() == 1);
         let include = &includes[0];
         assert_eq!(include.schema_location, "test.xsd");
+    }
+
+    #[test]
+    fn test_parse_linkbase_ref() {
+        let xml = r#"<xs:schema
+                            xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                            xmlns:link="http://www.xbrl.org/2003/linkbase"
+                            xmlns:xlink="http://www.w3.org/1999/xlink">
+                            <xs:annotation>
+                                <xs:appinfo>
+                                    <link:linkbaseRef
+                                        xlink:type="simple"
+                                        xlink:href="de-gaap-ci_pre.xml"
+                                        xlink:role="http://www.w3.org/1999/xlink/properties/linkbase"
+                                        xlink:arcrole="http://www.w3.org/1999/xlink/properties/linkbase" />
+                                </xs:appinfo>
+                            </xs:annotation>
+                        </xs:schema>"#;
+        let mut parser = SchemaParser::new(xml.as_bytes(), PathBuf::from("test.xsd"));
+        let schema = parser.parse_schema().unwrap();
+
+        assert_eq!(schema.linkbase_refs.len(), 1);
+        let linkbase_ref = &schema.linkbase_refs[0];
+        assert_eq!(linkbase_ref.href, "de-gaap-ci_pre.xml");
+        assert_eq!(
+            linkbase_ref.role.as_deref(),
+            Some("http://www.w3.org/1999/xlink/properties/linkbase")
+        );
+        assert_eq!(
+            linkbase_ref.arcrole.as_deref(),
+            Some("http://www.w3.org/1999/xlink/properties/linkbase")
+        );
+    }
+
+    #[test]
+    fn test_parse_role_type() {
+        let xml = r#"<xs:schema
+                            xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                            xmlns:link="http://www.xbrl.org/2003/linkbase"
+                            xmlns:xlink="http://www.w3.org/1999/xlink">
+                            <xs:annotation>
+                                <xs:appinfo>
+                                    <link:roleType
+                                        roleURI="http://www.xbrl.de/taxonomies/de-gaap-ci/role/balanceSheet"
+                                        id="balanceSheet">
+                                        <link:definition>Balance Sheet</link:definition>
+                                        <link:usedOn>link:presentationLink</link:usedOn>
+                                    </link:roleType>
+                                </xs:appinfo>
+                            </xs:annotation>
+                        </xs:schema>"#;
+        let mut parser = SchemaParser::new(xml.as_bytes(), PathBuf::from("test.xsd"));
+        let schema = parser.parse_schema().unwrap();
+
+        assert_eq!(schema.role_types.len(), 1);
+        let role_type = &schema.role_types[0];
+        assert_eq!(
+            role_type.role_uri,
+            "http://www.xbrl.de/taxonomies/de-gaap-ci/role/balanceSheet"
+        );
+        assert_eq!(role_type.id, "balanceSheet");
+    }
+
+    #[test]
+    fn test_parse_arcrole_type() {
+        let xml = r#"<xs:schema
+                            xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                            xmlns:link="http://www.xbrl.org/2003/linkbase"
+                            xmlns:xlink="http://www.w3.org/1999/xlink">
+                            <xs:annotation>
+                                <xs:appinfo>
+                                    <link:arcroleType
+                                        arcroleURI="http://www.xbrl.de/taxonomies/de-gaap-ci/arcrole/parent-child"
+                                        cyclesAllowed="undirected"
+                                        id="parentChild">
+                                        <link:definition>Parent-child relationship</link:definition>
+                                        <link:usedOn>link:definitionArc</link:usedOn>
+                                    </link:arcroleType>
+                                </xs:appinfo>
+                            </xs:annotation>
+                        </xs:schema>"#;
+        let mut parser = SchemaParser::new(xml.as_bytes(), PathBuf::from("test.xsd"));
+        let schema = parser.parse_schema().unwrap();
+
+        assert_eq!(schema.arcrole_types.len(), 1);
+        let arcrole_type = &schema.arcrole_types[0];
+        assert_eq!(
+            arcrole_type.arcrole_uri,
+            "http://www.xbrl.de/taxonomies/de-gaap-ci/arcrole/parent-child"
+        );
+        assert_eq!(arcrole_type.cycles_allowed, Some(CyclesAllowed::Undirected));
+        assert_eq!(arcrole_type.id, "parentChild");
     }
 
     #[test]
