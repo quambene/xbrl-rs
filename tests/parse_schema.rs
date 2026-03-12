@@ -1,7 +1,6 @@
 //! Integration tests for parsing taxonomy schema files.
 
 use assert_matches::assert_matches;
-use quick_xml::Reader;
 use std::{fs::File, io::BufReader, path::Path};
 use xbrl_rs::{TaxonomySchema, XbrlError};
 
@@ -9,8 +8,8 @@ const SCHEMA_BASE: &str = "test_data/schemas";
 
 fn parse_schema_unchecked(path: &Path) -> Result<TaxonomySchema, XbrlError> {
     let file = File::open(path).expect("failed to open schema file");
-    let mut reader = Reader::from_reader(BufReader::new(file));
-    TaxonomySchema::from_xml_unchecked(path, &mut reader)
+    let reader = BufReader::new(file);
+    TaxonomySchema::from_xml_unchecked(path, reader)
 }
 
 #[test]
@@ -24,7 +23,7 @@ fn from_xml_unchecked_parses_minimal_valid_schema() {
     );
     assert_eq!(schema.imports.len(), 1);
     assert_eq!(schema.concepts.len(), 1);
-    assert_eq!(schema.concepts[0].qname.local, "Cash");
+    assert_eq!(schema.concepts[0].name.local_name, "Cash");
 }
 
 #[test]

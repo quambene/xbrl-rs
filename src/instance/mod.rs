@@ -12,7 +12,7 @@ mod writer;
 use crate::{
     PresentationArc, TaxonomySet,
     error::Result,
-    taxonomy::{Concept, PeriodType, TupleChildRef},
+    taxonomy::{Concept, PeriodType, TupleChild},
     validation::{self, ValidationResult},
 };
 pub use context::{Context, ContextId, EntityIdentifier, Period};
@@ -469,17 +469,16 @@ impl InstanceDocument {
         // Children are already sorted by `order`.
         let children = arc_index.get(concept_id).map(Vec::as_slice).unwrap_or(&[]);
 
-        if let Some(element) = taxonomy.find_element_by_id(concept_id) {
-            if taxonomy.element_is_tuple(element) && !element.is_abstract {
+        if let Some(concept) = taxonomy.find_concept_by_id(concept_id) {
+            if taxonomy.concept_is_tuple(concept) && !concept.is_abstract {
                 if emitted_tuples.insert(concept_id.to_string()) {
-                    let qname = taxonomy
-                        .qualified_name(concept_id)
-                        .unwrap_or_else(|| concept_id.replacen('_', ":", 1));
-                    facts.push(Fact::Tuple(TupleFact::new(qname)));
+                    let concept_name = concept_id.replacen('_', ":", 1);
+                    facts.push(Fact::Tuple(TupleFact::new(concept_name)));
                     let tuple_children = match facts.last_mut() {
                         Some(Fact::Tuple(t)) => t.children_mut(),
                         _ => unreachable!(),
                     };
+
                     for arc in children {
                         Self::populate_from_tree(
                             arc_index,
@@ -492,7 +491,7 @@ impl InstanceDocument {
                             emitted_items,
                             emitted_tuples,
                             recursion_path,
-                            Some(element),
+                            Some(concept),
                             hoisted,
                         );
                     }
@@ -501,21 +500,20 @@ impl InstanceDocument {
                 return;
             }
 
-            if !element.is_abstract
-                && let Some(ref period_type) = element.period_type
+            if !concept.is_abstract
+                && let Some(ref period_type) = concept.period_type
             {
                 let context_ref = match period_type {
                     PeriodType::Duration => duration_ctx,
                     PeriodType::Instant => instant_ctx,
                 };
-                let qname = taxonomy
-                    .qualified_name(concept_id)
-                    .unwrap_or_else(|| concept_id.replacen('_', ":", 1));
+                let concept_name = concept_id.replacen('_', ":", 1);
+
                 if emitted_items.insert(concept_id.to_string()) {
                     let mut fact = ItemFact::new(
-                        qname,
+                        concept_name,
                         context_ref.to_string(),
-                        unit_ref_for_element(element, units, taxonomy),
+                        unit_ref_for_concept(concept, units),
                         String::new(),
                     );
                     fact.set_nil(true);
@@ -523,7 +521,7 @@ impl InstanceDocument {
                     // Items not allowed by the tuple's content model are hoisted to
                     // the top level so they still appear in the generated template.
                     if let Some(parent_el) = parent_tuple_element
-                        && !item_allowed_in_tuple(parent_el, element, taxonomy)
+                        && !item_allowed_in_tuple(parent_el, concept, taxonomy)
                     {
                         hoisted.push(Fact::Item(fact));
                     } else {
@@ -589,61 +587,27 @@ impl InstanceDocument {
 /// - Shares items    → first shares unit (`is_shares()`)
 /// - Other numeric   → first pure unit (`is_pure()`)
 /// - Non-numeric     → `None` (unitRef forbidden by the XBRL spec)
-fn unit_ref_for_element(
-    element: &Concept,
-    units: &[Unit],
-    taxonomy: &TaxonomySet,
-) -> Option<String> {
-    let type_name = element.data_type.name.local.as_str();
+fn unit_ref_for_concept(concept: &Concept, units: &[Unit]) -> Option<String> {
+    let type_name = &concept.data_type;
 
-    if taxonomy.is_type_derived_from(type_name, "monetaryItemType") {
+    if type_name.is_monetary() {
         return units
             .iter()
             .find(|u| u.is_currency())
             .map(|u| u.id.to_string());
     }
-    if taxonomy.is_type_derived_from(type_name, "sharesItemType") {
+
+    if type_name.is_shares() {
         return units
             .iter()
             .find(|u| u.is_shares())
             .map(|u| u.id.to_string());
     }
-    for base in [
-        "pureItemType",
-        "decimalItemType",
-        "integerItemType",
-        "floatItemType",
-        "doubleItemType",
-        "fractionItemType",
-    ] {
-        if taxonomy.is_type_derived_from(type_name, base) {
-            return units.iter().find(|u| u.is_pure()).map(|u| u.id.to_string());
-        }
-    }
-    // Heuristic fallback for custom numeric type names not in the type hierarchy
-    let t = type_name.to_lowercase();
-    if t.contains("monetary") {
-        return units
-            .iter()
-            .find(|u| u.is_currency())
-            .map(|u| u.id.to_string());
-    }
-    if t.contains("shares") {
-        return units
-            .iter()
-            .find(|u| u.is_shares())
-            .map(|u| u.id.to_string());
-    }
-    if t.contains("pure")
-        || t.contains("decimal")
-        || t.contains("integer")
-        || t.contains("float")
-        || t.contains("double")
-        || t.contains("percent")
-        || t.contains("pershare")
-    {
+
+    if type_name.is_numeric() {
         return units.iter().find(|u| u.is_pure()).map(|u| u.id.to_string());
     }
+
     None
 }
 
@@ -669,17 +633,13 @@ fn item_allowed_in_tuple(
 /// Returns `true` if `child_element` satisfies the `child_ref` constraint, either
 /// by a direct name match or via its substitution-group ancestry chain.
 fn matches_tuple_child_ref(
-    child_ref: &TupleChildRef,
+    child_ref: &TupleChild,
     child_element: &Concept,
     _taxonomy: &TaxonomySet,
 ) -> bool {
-    let allowed_local = child_ref
-        .qname
-        .rsplit(':')
-        .next()
-        .unwrap_or(&child_ref.qname);
+    let allowed_local = &child_ref.name.local_name;
 
-    if child_element.qname.local == allowed_local {
+    if &child_element.name.local_name == allowed_local {
         return true;
     }
 

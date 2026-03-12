@@ -1,5 +1,8 @@
 use super::ValidationResult;
-use crate::{Concept, InstanceDocument, ItemFact, TaxonomySet, XbrlBase};
+use crate::{
+    InstanceDocument, ItemFact, TaxonomySet,
+    taxonomy::{Concept, XbrlType},
+};
 use chrono::{NaiveDate, NaiveDateTime};
 use rust_decimal::Decimal;
 use std::{collections::HashMap, str::FromStr};
@@ -88,13 +91,13 @@ pub(super) fn prepare_fact_values(
             continue;
         }
 
-        let Some(element) = taxonomy.find_element(fact.local_name()) else {
+        let Some(element) = taxonomy.find_concept(fact.local_name()) else {
             prepared.insert(fact, Some(FactValue::Text(fact.value().to_string())));
             continue;
         };
 
         let trimmed = fact.value().trim();
-        let parsed = match expected_value_kind(element, taxonomy) {
+        let parsed = match expected_value_kind(element) {
             ExpectedValueKind::Numeric => parse_numeric_compatible(trimmed)
                 .map(FactValue::Numeric)
                 .or_else(|| Some(FactValue::Text(fact.value().to_string()))),
@@ -128,47 +131,28 @@ fn parse_numeric_compatible(value: &str) -> Option<Decimal> {
     Decimal::from_scientific(value).ok()
 }
 
-fn expected_value_kind(element: &Concept, taxonomy: &TaxonomySet) -> ExpectedValueKind {
-    let type_name = element.data_type.name.local.as_str();
-
-    for base in [
-        "monetaryItemType",
-        "decimalItemType",
-        "floatItemType",
-        "doubleItemType",
-        "integerItemType",
-        "sharesItemType",
-        "pureItemType",
-        "fractionItemType",
-    ] {
-        if taxonomy.is_type_derived_from(type_name, base) {
+fn expected_value_kind(element: &Concept) -> ExpectedValueKind {
+    match element.data_type {
+        XbrlType::Monetary
+        | XbrlType::Decimal
+        | XbrlType::Integer
+        | XbrlType::Float
+        | XbrlType::Double
+        | XbrlType::Shares
+        | XbrlType::Pure
+        | XbrlType::Fraction => {
             return ExpectedValueKind::Numeric;
         }
+        XbrlType::Boolean => return ExpectedValueKind::Boolean,
+        XbrlType::Date => return ExpectedValueKind::Date,
+        XbrlType::DateTime => return ExpectedValueKind::DateTime,
+        XbrlType::Percent
+        | XbrlType::PerShare
+        | XbrlType::String
+        | XbrlType::QName
+        | XbrlType::Simple(_)
+        | XbrlType::Complex(_) => ExpectedValueKind::Other,
     }
-
-    if taxonomy.is_type_derived_from(type_name, "booleanItemType") {
-        return ExpectedValueKind::Boolean;
-    }
-
-    if taxonomy.is_type_derived_from(type_name, "dateTimeItemType") {
-        return ExpectedValueKind::DateTime;
-    }
-
-    if taxonomy.is_type_derived_from(type_name, "dateItemType") {
-        return ExpectedValueKind::Date;
-    }
-
-    match element.data_type.base {
-        XbrlBase::Monetary | XbrlBase::Decimal | XbrlBase::Integer => {
-            return ExpectedValueKind::Numeric;
-        }
-        XbrlBase::Boolean => return ExpectedValueKind::Boolean,
-        XbrlBase::Date => return ExpectedValueKind::Date,
-        XbrlBase::DateTime => return ExpectedValueKind::DateTime,
-        XbrlBase::String | XbrlBase::QName | XbrlBase::Pure => {}
-    }
-
-    ExpectedValueKind::Other
 }
 
 fn parse_boolean(value: &str) -> Option<bool> {

@@ -1,13 +1,5 @@
 use std::{borrow::Borrow, fmt, ops::Deref};
 
-/// Qualified name (namespace + local name) used for parsing XML
-/// elements/attributes.
-#[derive(Debug)]
-pub(crate) struct ParsedQName<'a> {
-    pub namespace: &'a str,
-    pub local: &'a str,
-}
-
 /// Owned qualified name (namespace + local name).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct QName {

@@ -1,14 +1,17 @@
-use super::schema::{Concept, DeclaredAccuracy, RoleType, TaxonomySchema};
+use super::schema::{DeclaredAccuracy, TaxonomySchema};
 use crate::{
-    BaseSubstitutionGroup, ConceptId, Label, Reference, RoleUri, SchemaRefUrl,
+    ConceptId, Label, Reference, RoleUri, SchemaRefUrl,
     error::{Result, XbrlError},
-    taxonomy::linkbases::{
-        parser::{CalculationArc, DefinitionArc, LinkbaseParser, Linkbases, PresentationArc},
-        resolver::{self, ResolvedLinkbases},
+    taxonomy::{
+        BaseSubstitutionGroup, ExpandedName, RoleType,
+        linkbases::{
+            parser::{CalculationArc, DefinitionArc, LinkbaseParser, Linkbases, PresentationArc},
+            resolver::{self, ResolvedLinkbases},
+        },
+        schema::Concept,
     },
 };
 use indexmap::{IndexMap, IndexSet};
-use quick_xml::Reader;
 use std::{
     collections::{HashMap, HashSet, VecDeque},
     fs::{self, File},
@@ -100,8 +103,8 @@ impl TaxonomySet {
                 context: "schema".to_string(),
                 source: err,
             })?;
-            let mut reader = Reader::from_reader(BufReader::new(xml_file));
-            let schema = TaxonomySchema::from_xml(&path, &mut reader)?;
+            let reader = BufReader::new(xml_file);
+            let schema = TaxonomySchema::from_xml(&path, reader)?;
             let schema_dir = path.parent().unwrap_or(Path::new("."));
 
             // Collect linkbase refs
@@ -234,19 +237,19 @@ impl TaxonomySet {
     }
 
     /// Find an element definition by name across all schemas.
-    pub fn find_element(&self, name: &str) -> Option<&Concept> {
+    pub fn find_concept(&self, name: &str) -> Option<&Concept> {
         self.schemas
             .values()
-            .flat_map(|s| &s.concepts)
-            .find(|e| e.qname.local == name)
+            .flat_map(|schema| &schema.concepts)
+            .find(|concept| concept.name.local_name == name)
     }
 
     /// Find an element definition by its ID attribute (e.g., `de-gaap-ci_bs.ass`).
-    pub fn find_element_by_id(&self, id: &str) -> Option<&Concept> {
+    pub fn find_concept_by_id(&self, id: &str) -> Option<&Concept> {
         self.schemas
             .values()
-            .flat_map(|s| &s.concepts)
-            .find(|e| e.id.as_str() == id)
+            .flat_map(|schema| &schema.concepts)
+            .find(|concept| concept.id.as_deref() == Some(id))
     }
 
     /// Resolve the effective substitution-group base by following chained
@@ -255,7 +258,7 @@ impl TaxonomySet {
         // Fast-path: element's substitutionGroup may directly name the XBRL
         // head element (local name `item` or `tuple`). Check the local name
         // rather than relying on a removed `Other` variant.
-        let start_local = element.substitution_group.name.local.as_str();
+        let start_local = element.substitution_group.original.local_name.as_str();
         if start_local == "item" {
             return Ok(BaseSubstitutionGroup::Item);
         }
@@ -266,15 +269,15 @@ impl TaxonomySet {
         // Walk the substitution chain by following the referenced element
         // names until we reach a declared head (item/tuple) or exhaust the
         // chain.
-        let mut current = element.substitution_group.name.local.clone();
+        let mut current = element.substitution_group.original.local_name.clone();
         let mut seen: HashSet<String> = HashSet::new();
 
         while seen.insert(current.clone()) {
-            let Some(parent) = self.find_element(&current) else {
+            let Some(parent) = self.find_concept(&current) else {
                 break;
             };
 
-            let parent_local = parent.substitution_group.name.local.as_str();
+            let parent_local = parent.substitution_group.original.local_name.as_str();
             if parent_local == "item" {
                 return Ok(BaseSubstitutionGroup::Item);
             }
@@ -282,7 +285,7 @@ impl TaxonomySet {
                 return Ok(BaseSubstitutionGroup::Tuple);
             }
 
-            current = parent.substitution_group.name.local.clone();
+            current = parent.substitution_group.original.local_name.clone();
         }
 
         let schema_path = self
@@ -301,21 +304,21 @@ impl TaxonomySet {
             path: schema_path,
             reason: format!(
                 "unable to resolve substitutionGroup '{}' for element '{}'",
-                element.substitution_group.name.local, element.qname.local
+                element.substitution_group.original.local_name, element.name.local_name
             ),
         })
     }
 
-    pub fn element_is_tuple(&self, element: &Concept) -> bool {
+    pub fn concept_is_tuple(&self, concept: &Concept) -> bool {
         matches!(
-            self.substitution_group_base(element),
+            self.substitution_group_base(concept),
             Ok(BaseSubstitutionGroup::Tuple)
         )
     }
 
-    pub fn element_is_item(&self, element: &Concept) -> bool {
+    pub fn concept_is_item(&self, concept: &Concept) -> bool {
         matches!(
-            self.substitution_group_base(element),
+            self.substitution_group_base(concept),
             Ok(BaseSubstitutionGroup::Item)
         )
     }
@@ -326,14 +329,18 @@ impl TaxonomySet {
     /// head element that is listed as an `xs:element[@ref]` inside the tuple's inline
     /// `xs:complexType`. Only one level of indirection is resolved (direct parent tuple).
     pub fn find_parent_tuple(&self, concept_id: &str) -> Option<&Concept> {
-        let element = self.find_element_by_id(concept_id)?;
+        let element = self.find_concept_by_id(concept_id)?;
         // Find a tuple whose xs:complexType references this child element QName
-        self.schemas.values().flat_map(|s| &s.concepts).find(|e| {
-            self.element_is_tuple(e)
-                && e.tuple_children.iter().any(|c| {
-                    c.qname.rsplit(':').next().unwrap_or(c.qname.as_str()) == element.qname.local
-                })
-        })
+        self.schemas
+            .values()
+            .flat_map(|schema| &schema.concepts)
+            .find(|concept| {
+                self.concept_is_tuple(concept)
+                    && concept
+                        .tuple_children
+                        .iter()
+                        .any(|tuple_child| tuple_child.name.local_name == element.name.local_name)
+            })
     }
 
     /// Find all tuple ancestor IDs from root tuple to direct parent tuple.
@@ -347,8 +354,8 @@ impl TaxonomySet {
                 break;
             };
 
-            ancestors.push(parent_tuple.id.to_string());
-            current = parent_tuple.id.to_string();
+            ancestors.push(parent_tuple.id.clone().unwrap_or_default().to_string());
+            current = parent_tuple.id.clone().unwrap_or_default().to_string();
         }
 
         ancestors.reverse();
@@ -421,18 +428,22 @@ impl TaxonomySet {
     /// For example, `de-gaap-ci_bs.ass` becomes `de-gaap-ci:bs.ass`.
     /// Returns `None` if the element is not found or its schema has no
     /// target namespace with a matching prefix.
-    pub fn qualified_name(&self, element_id: &str) -> Option<String> {
+    pub fn qualified_name(&self, element_id: &str) -> Option<ExpandedName> {
         for schema in self.schemas.values() {
-            if let Some(elem) = schema.concepts.iter().find(|e| e.id.as_str() == element_id) {
-                let target_ns = schema.target_namespace.as_deref()?;
-                let prefix = schema
-                    .namespaces
-                    .iter()
-                    .find(|(_, uri)| uri.as_str() == target_ns)
-                    .map(|(prefix, _)| prefix)?;
-                return Some(format!("{prefix}:{}", elem.qname.local));
+            if let Some(concept) = schema
+                .concepts
+                .iter()
+                .find(|concept| concept.id.as_deref() == Some(element_id))
+            {
+                let target_namespace = schema.target_namespace.as_deref()?;
+
+                return Some(ExpandedName {
+                    namespace_uri: target_namespace.to_string(),
+                    local_name: concept.name.local_name.clone(),
+                });
             }
         }
+
         None
     }
 

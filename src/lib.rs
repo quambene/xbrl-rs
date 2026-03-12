@@ -19,10 +19,8 @@ pub use quick_xml::{Reader as XmlReader, Writer as XmlWriter};
 #[cfg(feature = "download")]
 pub use taxonomy::TaxonomyLoader;
 pub use taxonomy::{
-    ArcroleType, Balance, BaseSubstitutionGroup, CalculationArc, Concept, ConceptId, CyclesAllowed,
-    DeclaredAccuracy, DefinitionArc, Label, LinkbaseLocator, LinkbaseRef, MaxOccurs, PeriodType,
-    PresentationArc, QName, Reference, ReferencePart, RoleType, RoleUri, SchemaImport,
-    SchemaInclude, SchemaRefUrl, SubstitutionGroup, TaxonomySchema, TaxonomySet, TupleChildRef,
-    XbrlBase, XbrlType,
+    Balance, CalculationArc, ConceptId, DeclaredAccuracy, DefinitionArc, ExpandedName, Label,
+    LinkbaseLocator, PeriodType, PresentationArc, QName, Reference, ReferencePart, RoleUri,
+    SchemaRefUrl, SubstitutionGroup, TaxonomySchema, TaxonomySet,
 };
 pub use validation::{Severity, ValidationMessage, ValidationResult};

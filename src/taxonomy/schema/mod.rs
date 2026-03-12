@@ -1,116 +1,45 @@
-mod concept;
 mod parser;
-mod reader;
 mod resolver;
 mod validation;
 
-use crate::{
-    error::{Result, XbrlError},
-    instance::Decimals,
+use crate::{error::Result, instance::Decimals};
+pub use parser::{ArcroleType, LinkbaseRef, RoleType, SchemaImport, SchemaInclude, SchemaParser};
+pub use resolver::{
+    BaseSubstitutionGroup, Concept, ExpandedName, MaxOccurs, SubstitutionGroup, TupleChild,
+    XbrlType,
 };
-pub use concept::{
-    Balance, BaseSubstitutionGroup, Concept, MaxOccurs, PeriodType, SubstitutionGroup,
-    TupleChildRef, XbrlBase, XbrlType,
-};
-use quick_xml::Reader;
 use std::{
-    collections::{HashMap, HashSet},
-    fmt, io,
+    collections::HashMap,
+    io,
     path::{Path, PathBuf},
-    str::FromStr,
 };
 
-/// The allowed cycle direction for an arcrole (`cyclesAllowed` attribute).
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum CyclesAllowed {
-    /// Any cycles are allowed.
-    Any,
-    /// Only undirected cycles are allowed.
-    Undirected,
-    /// No cycles are allowed.
-    None,
+/// Represents a QName (qualified name) in the schema, which can be used for
+/// type references, substitution groups, etc.
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct QName {
+    /// The namespace prefix (e.g., "xbrli") if present.
+    pub prefix: Option<String>,
+    /// The local name (e.g., "monetaryItemType").
+    pub local_name: String,
 }
 
-impl FromStr for CyclesAllowed {
-    type Err = XbrlError;
-
-    fn from_str(str: &str) -> Result<Self> {
-        match str {
-            "any" => Ok(Self::Any),
-            "undirected" => Ok(Self::Undirected),
-            "none" => Ok(Self::None),
-            _ => Err(XbrlError::ParseError {
-                expected: "CyclesAllowed",
-                value: str.to_owned(),
-            }),
-        }
-    }
+/// The XBRL balance type for a monetary taxonomy element (`xbrli:balance` attribute).
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum Balance {
+    /// An asset or expense concept (increases on the debit side).
+    Debit,
+    /// A liability, equity, or income concept (increases on the credit side).
+    Credit,
 }
 
-impl fmt::Display for CyclesAllowed {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Any => f.write_str("any"),
-            Self::Undirected => f.write_str("undirected"),
-            Self::None => f.write_str("none"),
-        }
-    }
-}
-
-/// A `link:roleType` definition from a taxonomy schema.
-#[derive(Debug, Clone)]
-pub struct RoleType {
-    /// The id attribute (e.g., "role_balanceSheet").
-    pub id: String,
-    /// The roleURI attribute.
-    pub role_uri: String,
-    /// The human-readable definition (child `link:definition` text).
-    pub definition: Option<String>,
-    /// Which link types this role is used on (child `link:usedOn` texts).
-    pub used_on: Vec<String>,
-}
-
-/// A `link:arcroleType` definition from a taxonomy schema.
-#[derive(Debug, Clone)]
-pub struct ArcroleType {
-    /// The id attribute.
-    pub id: String,
-    /// The arcroleURI attribute.
-    pub arcrole_uri: String,
-    /// The human-readable definition.
-    pub definition: Option<String>,
-    /// Which link types this arcrole is used on.
-    pub used_on: Vec<String>,
-    /// The cycles-allowed attribute.
-    pub cycles_allowed: Option<CyclesAllowed>,
-}
-
-/// A `link:linkbaseRef` found in a schema's `xs:annotation/xs:appinfo`.
-#[derive(Debug, Clone)]
-pub struct LinkbaseRef {
-    /// The xlink:href value (relative path to the linkbase file).
-    pub href: String,
-    /// The xlink:role (e.g., <http://www.xbrl.org/2003/role/labelLinkbaseRef>).
-    pub role: Option<String>,
-    /// The xlink:arcrole (typically <http://www.w3.org/1999/xlink/properties/linkbase>).
-    pub arcrole: Option<String>,
-    /// The xlink:title.
-    pub title: Option<String>,
-}
-
-/// An `xs:import` reference in a schema.
-#[derive(Debug, Clone)]
-pub struct SchemaImport {
-    /// Namespace URI declared by `xs:import/@namespace`.
-    pub namespace: String,
-    /// Optional schema location from `xs:import/@schemaLocation`.
-    pub schema_location: Option<String>,
-}
-
-/// An `xs:include` reference in a schema.
-#[derive(Debug, Clone)]
-pub struct SchemaInclude {
-    pub schema_location: String,
+/// The XBRL period type for a taxonomy element (`xbrli:periodType` attribute).
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum PeriodType {
+    /// The element reports a value at a specific point in time.
+    Instant,
+    /// The element reports a value over a time range.
+    Duration,
 }
 
 /// Declared accuracy constraints for an XBRL item type.
@@ -149,6 +78,8 @@ pub struct TaxonomySchema {
     pub arcrole_types: Vec<ArcroleType>,
     /// `xs:element` definitions.
     pub concepts: Vec<Concept>,
+    /// Tuple definitions: tuple element ID -> child element references.
+    pub tuple_defs: HashMap<String, TupleChild>,
     /// Named simple/complex type derivations: type name -> base QName.
     pub type_bases: HashMap<String, String>,
     /// Named types with declared decimals/precision attributes (fixed/default) on restrictions.
@@ -157,12 +88,38 @@ pub struct TaxonomySchema {
 
 impl TaxonomySchema {
     /// Parse a taxonomy schema from an XML reader without semantic validation.
-    pub fn from_xml_unchecked<R: io::BufRead>(path: &Path, reader: &mut Reader<R>) -> Result<Self> {
-        reader::read_schema(path, reader)
+    pub fn from_xml_unchecked<R: io::BufRead>(path: &Path, reader: R) -> Result<Self> {
+        let mut parser = SchemaParser::new(reader, path.to_path_buf());
+        let schema = parser.parse_schema()?;
+        let concepts = resolver::resolve_concepts(&schema);
+
+        Ok(TaxonomySchema {
+            file_path: path.to_path_buf(),
+            target_namespace: schema.target_namespace,
+            namespaces: schema.namespaces,
+            imports: schema.imports,
+            includes: schema.includes,
+            linkbase_refs: schema.linkbase_refs,
+            // TODO: parse actual schema location refs from `xsi:schemaLocation`
+            // and `xsi:noNamespaceSchemaLocation` attributes
+            schema_location_refs: Vec::new(),
+            // TODO: parse actual roleType and arcroleType definitions from
+            // linkbase schema documents
+            role_types: Vec::new(),
+            // TODO: parse actual roleType and arcroleType definitions from
+            // linkbase schema documents
+            arcrole_types: Vec::new(),
+            concepts,
+            // TODO: move tuple definitions from `Concept::tuple_children` to this
+            // top-level map during concept resolution
+            tuple_defs: HashMap::new(),
+            type_bases: HashMap::new(),
+            type_declared_accuracy: HashMap::new(),
+        })
     }
 
     /// Parse a taxonomy schema from an XML reader with semantic validation.
-    pub fn from_xml<R: io::BufRead>(path: &Path, reader: &mut Reader<R>) -> Result<Self> {
+    pub fn from_xml<R: io::BufRead>(path: &Path, reader: R) -> Result<Self> {
         let schema = Self::from_xml_unchecked(path, reader)?;
         schema.validate()?;
         Ok(schema)
@@ -171,34 +128,6 @@ impl TaxonomySchema {
     /// Validate schema-level XBRL constraints.
     pub fn validate(&self) -> Result<()> {
         validation::validate(self)
-    }
-
-    fn is_monetary_type(&self, type_name: &str) -> bool {
-        if local_name(type_name) == "monetaryItemType" {
-            return true;
-        }
-
-        let mut current = type_name.to_string();
-        let mut visited: HashSet<String> = HashSet::new();
-
-        while visited.insert(current.clone()) {
-            let Some(base) = self.type_bases.get(&current) else {
-                return false;
-            };
-
-            if local_name(base) == "monetaryItemType" {
-                return true;
-            }
-
-            current = base.clone();
-        }
-
-        false
-    }
-
-    fn is_known_complex_item_type(&self, type_name: &str) -> bool {
-        let local = local_name(type_name);
-        !local.ends_with("ItemType")
     }
 }
 
@@ -239,10 +168,16 @@ fn is_absolute_uri(value: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{Concept, RoleType, TaxonomySchema};
+    use super::{Concept, TaxonomySchema};
     use crate::{
-        ConceptId, QName, SubstitutionGroup, XbrlBase, XbrlError, XbrlType,
-        taxonomy::schema::concept::{Balance, PeriodType},
+        Balance, PeriodType, XbrlError,
+        taxonomy::{
+            BaseSubstitutionGroup, RoleType,
+            schema::{
+                QName,
+                resolver::{ExpandedName, SubstitutionGroup, XbrlType},
+            },
+        },
     };
     use assert_matches::assert_matches;
     use std::collections::HashMap;
@@ -255,22 +190,12 @@ mod tests {
         balance: Option<Balance>,
     ) -> Concept {
         Concept {
-            id: ConceptId::from(local_name),
-            qname: QName {
-                namespace: "".to_string(),
-                local: local_name.to_string(),
+            id: None,
+            name: ExpandedName {
+                namespace_uri: "".to_string(),
+                local_name: local_name.to_string(),
             },
-            data_type: XbrlType {
-                name: QName {
-                    namespace: "xbrli".to_string(),
-                    local: type_local.to_string(),
-                },
-                base: if type_local.contains("monetary") {
-                    XbrlBase::Monetary
-                } else {
-                    XbrlBase::String
-                },
-            },
+            data_type: XbrlType::Simple(type_local.to_string()),
             substitution_group,
             nillable: true,
             is_abstract: false,
@@ -295,10 +220,17 @@ mod tests {
             concepts: vec![test_concept(
                 "MissingPeriodType",
                 "stringItemType",
-                SubstitutionGroup::item(),
+                SubstitutionGroup {
+                    base: BaseSubstitutionGroup::Item,
+                    original: QName {
+                        prefix: None,
+                        local_name: "item".to_string(),
+                    },
+                },
                 None,
                 None,
             )],
+            tuple_defs: HashMap::new(),
             type_bases: HashMap::new(),
             type_declared_accuracy: HashMap::new(),
         };
@@ -325,10 +257,17 @@ mod tests {
             concepts: vec![test_concept(
                 "NonMonetaryWithBalance",
                 "stringItemType",
-                SubstitutionGroup::item(),
+                SubstitutionGroup {
+                    base: BaseSubstitutionGroup::Item,
+                    original: QName {
+                        prefix: None,
+                        local_name: "item".to_string(),
+                    },
+                },
                 Some(PeriodType::Duration),
                 Some(Balance::Credit),
             )],
+            tuple_defs: HashMap::new(),
             type_bases: HashMap::new(),
             type_declared_accuracy: HashMap::new(),
         };
@@ -355,10 +294,17 @@ mod tests {
             concepts: vec![test_concept(
                 "TupleWithPeriodType",
                 "stringItemType",
-                SubstitutionGroup::tuple(),
+                SubstitutionGroup {
+                    base: BaseSubstitutionGroup::Tuple,
+                    original: QName {
+                        prefix: None,
+                        local_name: "tuple".to_string(),
+                    },
+                },
                 Some(PeriodType::Duration),
                 None,
             )],
+            tuple_defs: HashMap::new(),
             type_bases: HashMap::new(),
             type_declared_accuracy: HashMap::new(),
         };
@@ -385,10 +331,17 @@ mod tests {
             concepts: vec![test_concept(
                 "TupleWithBalance",
                 "stringItemType",
-                SubstitutionGroup::tuple(),
+                SubstitutionGroup {
+                    base: BaseSubstitutionGroup::Tuple,
+                    original: QName {
+                        prefix: None,
+                        local_name: "tuple".to_string(),
+                    },
+                },
                 None,
                 Some(Balance::Credit),
             )],
+            tuple_defs: HashMap::new(),
             type_bases: HashMap::new(),
             type_declared_accuracy: HashMap::new(),
         };
@@ -418,6 +371,7 @@ mod tests {
             }],
             arcrole_types: vec![],
             concepts: vec![],
+            tuple_defs: HashMap::new(),
             type_bases: HashMap::new(),
             type_declared_accuracy: HashMap::new(),
         };
@@ -445,10 +399,17 @@ mod tests {
             concepts: vec![test_concept(
                 "Cash",
                 "monetaryItemType",
-                SubstitutionGroup::item(),
+                SubstitutionGroup {
+                    base: BaseSubstitutionGroup::Item,
+                    original: QName {
+                        prefix: None,
+                        local_name: "item".to_string(),
+                    },
+                },
                 Some(PeriodType::Instant),
                 Some(Balance::Debit),
             )],
+            tuple_defs: HashMap::new(),
             type_bases: HashMap::new(),
             type_declared_accuracy: HashMap::new(),
         };

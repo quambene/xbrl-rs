@@ -1,9 +1,9 @@
-use crate::XbrlError;
+use crate::{Balance, PeriodType, XbrlError, taxonomy::schema::QName};
 use quick_xml::{
     Reader,
     events::{BytesStart, Event, attributes::Attributes},
 };
-use std::{collections::HashMap, io::BufRead, path::PathBuf};
+use std::{collections::HashMap, fmt, io::BufRead, path::PathBuf, str::FromStr};
 
 /// Represents the different XML tags that can appear in `xs:appinfo` sections
 /// of an XBRL schema document.
@@ -16,72 +16,76 @@ enum SchemaAppInfoTag {
     LinkbaseRef,
 }
 
-/// Represents the different XML tags that can appear in XBRL linkbase
-/// documents.
-enum LinkbaseTag {
-    /// A `link:linkbase` root element.
-    Linkbase,
-    /// A `link:presentationLink` element.
-    PresentationLink,
-    /// A `link:calculationLink` element.
-    CalculationLink,
-    /// A `link:definitionLink` element.
-    DefinitionLink,
-    /// A `link:labelLink` element.
-    LabelLink,
-    /// A `link:referenceLink` element.
-    ReferenceLink,
-    /// A `link:footnoteLink` element.
-    FootnoteLink,
-    /// A `link:loc` element (used in arcs to reference a concept by its QName).
-    Loc,
-    /// A `link:presentationArc` element.
-    PresentationArc,
-    /// A `link:calculationArc` element.
-    CalculationArc,
-    /// A `link:definitionArc` element.
-    DefinitionArc,
-    /// A `link:labelArc` element.
-    LabelArc,
-    /// A `link:referenceArc` element.
-    ReferenceArc,
-    /// A `link:footnoteArc` element.
-    FootnoteArc,
-    /// A `link:label` element.
-    Label,
-    /// A `link:reference` element.
-    Reference,
-    /// A `link:footnote` element.
-    Footnote,
-    /// A `link:roleRef` element.
-    RoleRef,
-    /// A `link:arcroleRef` element.
-    ArcroleRef,
-}
-
-/// The XBRL balance type for a monetary taxonomy element (`xbrli:balance` attribute).
-#[derive(Debug, PartialEq, Eq)]
-pub enum Balance {
-    /// An asset or expense concept (increases on the debit side).
-    Debit,
-    /// A liability, equity, or income concept (increases on the credit side).
-    Credit,
-}
-
-/// The XBRL period type for a taxonomy element (`xbrli:periodType` attribute).
-#[derive(Debug, PartialEq, Eq)]
-pub enum PeriodType {
-    /// The element reports a value at a specific point in time.
-    Instant,
-    /// The element reports a value over a time range.
-    Duration,
-}
-
 /// Represents the `elementFormDefault` and `attributeFormDefault` values from
 /// an XBRL schema's root `xs:schema` element.
 pub enum FormDefault {
     Qualified,
     Unqualified,
+}
+
+/// A `link:roleType` definition from a taxonomy schema.
+#[derive(Debug, Clone)]
+pub struct RoleType {
+    /// The id attribute (e.g., "role_balanceSheet").
+    pub id: String,
+    /// The roleURI attribute.
+    pub role_uri: String,
+    /// The human-readable definition (child `link:definition` text).
+    pub definition: Option<String>,
+    /// Which link types this role is used on (child `link:usedOn` texts).
+    pub used_on: Vec<String>,
+}
+
+/// A `link:arcroleType` definition from a taxonomy schema.
+#[derive(Debug, Clone)]
+pub struct ArcroleType {
+    /// The id attribute.
+    pub id: String,
+    /// The arcroleURI attribute.
+    pub arcrole_uri: String,
+    /// The human-readable definition.
+    pub definition: Option<String>,
+    /// Which link types this arcrole is used on.
+    pub used_on: Vec<String>,
+    /// The cycles-allowed attribute.
+    pub cycles_allowed: Option<CyclesAllowed>,
+}
+
+/// The allowed cycle direction for an arcrole (`cyclesAllowed` attribute).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CyclesAllowed {
+    /// Any cycles are allowed.
+    Any,
+    /// Only undirected cycles are allowed.
+    Undirected,
+    /// No cycles are allowed.
+    None,
+}
+
+impl FromStr for CyclesAllowed {
+    type Err = XbrlError;
+
+    fn from_str(str: &str) -> Result<Self, XbrlError> {
+        match str {
+            "any" => Ok(Self::Any),
+            "undirected" => Ok(Self::Undirected),
+            "none" => Ok(Self::None),
+            _ => Err(XbrlError::ParseError {
+                expected: "CyclesAllowed",
+                value: str.to_owned(),
+            }),
+        }
+    }
+}
+
+impl fmt::Display for CyclesAllowed {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Any => f.write_str("any"),
+            Self::Undirected => f.write_str("undirected"),
+            Self::None => f.write_str("none"),
+        }
+    }
 }
 
 /// Represents a raw parsed XBRL schema. Contains only the syntax-level data; no
@@ -133,10 +137,10 @@ pub struct Element {
 
 /// A child element of a tuple (`xs:element[@ref]` inside an inline
 /// `xs:complexType`).
-#[derive(Debug, PartialEq, Eq)]
-pub struct TupleChild {
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct RawTupleChild {
     /// The QName of the referenced element.
-    pub ref_name: QName,
+    pub name: QName,
     /// The minimum number of occurrences of this child element (from
     /// `minOccurs`).
     pub min_occurs: u32,
@@ -199,7 +203,7 @@ pub struct ComplexType {
     pub attributes: Vec<AttributeUse>,
     /// Child elements declared via `xs:element[@ref]` inside an inline
     /// `xs:complexType` of a tuple element.
-    pub children: Vec<TupleChild>,
+    pub children: Vec<RawTupleChild>,
 }
 
 /// Represents an `xs:import` in the schema.
@@ -218,25 +222,23 @@ pub struct SchemaInclude {
     pub schema_location: String,
 }
 
-/// Represents a `link:linkbaseRef` in the schema.
+/// Represents a `link:linkbaseRef` in the schema's `xs:annotation/xs:appinfo`.
 #[derive(Debug, PartialEq, Eq)]
 pub struct LinkbaseRef {
     /// Href to the linkbase file.
+    ///
+    /// The xlink:href value (relative path to the linkbase file).
     pub href: String,
-    /// Role type of the linkbase (optional).
+    /// Role type of the linkbase.
+    ///
+    /// The xlink:role (e.g., <http://www.xbrl.org/2003/role/labelLinkbaseRef>).
     pub role: Option<String>,
     /// Type of the linkbase (extended/simple).
     pub link_type: Option<String>,
-}
-
-/// Represents a QName (qualified name) in the schema, which can be used for
-/// type references, substitution groups, etc.
-#[derive(Debug, PartialEq, Eq)]
-pub struct QName {
-    /// The namespace prefix (e.g., "xbrli") if present.
-    pub prefix: Option<String>,
-    /// The local name (e.g., "monetaryItemType").
-    pub local_name: String,
+    // The xlink:arcrole (typically <http://www.w3.org/1999/xlink/properties/linkbase>).
+    // pub arcrole: Option<String>,
+    // The xlink:title.
+    // pub title: Option<String>,
 }
 
 /// Parses a QName string (e.g., "xbrli:monetaryItemType") into a `QName`
@@ -275,6 +277,7 @@ impl<R: BufRead> SchemaParser<R> {
     /// Creates a new `SchemaParser` with the given reader and file path.
     pub fn new(reader: R, path: PathBuf) -> Self {
         let mut reader = Reader::from_reader(reader);
+
         reader.config_mut().trim_text_start = true;
         reader.config_mut().trim_text_end = true;
 
@@ -343,7 +346,7 @@ impl<R: BufRead> SchemaParser<R> {
                         }
                     }
                 }
-                Ok(Event::End(ref event)) => {}
+                Ok(Event::End(_)) => {}
                 Ok(Event::Text(_)) => {
                     // TODO: parse `xs:annotation` and `xs:documentation`
                 }
@@ -737,7 +740,7 @@ impl<R: BufRead> SchemaParser<R> {
     }
 
     /// Parses an `xs:sequence` element.
-    fn parse_sequence(&mut self) -> Result<Vec<TupleChild>, XbrlError> {
+    fn parse_sequence(&mut self) -> Result<Vec<RawTupleChild>, XbrlError> {
         let mut buf = Vec::new();
         let mut children = Vec::new();
 
@@ -773,9 +776,9 @@ impl<R: BufRead> SchemaParser<R> {
                         }
                     }
 
-                    if let Some(ref_name) = ref_name {
-                        children.push(TupleChild {
-                            ref_name,
+                    if let Some(name) = ref_name {
+                        children.push(RawTupleChild {
+                            name,
                             min_occurs,
                             max_occurs,
                         });
@@ -1052,16 +1055,16 @@ mod tests {
                     compositor: Some(Compositor::Sequence),
                     attributes: vec![],
                     children: vec![
-                        TupleChild {
-                            ref_name: QName {
+                        RawTupleChild {
+                            name: QName {
                                 prefix: Some("my".to_string()),
                                 local_name: "city".to_string(),
                             },
                             min_occurs: 1,
                             max_occurs: Some(1),
                         },
-                        TupleChild {
-                            ref_name: QName {
+                        RawTupleChild {
+                            name: QName {
                                 prefix: Some("my".to_string()),
                                 local_name: "country".to_string(),
                             },
@@ -1115,16 +1118,16 @@ mod tests {
                     compositor: Some(Compositor::Sequence),
                     attributes: vec![],
                     children: vec![
-                        TupleChild {
-                            ref_name: QName {
+                        RawTupleChild {
+                            name: QName {
                                 prefix: Some("my".to_string()),
                                 local_name: "itemA".to_string(),
                             },
                             min_occurs: 2,
                             max_occurs: Some(2),
                         },
-                        TupleChild {
-                            ref_name: QName {
+                        RawTupleChild {
+                            name: QName {
                                 prefix: Some("my".to_string()),
                                 local_name: "itemB".to_string(),
                             },
@@ -1179,16 +1182,16 @@ mod tests {
                     compositor: Some(Compositor::Choice),
                     attributes: vec![],
                     children: vec![
-                        TupleChild {
-                            ref_name: QName {
+                        RawTupleChild {
+                            name: QName {
                                 prefix: Some("my".to_string()),
                                 local_name: "optA".to_string(),
                             },
                             min_occurs: 1,
                             max_occurs: Some(1),
                         },
-                        TupleChild {
-                            ref_name: QName {
+                        RawTupleChild {
+                            name: QName {
                                 prefix: Some("my".to_string()),
                                 local_name: "optB".to_string(),
                             },

@@ -1,6 +1,8 @@
 use crate::{
-    TaxonomySchema, XbrlError,
-    taxonomy::schema::{XbrlBase, is_absolute_uri, is_ncname, local_name},
+    XbrlError,
+    taxonomy::schema::{
+        TaxonomySchema, is_absolute_uri, is_ncname, local_name, resolver::XbrlType,
+    },
 };
 
 /// Validate schema-level XBRL constraints.
@@ -8,7 +10,7 @@ pub fn validate(taxonomy: &TaxonomySchema) -> Result<(), XbrlError> {
     if taxonomy
         .target_namespace
         .as_deref()
-        .is_some_and(|ns| ns.trim().is_empty())
+        .is_some_and(|namespace| namespace.trim().is_empty())
     {
         return Err(XbrlError::InvalidSchemaDocument {
             path: taxonomy.file_path.clone(),
@@ -20,7 +22,10 @@ pub fn validate(taxonomy: &TaxonomySchema) -> Result<(), XbrlError> {
         if element.substitution_group.is_item() && element.period_type.is_none() {
             return Err(XbrlError::InvalidSchemaDocument {
                 path: taxonomy.file_path.clone(),
-                reason: format!("item '{}' is missing xbrli:periodType", element.qname.local),
+                reason: format!(
+                    "item '{}' is missing xbrli:periodType",
+                    element.name.local_name
+                ),
             });
         }
 
@@ -29,7 +34,7 @@ pub fn validate(taxonomy: &TaxonomySchema) -> Result<(), XbrlError> {
                 path: taxonomy.file_path.clone(),
                 reason: format!(
                     "tuple '{}' must not declare xbrli:periodType",
-                    element.qname.local
+                    element.name.local_name
                 ),
             });
         }
@@ -40,33 +45,32 @@ pub fn validate(taxonomy: &TaxonomySchema) -> Result<(), XbrlError> {
                     path: taxonomy.file_path.clone(),
                     reason: format!(
                         "tuple '{}' must not declare xbrli:balance",
-                        element.qname.local
+                        element.name.local_name
                     ),
                 });
             }
 
-            let is_monetary = taxonomy.is_monetary_type(element.data_type.name.local.as_str())
-                || matches!(element.data_type.base, XbrlBase::Monetary);
+            let is_monetary = matches!(element.data_type, XbrlType::Monetary)
+                || matches!(element.data_type, XbrlType::Monetary);
 
             if !is_monetary {
                 return Err(XbrlError::InvalidSchemaDocument {
                     path: taxonomy.file_path.clone(),
                     reason: format!(
                         "element '{}' has xbrli:balance but is not monetaryItemType-derived",
-                        element.qname.local
+                        element.name.local_name
                     ),
                 });
             }
         }
 
-        if element.substitution_group.is_item()
-            && taxonomy.is_known_complex_item_type(element.data_type.name.local.as_str())
+        if element.substitution_group.is_item() && matches!(element.data_type, XbrlType::Complex(_))
         {
             return Err(XbrlError::InvalidSchemaDocument {
                 path: taxonomy.file_path.clone(),
                 reason: format!(
                     "item '{}' has unsupported complex content type",
-                    element.qname.local
+                    element.name.local_name
                 ),
             });
         }

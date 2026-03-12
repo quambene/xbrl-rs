@@ -48,7 +48,7 @@ pub(super) fn validate_calculations(
                     continue;
                 };
 
-                let parent_acc = effective_accuracy(parent_fact, taxonomy);
+                let parent_acc = effective_accuracy(parent_fact);
                 let parent_effective_value = apply_effective_accuracy(
                     parent_fact.value(),
                     parent_value,
@@ -74,7 +74,7 @@ pub(super) fn validate_calculations(
                             continue;
                         };
 
-                        let child_acc = effective_accuracy(child_fact, taxonomy);
+                        let child_acc = effective_accuracy(child_fact);
                         let child_effective_value = apply_effective_accuracy(
                             child_fact.value(),
                             child_value,
@@ -107,7 +107,7 @@ pub(super) fn validate_calculations(
                             "Calculation inconsistency in role '{role}': '{parent_id}' \
                              reported effective value {parent_effective_value} but children sum to {weighted_sum_effective}",
                         ),
-                        Some(parent_fact.concept()),
+                        Some(parent_fact.concept_name()),
                         Some(parent_fact.context_ref()),
                     );
                 }
@@ -116,7 +116,8 @@ pub(super) fn validate_calculations(
     }
 }
 
-fn effective_accuracy(fact: &ItemFact, taxonomy: &TaxonomySet) -> DeclaredAccuracy {
+// TODO: determine `DeclaredAccuracy`
+fn effective_accuracy(fact: &ItemFact) -> DeclaredAccuracy {
     let decimals = fact.decimals().cloned();
     let precision = fact.precision().cloned();
     if decimals.is_some() || precision.is_some() {
@@ -126,12 +127,7 @@ fn effective_accuracy(fact: &ItemFact, taxonomy: &TaxonomySet) -> DeclaredAccura
         };
     }
 
-    let Some(element) = taxonomy.find_element(fact.local_name()) else {
-        return DeclaredAccuracy::default();
-    };
-    let type_name = element.data_type.name.local.as_str();
-
-    taxonomy.type_declared_accuracy(type_name)
+    DeclaredAccuracy::default()
 }
 
 /// Key for grouping facts: (context_ref, unit_ref or "").
@@ -180,13 +176,15 @@ fn build_fact_index<'a>(
             continue;
         }
         let local_name = fact.local_name();
-        if let Some(element) = taxonomy.find_element(local_name)
+        if let Some(element) = taxonomy.find_concept(local_name)
             && let Some(context) = instance.get_context(fact.context_ref())
         {
             let Some(key) = fact_semantic_key(instance, fact, context) else {
                 continue;
             };
-            let element_index = index.entry(element.id.to_string()).or_default();
+            let element_index = index
+                .entry(element.id.clone().unwrap_or_default().to_string())
+                .or_default();
             if let Some(existing) = element_index.get_mut(&key) {
                 existing.is_duplicate = true;
             } else {

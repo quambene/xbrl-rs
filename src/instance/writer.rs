@@ -169,8 +169,8 @@ fn write_fact<W: std::io::Write>(writer: &mut Writer<W>, fact: &Fact) -> Result<
 }
 
 fn write_tuple_fact<W: std::io::Write>(writer: &mut Writer<W>, fact: &TupleFact) -> Result<()> {
-    let concept = fact.concept();
-    let mut elem = BytesStart::new(concept);
+    let concept_name = fact.concept_name();
+    let mut elem = BytesStart::new(concept_name);
     if let Some(id) = fact.id() {
         elem.push_attribute(("id", id));
     }
@@ -190,13 +190,13 @@ fn write_tuple_fact<W: std::io::Write>(writer: &mut Writer<W>, fact: &TupleFact)
     for child in fact.children() {
         write_fact(writer, child)?;
     }
-    writer.write_event(Event::End(BytesEnd::new(concept)))?;
+    writer.write_event(Event::End(BytesEnd::new(concept_name)))?;
     Ok(())
 }
 
 fn write_item_fact<W: std::io::Write>(writer: &mut Writer<W>, fact: &ItemFact) -> Result<()> {
-    let concept = fact.concept();
-    let mut elem = BytesStart::new(concept);
+    let concept_name = fact.concept_name();
+    let mut elem = BytesStart::new(concept_name);
     if let Some(id) = fact.id() {
         elem.push_attribute(("id", id));
     }
@@ -216,7 +216,7 @@ fn write_item_fact<W: std::io::Write>(writer: &mut Writer<W>, fact: &ItemFact) -
     } else {
         writer.write_event(Event::Start(elem))?;
         writer.write_event(Event::Text(BytesText::new(fact.value())))?;
-        writer.write_event(Event::End(BytesEnd::new(concept)))?;
+        writer.write_event(Event::End(BytesEnd::new(fact.concept_name())))?;
     }
 
     Ok(())
