@@ -53,12 +53,16 @@ impl XbrlType {
     }
 }
 
+/// The base substitution group of a concept, resolved to either `Item` or
+/// `Tuple`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum BaseSubstitutionGroup {
     Item,
     Tuple,
 }
 
+/// The resolved substitution group of a concept, including both the resolved
+/// base group and the original QName.
 #[derive(Debug, PartialEq, Eq)]
 pub struct SubstitutionGroup {
     /// The fully resolved base group (item, tuple, dimension, etc.)
@@ -77,7 +81,8 @@ impl SubstitutionGroup {
     }
 }
 
-/// The element's resolved name.
+/// The element's resolved name, based on unique namespace uri instead of
+/// prefix.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ExpandedName {
     /// The namespace URI (e.g., "http://xbrl.org/2003/instance").
