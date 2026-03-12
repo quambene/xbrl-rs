@@ -313,8 +313,14 @@ impl<R: BufRead> SchemaParser<R> {
                             let linkbase_ref = self.parse_linkbase_ref(attributes)?;
                             schema.linkbase_refs.push(linkbase_ref);
                         }
-                        b"roleType" => self.parse_role_type(&mut schema, attributes)?,
-                        b"arcroleType" => self.parse_arcrole_type(&mut schema, attributes)?,
+                        b"roleType" => {
+                            let role_type = self.parse_role_type(attributes)?;
+                            schema.role_types.push(role_type);
+                        }
+                        b"arcroleType" => {
+                            let arcrole_type = self.parse_arcrole_type(attributes)?;
+                            schema.arcrole_types.push(arcrole_type);
+                        }
                         b"element" => {
                             let element = self.parse_element(event)?;
                             schema.elements.push(element);
@@ -516,21 +522,128 @@ impl<R: BufRead> SchemaParser<R> {
     }
 
     /// Parses a `link:roleType` element.
-    fn parse_role_type(
-        &mut self,
-        schema: &mut RawSchema,
-        attributes: Attributes,
-    ) -> Result<(), XbrlError> {
-        todo!()
+    fn parse_role_type(&mut self, attributes: Attributes) -> Result<RoleType, XbrlError> {
+        let mut id = String::new();
+        let mut role_uri = String::new();
+
+        for attribute in attributes {
+            let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                position: self.reader.buffer_position(),
+                element: Some("roleType".to_string()),
+                source: err.into(),
+            })?;
+            let local_name = attribute.key.local_name();
+            let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+            match local_name.as_ref() {
+                b"id" => id = value.into_owned(),
+                b"roleURI" => role_uri = value.into_owned(),
+                _ => {}
+            }
+        }
+
+        let mut definition = None;
+        let mut used_on = Vec::new();
+        let mut buf = Vec::new();
+
+        loop {
+            match self.reader.read_event_into(&mut buf)? {
+                Event::Start(ref event) => match event.local_name().as_ref() {
+                    b"definition" => {
+                        if let Event::Text(text) = self.reader.read_event_into(&mut buf)? {
+                            definition = Some(
+                                text.xml_content()
+                                    .map_err(quick_xml::Error::from)?
+                                    .into_owned(),
+                            );
+                        }
+                    }
+                    b"usedOn" => {
+                        if let Event::Text(text) = self.reader.read_event_into(&mut buf)? {
+                            used_on.push(
+                                text.xml_content()
+                                    .map_err(quick_xml::Error::from)?
+                                    .into_owned(),
+                            );
+                        }
+                    }
+                    _ => self.skip_element()?,
+                },
+                Event::End(ref event) if event.local_name().as_ref() == b"roleType" => break,
+                _ => {}
+            }
+            buf.clear();
+        }
+
+        Ok(RoleType {
+            id,
+            role_uri,
+            definition,
+            used_on,
+        })
     }
 
     /// Parses a `link:arcroleType` element.
-    fn parse_arcrole_type(
-        &mut self,
-        schema: &mut RawSchema,
-        attributes: Attributes,
-    ) -> Result<(), XbrlError> {
-        todo!()
+    fn parse_arcrole_type(&mut self, attributes: Attributes) -> Result<ArcroleType, XbrlError> {
+        let mut id = String::new();
+        let mut arcrole_uri = String::new();
+        let mut cycles_allowed = None;
+
+        for attribute in attributes {
+            let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                position: self.reader.buffer_position(),
+                element: Some("arcroleType".to_string()),
+                source: err.into(),
+            })?;
+            let local_name = attribute.key.local_name();
+            let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+            match local_name.as_ref() {
+                b"id" => id = value.into_owned(),
+                b"arcroleURI" => arcrole_uri = value.into_owned(),
+                b"cyclesAllowed" => cycles_allowed = Some(value.parse::<CyclesAllowed>()?),
+                _ => {}
+            }
+        }
+
+        let mut definition = None;
+        let mut used_on = Vec::new();
+        let mut buf = Vec::new();
+
+        loop {
+            match self.reader.read_event_into(&mut buf)? {
+                Event::Start(ref event) => match event.local_name().as_ref() {
+                    b"definition" => {
+                        if let Event::Text(text) = self.reader.read_event_into(&mut buf)? {
+                            definition = Some(
+                                text.xml_content()
+                                    .map_err(quick_xml::Error::from)?
+                                    .into_owned(),
+                            );
+                        }
+                    }
+                    b"usedOn" => {
+                        if let Event::Text(text) = self.reader.read_event_into(&mut buf)? {
+                            used_on.push(
+                                text.xml_content()
+                                    .map_err(quick_xml::Error::from)?
+                                    .into_owned(),
+                            );
+                        }
+                    }
+                    _ => self.skip_element()?,
+                },
+                Event::End(ref event) if event.local_name().as_ref() == b"arcroleType" => break,
+                _ => {}
+            }
+            buf.clear();
+        }
+
+        Ok(ArcroleType {
+            id,
+            arcrole_uri,
+            definition,
+            used_on,
+            cycles_allowed,
+        })
     }
 
     /// Parses an `xs:annotation` element, including its child `xs:appinfo`.
@@ -563,8 +676,14 @@ impl<R: BufRead> SchemaParser<R> {
                         let linkbase_ref = self.parse_linkbase_ref(event.attributes())?;
                         schema.linkbase_refs.push(linkbase_ref);
                     }
-                    b"roleType" => self.parse_role_type(schema, event.attributes())?,
-                    b"arcroleType" => self.parse_arcrole_type(schema, event.attributes())?,
+                    b"roleType" => {
+                        let role_type = self.parse_role_type(event.attributes())?;
+                        schema.role_types.push(role_type);
+                    }
+                    b"arcroleType" => {
+                        let arcrole_type = self.parse_arcrole_type(event.attributes())?;
+                        schema.arcrole_types.push(arcrole_type);
+                    }
                     _ => {}
                 },
                 Event::End(event) if event.local_name().as_ref() == b"appinfo" => break,
