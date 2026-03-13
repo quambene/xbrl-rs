@@ -12,9 +12,8 @@ fn parse_instance(c: &mut Criterion) {
     group.warm_up_time(Duration::from_secs(5));
     group.bench_function("parse_instance", |b| {
         b.iter(|| {
-            let mut reader =
-                Reader::from_file("test_data/instances/balance_sheet_v64.xml").unwrap();
-            let _instance = InstanceDocument::from_xml(&mut reader).unwrap();
+            let reader = Reader::from_file("test_data/instances/balance_sheet_v64.xml").unwrap();
+            let _instance = InstanceDocument::from_xml(reader).unwrap();
         });
     });
 }
@@ -30,8 +29,8 @@ fn validate_instance(c: &mut Criterion) {
                 entry_point,
             )
             .unwrap();
-    let mut reader = Reader::from_file("test_data/instances/balance_sheet_v64.xml").unwrap();
-    let instance = InstanceDocument::from_xml(&mut reader).unwrap();
+    let reader = Reader::from_file("test_data/instances/balance_sheet_v64.xml").unwrap();
+    let instance = InstanceDocument::from_xml(reader).unwrap();
 
     let mut group = c.benchmark_group("bench_xbrl");
     group.sample_size(10);
@@ -53,8 +52,8 @@ fn view_instance(c: &mut Criterion) {
                 entry_point,
             )
             .unwrap();
-    let mut reader = Reader::from_file("test_data/instances/balance_sheet_v64.xml").unwrap();
-    let instance = InstanceDocument::from_xml(&mut reader).unwrap();
+    let reader = Reader::from_file("test_data/instances/balance_sheet_v64.xml").unwrap();
+    let instance = InstanceDocument::from_xml(reader).unwrap();
 
     let mut group = c.benchmark_group("bench_xbrl");
     group.sample_size(10);

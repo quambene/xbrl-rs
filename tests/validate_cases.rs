@@ -13,9 +13,9 @@ use xbrl_rs::{InstanceDocument, TaxonomySet};
 
 fn parse_instance(path: &Path) -> InstanceDocument {
     let file = File::open(path).expect("failed to open instance file");
-    let mut reader = Reader::from_reader(BufReader::new(file));
+    let reader = Reader::from_reader(BufReader::new(file));
 
-    InstanceDocument::from_xml(&mut reader).expect("failed to parse instance")
+    InstanceDocument::from_xml(reader).expect("failed to parse instance")
 }
 
 fn discover_taxonomy(instance: &InstanceDocument, entry_point: &Path) -> TaxonomySet {

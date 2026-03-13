@@ -118,8 +118,8 @@ fn generate_instance() {
     instance.to_xml(&mut writer).unwrap();
     let xml = String::from_utf8(writer.into_inner()).unwrap();
 
-    let mut reader = XmlReader::from_str(&xml);
-    let instance_from_xml = InstanceDocument::from_xml(&mut reader).unwrap();
+    let reader = XmlReader::from_str(&xml);
+    let instance_from_xml = InstanceDocument::from_xml(reader).unwrap();
 
     assert_eq!(instance.schema_refs(), instance_from_xml.schema_refs());
     assert_eq!(instance.role_refs(), instance_from_xml.role_refs());

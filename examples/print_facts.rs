@@ -89,8 +89,8 @@ fn print_node(
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Parse instance
     let file = File::open(INSTANCE_PATH)?;
-    let mut reader = Reader::from_reader(BufReader::new(file));
-    let instance = InstanceDocument::from_xml(&mut reader)?;
+    let reader = Reader::from_reader(BufReader::new(file));
+    let instance = InstanceDocument::from_xml(reader)?;
 
     // Discover taxonomy
     let schema_refs: Vec<String> = instance.schema_refs().to_vec();

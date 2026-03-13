@@ -317,8 +317,8 @@ fn run_instance_variation(variation: &Variation, base_dir: &Path) -> Outcome {
     // Parse the instance document.
     let mut instance = match File::open(&instance_path) {
         Ok(f) => {
-            let mut reader = Reader::from_reader(BufReader::new(f));
-            match InstanceDocument::from_xml(&mut reader) {
+            let reader = Reader::from_reader(BufReader::new(f));
+            match InstanceDocument::from_xml(reader) {
                 Ok(i) => i,
                 Err(_) => return Outcome::Invalid,
             }
