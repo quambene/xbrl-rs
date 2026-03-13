@@ -70,7 +70,13 @@ pub struct RawUnitDivide {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct RawFact {
+pub enum RawFact {
+    Item(RawItemFact),
+    Tuple(RawTupleFact),
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct RawItemFact {
     /// QName of the concept
     pub name: String,
     /// Raw text value
@@ -85,6 +91,20 @@ pub struct RawFact {
     pub precision: Option<String>,
     /// id attribute
     pub id: Option<String>,
+    /// xsi:nil attribute
+    pub is_nil: bool,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct RawTupleFact {
+    /// QName of the concept
+    pub name: String,
+    /// id attribute
+    pub id: Option<String>,
+    /// xsi:nil attribute
+    pub is_nil: bool,
+    /// Child facts (items or nested tuples)
+    pub children: Vec<RawFact>,
 }
 
 /// A locator in a footnote link, usually a `link:loc` element.
@@ -215,7 +235,7 @@ impl<R: BufRead> InstanceParser<R> {
 
         loop {
             match self.reader.read_event_into(&mut buf) {
-                Ok(Event::Start(ref event)) | Ok(Event::Empty(ref event)) => {
+                Ok(Event::Start(ref event)) => {
                     let event_name = event.name();
                     let local_name = event_name.local_name();
                     let attributes = event.attributes();
@@ -231,10 +251,33 @@ impl<R: BufRead> InstanceParser<R> {
                         b"context" => self.parse_context(&mut instance, attributes)?,
                         b"unit" => self.parse_unit(&mut instance, attributes)?,
                         b"footnoteLink" => self.parse_footnote_link(&mut instance, attributes)?,
-                        _ => {
+                        _ if Self::is_fact_element(local_name.as_ref()) => {
                             self.parse_fact(&mut instance, event)?;
                         }
+                        _ => {}
                     }
+                }
+                Ok(Event::Empty(ref event)) => {
+                    let local_name = event.name().local_name();
+                    let attributes = event.attributes();
+
+                    match local_name.as_ref() {
+                        b"xbrl" => {
+                            has_instance_root = true;
+                            self.parse_instance_root(&mut instance, attributes)?;
+                        }
+                        b"schemaRef" => self.parse_schema_ref(&mut instance, attributes)?,
+                        b"roleRef" => self.parse_role_ref(&mut instance, attributes)?,
+                        b"arcroleRef" => self.parse_arcrole_ref(&mut instance, attributes)?,
+                        _ if Self::is_fact_element(local_name.as_ref()) => {
+                            let fact = self.parse_empty_fact(event)?;
+                            instance.facts.push(fact);
+                        }
+                        _ => {}
+                    }
+                }
+                Ok(Event::End(ref event)) if event.name().local_name().as_ref() == b"xbrl" => {
+                    break;
                 }
                 Ok(Event::End(_)) => {}
                 Ok(Event::Text(_)) => {}
@@ -742,12 +785,60 @@ impl<R: BufRead> InstanceParser<R> {
         })
     }
 
-    /// Parse a fact element.
+    /// Check if a local element name represents a fact (as opposed to a
+    /// structural XBRL element like context, unit, schemaRef, etc.).
+    fn is_fact_element(local_name: &[u8]) -> bool {
+        !matches!(
+            local_name,
+            b"xbrl"
+                | b"context"
+                | b"unit"
+                | b"schemaRef"
+                | b"roleRef"
+                | b"arcroleRef"
+                | b"identifier"
+                | b"entity"
+                | b"period"
+                | b"instant"
+                | b"startDate"
+                | b"endDate"
+                | b"scenario"
+                | b"segment"
+                | b"explicitMember"
+                | b"measure"
+                | b"footnoteLink"
+                | b"footnote"
+                | b"footnoteArc"
+                | b"loc"
+                | b"forever"
+                | b"unitNumerator"
+                | b"unitDenominator"
+                | b"divide"
+        )
+    }
+
+    /// Parse a fact element (item or tuple).
+    ///
+    /// If `contextRef` is present the element is an item fact; otherwise it is
+    /// a tuple fact whose children are parsed recursively.
     fn parse_fact(
         &mut self,
         instance: &mut RawInstance,
         event: &BytesStart,
     ) -> Result<(), XbrlError> {
+        let fact = self.parse_fact_recursive(event)?;
+
+        if let Some(fact) = fact {
+            instance.facts.push(fact);
+        }
+
+        Ok(())
+    }
+
+    /// Recursively parse a single fact element, returning `None` for
+    /// self-closing elements without `contextRef` that have no children
+    /// (empty tuples are still returned).
+    fn parse_fact_recursive(&mut self, event: &BytesStart) -> Result<Option<RawFact>, XbrlError> {
         let name = std::str::from_utf8(event.name().as_ref())?.to_string();
 
         let mut context_ref = None;
@@ -755,6 +846,7 @@ impl<R: BufRead> InstanceParser<R> {
         let mut decimals = None;
         let mut precision = None;
         let mut id = None;
+        let mut is_nil = false;
 
         for attribute in event.attributes() {
             let attribute = attribute.map_err(|err| XbrlError::XmlParse {
@@ -771,44 +863,124 @@ impl<R: BufRead> InstanceParser<R> {
                 b"decimals" => decimals = Some(value.into_owned()),
                 b"precision" => precision = Some(value.into_owned()),
                 b"id" => id = Some(value.into_owned()),
+                b"nil" => is_nil = value.as_ref() == "true",
                 _ => {}
             }
         }
 
-        // If contextRef is missing, it's not a fact element
-        let context_ref = match context_ref {
-            Some(context_ref) => context_ref,
-            None => return Ok(()),
-        };
+        if let Some(context_ref) = context_ref {
+            let mut value = String::new();
+            let mut buf = Vec::new();
 
-        // Read the text value
-        let mut value = String::new();
-        let mut buf = Vec::new();
-
-        loop {
-            match self.reader.read_event_into(&mut buf)? {
-                Event::Text(ref text) => {
-                    let decoded = text.xml_content().map_err(quick_xml::Error::from)?;
-                    value.push_str(&decoded);
+            // Item fact: read text value until closing tag
+            loop {
+                match self.reader.read_event_into(&mut buf)? {
+                    Event::Text(ref text) => {
+                        let decoded = text.xml_content().map_err(quick_xml::Error::from)?;
+                        value.push_str(&decoded);
+                    }
+                    Event::End(ref end) if end.name().as_ref() == event.name().as_ref() => break,
+                    Event::Eof => break,
+                    _ => {}
                 }
-                Event::End(ref end) if end.name().as_ref() == event.name().as_ref() => break,
-                Event::Eof => break,
+                buf.clear();
+            }
+
+            Ok(Some(RawFact::Item(RawItemFact {
+                name,
+                value,
+                context_ref,
+                unit_ref,
+                decimals,
+                precision,
+                id,
+                is_nil,
+            })))
+        } else {
+            let mut children = Vec::new();
+            let mut buf = Vec::new();
+
+            // Tuple fact: recursively parse child facts until closing tag
+            loop {
+                match self.reader.read_event_into(&mut buf)? {
+                    Event::Start(ref child_event) => {
+                        if Self::is_fact_element(child_event.name().local_name().as_ref())
+                            && let Some(child) = self.parse_fact_recursive(child_event)?
+                        {
+                            children.push(child);
+                        }
+                    }
+                    Event::Empty(ref child_event) => {
+                        if Self::is_fact_element(child_event.name().local_name().as_ref()) {
+                            children.push(self.parse_empty_fact(child_event)?);
+                        }
+                    }
+                    Event::End(ref end) if end.name().as_ref() == event.name().as_ref() => break,
+                    Event::Eof => break,
+                    _ => {}
+                }
+                buf.clear();
+            }
+
+            Ok(Some(RawFact::Tuple(RawTupleFact {
+                name,
+                id,
+                is_nil,
+                children,
+            })))
+        }
+    }
+
+    /// Parse a self-closing (empty) fact element.
+    fn parse_empty_fact(&mut self, event: &BytesStart) -> Result<RawFact, XbrlError> {
+        let name = std::str::from_utf8(event.name().as_ref())?.to_string();
+
+        let mut context_ref = None;
+        let mut unit_ref = None;
+        let mut decimals = None;
+        let mut precision = None;
+        let mut id = None;
+        let mut is_nil = false;
+
+        for attribute in event.attributes() {
+            let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                position: self.reader.buffer_position(),
+                element: Some(name.clone()),
+                source: err.into(),
+            })?;
+            let local_name = attribute.key.local_name();
+            let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+
+            match local_name.as_ref() {
+                b"contextRef" => context_ref = Some(value.into_owned()),
+                b"unitRef" => unit_ref = Some(value.into_owned()),
+                b"decimals" => decimals = Some(value.into_owned()),
+                b"precision" => precision = Some(value.into_owned()),
+                b"id" => id = Some(value.into_owned()),
+                b"nil" => is_nil = value.as_ref() == "true",
                 _ => {}
             }
-            buf.clear();
         }
 
-        instance.facts.push(RawFact {
-            name,
-            value,
-            context_ref,
-            unit_ref,
-            decimals,
-            precision,
-            id,
-        });
-
-        Ok(())
+        if let Some(context_ref) = context_ref {
+            Ok(RawFact::Item(RawItemFact {
+                name,
+                value: String::new(),
+                context_ref,
+                unit_ref,
+                decimals,
+                precision,
+                id,
+                is_nil,
+            }))
+        } else {
+            Ok(RawFact::Tuple(RawTupleFact {
+                name,
+                id,
+                is_nil,
+                children: Vec::new(),
+            }))
+        }
     }
 
     /// Parse the `link:footnoteLink` element to extract the footnote link.
@@ -965,6 +1137,7 @@ impl<R: BufRead> InstanceParser<R> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use assert_matches::assert_matches;
 
     #[test]
     fn test_parse_instance_root() {
@@ -1082,12 +1255,17 @@ mod tests {
         let instance = parser.parse_instance().unwrap();
 
         assert_eq!(instance.facts.len(), 1);
-        let fact = &instance.facts[0];
-        assert_eq!(fact.name, "ifrs:Revenue");
-        assert_eq!(fact.value, "1200000");
-        assert_eq!(fact.context_ref, "c1");
-        assert_eq!(fact.unit_ref.as_deref(), Some("u1"));
-        assert_eq!(fact.decimals.as_deref(), Some("-3"));
+        match &instance.facts[0] {
+            RawFact::Item(fact) => {
+                assert_eq!(fact.name, "ifrs:Revenue");
+                assert_eq!(fact.value, "1200000");
+                assert_eq!(fact.context_ref, "c1");
+                assert_eq!(fact.unit_ref.as_deref(), Some("u1"));
+                assert_eq!(fact.decimals.as_deref(), Some("-3"));
+                assert!(!fact.is_nil);
+            }
+            RawFact::Tuple(_) => panic!("expected item fact"),
+        }
     }
 
     #[test]
@@ -1126,6 +1304,115 @@ mod tests {
                 }],
             }
         );
+    }
+
+    #[test]
+    fn test_parse_tuple_fact() {
+        let xml = r#"<xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance"
+                                xmlns:t="http://example.com/taxonomy">
+                                <t:Address>
+                                    <t:Street contextRef="c1">Main Street</t:Street>
+                                    <t:City contextRef="c1">Berlin</t:City>
+                                </t:Address>
+                            </xbrli:xbrl>"#;
+        let mut parser = InstanceParser::new(xml.as_bytes(), PathBuf::from("test.xml"));
+        let instance = parser.parse_instance().unwrap();
+
+        assert_eq!(instance.facts.len(), 1);
+        let fact = &instance.facts[0];
+        assert_matches!(fact, RawFact::Tuple(tuple) => {
+            assert_eq!(tuple.name, "t:Address");
+            assert!(!tuple.is_nil);
+            assert_eq!(tuple.children.len(), 2);
+
+            assert_matches!(&tuple.children[0], &RawFact::Item(ref item) => {
+                assert_eq!(item.name, "t:Street");
+                assert_eq!(item.value, "Main Street");
+                assert_eq!(item.context_ref, "c1");
+            });
+            assert_matches!(&tuple.children[1], &RawFact::Item(ref item) => {
+                assert_eq!(item.name, "t:City");
+                assert_eq!(item.value, "Berlin");
+                assert_eq!(item.context_ref, "c1");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_nested_tuple() {
+        let xml = r#"<xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance"
+                                xmlns:t="http://example.com/taxonomy">
+                                <t:Outer>
+                                    <t:Inner>
+                                        <t:Value contextRef="c1">42</t:Value>
+                                    </t:Inner>
+                                </t:Outer>
+                            </xbrli:xbrl>"#;
+        let mut parser = InstanceParser::new(xml.as_bytes(), PathBuf::from("test.xml"));
+        let instance = parser.parse_instance().unwrap();
+
+        assert_eq!(instance.facts.len(), 1);
+        let fact = &instance.facts[0];
+        assert_matches!(fact, RawFact::Tuple(outer) => {
+            assert_eq!(outer.name, "t:Outer");
+            assert!(!outer.is_nil);
+            assert_eq!(outer.children.len(), 1);
+
+            assert_matches!(&outer.children[0], RawFact::Tuple(inner) => {
+                assert_eq!(inner.name, "t:Inner");
+                assert!(!inner.is_nil);
+                assert_eq!(inner.children.len(), 1);
+
+                assert_matches!(&inner.children[0], RawFact::Item(item) => {
+                    assert_eq!(item.name, "t:Value");
+                    assert_eq!(item.value, "42");
+                    assert_eq!(item.context_ref, "c1");
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_nil_item_fact() {
+        let xml = r#"<xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance"
+                            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                            xmlns:ifrs="http://xbrl.ifrs.org/taxonomy/2023">
+                            <ifrs:Revenue contextRef="c1" xsi:nil="true" />
+                        </xbrli:xbrl>"#;
+        let mut parser = InstanceParser::new(xml.as_bytes(), PathBuf::from("test.xml"));
+        let instance = parser.parse_instance().unwrap();
+
+        assert_eq!(instance.facts.len(), 1);
+        match &instance.facts[0] {
+            RawFact::Item(fact) => {
+                assert_eq!(fact.name, "ifrs:Revenue");
+                assert!(fact.is_nil);
+                assert_eq!(fact.value, "");
+                assert_eq!(fact.context_ref, "c1");
+            }
+            RawFact::Tuple(_) => panic!("expected item fact"),
+        }
+    }
+
+    #[test]
+    fn test_parse_empty_tuple() {
+        let xml = r#"<xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance"
+                            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                            xmlns:t="http://example.com/taxonomy">
+                            <t:Address xsi:nil="true" />
+                        </xbrli:xbrl>"#;
+        let mut parser = InstanceParser::new(xml.as_bytes(), PathBuf::from("test.xml"));
+        let instance = parser.parse_instance().unwrap();
+
+        assert_eq!(instance.facts.len(), 1);
+        match &instance.facts[0] {
+            RawFact::Tuple(tuple) => {
+                assert_eq!(tuple.name, "t:Address");
+                assert!(tuple.is_nil);
+                assert!(tuple.children.is_empty());
+            }
+            RawFact::Item(_) => panic!("expected tuple fact"),
+        }
     }
 
     #[test]
@@ -1190,7 +1477,7 @@ mod tests {
                     measures: vec!["iso4217:EUR".to_string()],
                     divide: None,
                 }],
-                facts: vec![RawFact {
+                facts: vec![RawFact::Item(RawItemFact {
                     name: "ifrs:Revenue".to_string(),
                     value: "1200000".to_string(),
                     context_ref: "c1".to_string(),
@@ -1198,7 +1485,8 @@ mod tests {
                     decimals: Some("-3".to_string()),
                     precision: None,
                     id: None,
-                }],
+                    is_nil: false,
+                })],
                 footnote_links: vec![],
             }
         );
