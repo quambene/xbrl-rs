@@ -125,7 +125,6 @@ fn generate_instance() {
     assert_eq!(instance.role_refs(), instance_from_xml.role_refs());
     assert_eq!(instance.arcrole_refs(), instance_from_xml.arcrole_refs());
     assert_eq!(instance.namespaces(), instance_from_xml.namespaces());
-    assert_eq!(instance.root_xml_lang(), instance_from_xml.root_xml_lang());
     assert_eq!(instance.document_name(), instance_from_xml.document_name());
     assert_eq!(
         instance.contexts().len(),

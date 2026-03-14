@@ -297,10 +297,7 @@ fn validate_footnotes(instance: &InstanceDocument, result: &mut ValidationResult
                 res_by_label.insert(label, resource);
             }
 
-            if resource.xml_lang.is_none()
-                && footnote_link.xml_lang.is_none()
-                && instance.root_xml_lang().is_none()
-            {
+            if resource.xml_lang.is_none() && footnote_link.xml_lang.is_none() {
                 result.add(
                     Severity::Error,
                     "spec.footnote_missing_lang",

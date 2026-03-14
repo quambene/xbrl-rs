@@ -52,10 +52,6 @@ where
                     inside_xbrl = true;
                     extract_namespaces(&e.attributes(), &mut instance);
                     namespaces = instance.namespaces().clone();
-                    instance.set_root_xml_lang(
-                        get_attribute(&e.attributes(), b"xml:lang")
-                            .or_else(|| get_attribute_local(&e.attributes(), "lang")),
-                    );
                 }
 
                 if !inside_xbrl {
@@ -108,10 +104,6 @@ where
                 if name_matches(name_str, "xbrl") {
                     inside_xbrl = true;
                     extract_namespaces(&e.attributes(), &mut instance);
-                    instance.set_root_xml_lang(
-                        get_attribute(&e.attributes(), b"xml:lang")
-                            .or_else(|| get_attribute_local(&e.attributes(), "lang")),
-                    );
                 }
 
                 if !inside_xbrl {

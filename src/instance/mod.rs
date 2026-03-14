@@ -5,6 +5,7 @@ mod fact;
 mod footnote;
 mod parser;
 mod reader;
+mod resolver;
 mod unit;
 mod view;
 mod writer;
@@ -95,8 +96,6 @@ pub struct InstanceDocument {
     /// Namespace prefixes used in the document (e.g. "xbrli" ->
     /// "http://www.xbrl.org/2003/instance")
     namespaces: HashMap<NamespacePrefix, String>,
-    /// xml:lang value declared on the root xbrl element, if present.
-    root_xml_lang: Option<String>,
     /// Source document file name used for scope-sensitive checks.
     document_name: Option<String>,
     /// Footnote links found in the instance.
@@ -111,7 +110,6 @@ impl InstanceDocument {
         units: HashMap<UnitId, Unit>,
         facts: Vec<Fact>,
         namespaces: HashMap<NamespacePrefix, String>,
-        root_xml_lang: Option<String>,
         document_name: Option<String>,
         footnote_links: Vec<FootnoteLink>,
     ) -> Self {
@@ -123,7 +121,6 @@ impl InstanceDocument {
             units,
             facts,
             namespaces,
-            root_xml_lang,
             document_name,
             footnote_links,
         }
@@ -242,11 +239,11 @@ impl InstanceDocument {
     ///
     /// Automatically extracts the `<xbrli:xbrl>` element if the input
     /// contains a wrapper around it.
-    pub fn from_xml<R>(reader: &mut Reader<R>) -> Result<Self>
+    pub fn from_xml<R>(mut reader: Reader<R>) -> Result<Self>
     where
         R: io::BufRead,
     {
-        reader::read_xml(reader)
+        reader::read_xml(&mut reader)
     }
 
     /// Validate this instance against a taxonomy.
@@ -402,14 +399,6 @@ impl InstanceDocument {
     /// Get all namespace prefix mappings
     pub fn namespaces(&self) -> &HashMap<NamespacePrefix, String> {
         &self.namespaces
-    }
-
-    pub fn set_root_xml_lang(&mut self, xml_lang: Option<String>) {
-        self.root_xml_lang = xml_lang;
-    }
-
-    pub fn root_xml_lang(&self) -> Option<&str> {
-        self.root_xml_lang.as_deref()
     }
 
     pub fn set_document_name(&mut self, document_name: Option<String>) {
@@ -665,8 +654,8 @@ mod tests {
             </xbrli:xbrl>
         "#;
 
-        let mut reader = Reader::from_str(xml);
-        let instance = InstanceDocument::from_xml(&mut reader).expect("instance should parse");
+        let reader = Reader::from_str(xml);
+        let instance = InstanceDocument::from_xml(reader).expect("instance should parse");
 
         assert_eq!(instance.schema_refs().len(), 1);
         assert!(instance.contexts().is_empty());
@@ -751,7 +740,7 @@ mod tests {
         "#;
 
         let mut reader = Reader::from_str(xml);
-        let instance = InstanceDocument::from_xml(&mut reader).expect("instance should parse");
+        let instance = InstanceDocument::from_xml(reader).expect("instance should parse");
 
         assert_eq!(instance.role_refs(), ["http://www.xbrl.org/2003/role/link"]);
         assert_eq!(
