@@ -326,12 +326,6 @@ fn run_instance_variation(variation: &Variation, base_dir: &Path) -> Outcome {
         Err(_) => return Outcome::Invalid,
     };
 
-    let document_name = instance_path
-        .file_name()
-        .and_then(|name| name.to_str())
-        .map(str::to_string);
-    instance.set_document_name(document_name);
-
     // Collect companion XSD schema refs.
     let xsd_refs: Vec<String> = variation
         .data_files

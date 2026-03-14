@@ -71,7 +71,7 @@ pub enum Period {
 }
 
 /// XBRL context combining entity, period, and optional dimensions
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Context {
     pub id: ContextId,
     pub entity: EntityIdentifier,

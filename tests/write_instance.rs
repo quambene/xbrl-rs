@@ -2,7 +2,7 @@ use roxmltree::Document;
 use std::{path::PathBuf, str::FromStr};
 use xbrl_rs::{
     Context, ContextId, EntityIdentifier, ExpandedName, InstanceDocument, NamespaceUri, Period,
-    QName, TaxonomySet, Unit, UnitId, XmlReader, XmlWriter,
+    TaxonomySet, Unit, UnitId, XmlReader, XmlWriter,
 };
 
 const TAXONOMY_ENTRY_POINT: &str = "test_data/taxonomies";
@@ -139,7 +139,6 @@ fn generate_instance() {
     assert_eq!(instance.role_refs(), instance_from_xml.role_refs());
     assert_eq!(instance.arcrole_refs(), instance_from_xml.arcrole_refs());
     assert_eq!(instance.namespaces(), instance_from_xml.namespaces());
-    assert_eq!(instance.document_name(), instance_from_xml.document_name());
     assert_eq!(
         instance.contexts().len(),
         instance_from_xml.contexts().len()

@@ -76,20 +76,24 @@ pub struct ItemFact {
 
 impl ItemFact {
     pub fn new(
+        id: Option<String>,
         concept_name: String,
         context_ref: String,
         unit_ref: Option<String>,
         value: String,
+        is_nil: bool,
+        decimals: Option<Decimals>,
+        precision: Option<Decimals>,
     ) -> Self {
         Self {
-            id: None,
+            id,
             concept_name,
             context_ref,
             unit_ref,
             value,
-            is_nil: false,
-            decimals: None,
-            precision: None,
+            is_nil,
+            decimals,
+            precision,
         }
     }
 
@@ -232,7 +236,16 @@ impl Fact {
         unit_ref: Option<String>,
         value: String,
     ) -> Self {
-        Self::Item(ItemFact::new(concept, context_ref, unit_ref, value))
+        Self::Item(ItemFact::new(
+            None,
+            concept,
+            context_ref,
+            unit_ref,
+            value,
+            false,
+            None,
+            None,
+        ))
     }
 
     pub fn tuple(concept: String) -> Self {

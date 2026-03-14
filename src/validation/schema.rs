@@ -209,23 +209,6 @@ fn validate_footnotes(instance: &InstanceDocument, result: &mut ValidationResult
             if let (Some(label), Some(href)) = (loc.label.as_deref(), loc.href.as_deref()) {
                 loc_by_label.insert(label, href);
                 if let Some((file_part, target)) = href_target_id(href) {
-                    if let (Some(file_part), Some(document_name)) = (
-                        file_part.filter(|s| !s.is_empty()),
-                        instance.document_name(),
-                    ) && file_part != document_name
-                    {
-                        result.add(
-                            Severity::Error,
-                            "spec.footnote_href_out_of_scope",
-                            format!(
-                                "Footnote locator href '{}' points to another document '{}'; expected '{}'",
-                                href, file_part, document_name
-                            ),
-                            None,
-                            None,
-                        );
-                    }
-
                     if context_ids.contains(target) || unit_ids.contains(target) {
                         result.add(
                             Severity::Error,

@@ -30,6 +30,9 @@ pub use view::{DocumentView, SectionView, TreeNode};
 /// Represents a complete XBRL instance document
 #[derive(Debug, Default)]
 pub struct InstanceDocument {
+    /// Namespace prefixes used in the document (e.g. "xbrli" ->
+    /// "http://www.xbrl.org/2003/instance")
+    namespaces: HashMap<NamespacePrefix, NamespaceUri>,
     /// Schema references (xlink:href values from link:schemaRef elements)
     schema_refs: Vec<String>,
     /// roleURI values from roleRef elements in the instance.
@@ -42,11 +45,6 @@ pub struct InstanceDocument {
     units: HashMap<UnitId, Unit>,
     /// Top-level facts in the instance (item and tuple facts)
     facts: Vec<Fact>,
-    /// Namespace prefixes used in the document (e.g. "xbrli" ->
-    /// "http://www.xbrl.org/2003/instance")
-    namespaces: HashMap<NamespacePrefix, NamespaceUri>,
-    /// Source document file name used for scope-sensitive checks.
-    document_name: Option<String>,
     /// Footnote links found in the instance.
     footnote_links: Vec<FootnoteLink>,
 }
@@ -59,7 +57,6 @@ impl InstanceDocument {
         units: HashMap<UnitId, Unit>,
         facts: Vec<Fact>,
         namespaces: HashMap<NamespacePrefix, NamespaceUri>,
-        document_name: Option<String>,
         footnote_links: Vec<FootnoteLink>,
     ) -> Self {
         Self {
@@ -70,7 +67,6 @@ impl InstanceDocument {
             units,
             facts,
             namespaces,
-            document_name,
             footnote_links,
         }
     }
@@ -336,9 +332,8 @@ impl InstanceDocument {
     }
 
     /// Add a namespace prefix mapping
-    pub fn add_namespace(&mut self, prefix: String, uri: String) {
-        self.namespaces
-            .insert(NamespacePrefix::from(prefix), NamespaceUri::from(uri));
+    pub fn add_namespace(&mut self, prefix: NamespacePrefix, uri: NamespaceUri) {
+        self.namespaces.insert(prefix, uri);
     }
 
     /// Get namespace URI for a prefix
@@ -349,14 +344,6 @@ impl InstanceDocument {
     /// Get all namespace prefix mappings
     pub fn namespaces(&self) -> &HashMap<NamespacePrefix, NamespaceUri> {
         &self.namespaces
-    }
-
-    pub fn set_document_name(&mut self, document_name: Option<String>) {
-        self.document_name = document_name;
-    }
-
-    pub fn document_name(&self) -> Option<&str> {
-        self.document_name.as_deref()
     }
 
     pub fn add_footnote_link(&mut self, footnote_link: FootnoteLink) {
@@ -450,10 +437,14 @@ impl InstanceDocument {
 
                 if emitted_items.insert(concept_id.to_string()) {
                     let mut fact = ItemFact::new(
+                        None,
                         concept_name,
                         context_ref.to_string(),
                         unit_ref_for_concept(concept, units),
                         String::new(),
+                        true,
+                        None,
+                        None,
                     );
                     fact.set_nil(true);
 

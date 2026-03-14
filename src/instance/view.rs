@@ -262,10 +262,14 @@ mod tests {
         // Use a QName without a prefix so concept_id() == "child_a" directly,
         // matching the element ID used in the presentation arcs above.
         let fact = ItemFact::new(
+            None,
             "child_a".to_string(), // no prefix → concept_id() == "child_a"
             "ctx1".to_string(),
             None,
             "42".to_string(),
+            false,
+            None,
+            None,
         );
         let facts = vec![&fact];
 
