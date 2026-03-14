@@ -17,4 +17,4 @@ pub use schema::{
     RoleType, SubstitutionGroup, TaxonomySchema, TupleChild, XbrlType,
 };
 pub use taxonomy_set::TaxonomySet;
-pub use types::{ConceptId, QName, RoleUri, SchemaRefUrl};
+pub use types::{ConceptId, RoleUri, SchemaRefUrl};

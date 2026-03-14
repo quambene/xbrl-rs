@@ -1,4 +1,7 @@
-use crate::{Balance, PeriodType, XbrlError, taxonomy::schema::QName};
+use crate::{
+    Balance, PeriodType, XbrlError,
+    xml::{self, QName},
+};
 use quick_xml::{
     Reader,
     events::{BytesStart, Event, attributes::Attributes},
@@ -230,30 +233,6 @@ pub struct RawSchema {
     pub simple_types: Vec<SimpleType>,
     /// Parsed complex type definitions (`xs:complexType`) in this schema.
     pub complex_types: Vec<ComplexType>,
-}
-
-/// Parses a QName string (e.g., "xbrli:monetaryItemType") into a `QName`
-/// struct.
-fn parse_qname(value: &str) -> QName {
-    if let Some(idx) = value.find(':') {
-        QName {
-            prefix: Some(value[..idx].to_string()),
-            local_name: value[idx + 1..].to_string(),
-        }
-    } else {
-        QName {
-            prefix: None,
-            local_name: value.to_string(),
-        }
-    }
-}
-
-/// Parses a string into a u32.
-fn parse_u32(value: &str) -> Result<u32, XbrlError> {
-    value.parse::<u32>().map_err(|_| XbrlError::ParseError {
-        expected: "integer",
-        value: value.to_string(),
-    })
 }
 
 /// The parser for XBRL schema documents.
@@ -770,8 +749,8 @@ impl<R: BufRead> SchemaParser<R> {
             match local_name.as_ref() {
                 b"name" => name = Some(value.to_string()),
                 b"id" => id = Some(value.to_string()),
-                b"type" => type_name = Some(parse_qname(&value)),
-                b"substitutionGroup" => substitution_group = Some(parse_qname(&value)),
+                b"type" => type_name = Some(xml::parse_qname(&value)),
+                b"substitutionGroup" => substitution_group = Some(xml::parse_qname(&value)),
                 b"abstract" => is_abstract = value == "true",
                 b"nillable" => is_nillable = value == "true",
                 b"periodType" => {
@@ -880,7 +859,7 @@ impl<R: BufRead> SchemaParser<R> {
                                 if attribute.key.as_ref() == b"base" {
                                     let value = attribute
                                         .decode_and_unescape_value(self.reader.decoder())?;
-                                    base = Some(parse_qname(&value));
+                                    base = Some(xml::parse_qname(&value));
                                 }
                             }
                         }
@@ -1021,13 +1000,13 @@ impl<R: BufRead> SchemaParser<R> {
                         let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
 
                         match local_name.as_ref() {
-                            b"ref" => ref_name = Some(parse_qname(&value)),
-                            b"minOccurs" => min_occurs = parse_u32(&value)?,
+                            b"ref" => ref_name = Some(xml::parse_qname(&value)),
+                            b"minOccurs" => min_occurs = xml::parse_u32(&value)?,
                             b"maxOccurs" => {
                                 max_occurs = if value == "unbounded" {
                                     None
                                 } else {
-                                    Some(parse_u32(&value)?)
+                                    Some(xml::parse_u32(&value)?)
                                 }
                             }
                             _ => {}
@@ -1109,7 +1088,7 @@ impl<R: BufRead> SchemaParser<R> {
 
             if attribute.key.local_name().as_ref() == b"base" {
                 let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
-                complex_type.base = Some(parse_qname(&value));
+                complex_type.base = Some(xml::parse_qname(&value));
             }
         }
 

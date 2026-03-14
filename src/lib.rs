@@ -8,6 +8,7 @@ mod error;
 mod instance;
 mod taxonomy;
 pub(crate) mod validation;
+mod xml;
 
 pub use error::{LinkbaseType, Result, XbrlError};
 pub use instance::{
@@ -20,7 +21,8 @@ pub use quick_xml::{Reader as XmlReader, Writer as XmlWriter};
 pub use taxonomy::TaxonomyLoader;
 pub use taxonomy::{
     Balance, CalculationArc, ConceptId, DeclaredAccuracy, DefinitionArc, ExpandedName, Label,
-    LinkbaseLocator, PeriodType, PresentationArc, QName, Reference, ReferencePart, RoleUri,
-    SchemaRefUrl, SubstitutionGroup, TaxonomySchema, TaxonomySet,
+    LinkbaseLocator, PeriodType, PresentationArc, Reference, ReferencePart, RoleUri, SchemaRefUrl,
+    SubstitutionGroup, TaxonomySchema, TaxonomySet,
 };
 pub use validation::{Severity, ValidationMessage, ValidationResult};
+pub use xml::QName;

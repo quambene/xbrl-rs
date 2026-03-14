@@ -1,5 +1,5 @@
 use super::parser::{ComplexType, Element, RawSchema, SimpleType};
-use crate::{Balance, PeriodType, taxonomy::schema::QName};
+use crate::{Balance, PeriodType, xml::QName};
 use std::collections::{HashMap, HashSet};
 
 /// Standard XBRL base types (from xbrli) and common custom types (e.g.,

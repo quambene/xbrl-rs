@@ -1,36 +1,5 @@
 use std::{borrow::Borrow, fmt, ops::Deref};
 
-/// Owned qualified name (namespace + local name).
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct QName {
-    pub namespace: String,
-    pub local: String,
-}
-
-impl QName {
-    pub fn from_prefixed(value: &str) -> Self {
-        if let Some((namespace, local)) = value.split_once(':') {
-            return Self {
-                namespace: namespace.to_owned(),
-                local: local.to_owned(),
-            };
-        }
-
-        Self {
-            namespace: String::new(),
-            local: value.to_owned(),
-        }
-    }
-
-    pub fn as_prefixed(&self) -> String {
-        if self.namespace.is_empty() {
-            return self.local.clone();
-        }
-
-        format!("{}:{}", self.namespace, self.local)
-    }
-}
-
 /// Identifier for schema ref urls (e.g.
 /// `http://www.xbrl.de/taxonomies/de-gcd-2020-04-01/de-gcd-2020-04-01-shell.xsd`).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]

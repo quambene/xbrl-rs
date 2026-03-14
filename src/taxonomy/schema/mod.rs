@@ -14,16 +14,6 @@ use std::{
     path::{Path, PathBuf},
 };
 
-/// Represents a QName (qualified name) in the schema, which can be used for
-/// type references, substitution groups, etc.
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct QName {
-    /// The namespace prefix (e.g., "xbrli") if present.
-    pub prefix: Option<String>,
-    /// The local name (e.g., "monetaryItemType").
-    pub local_name: String,
-}
-
 /// The XBRL balance type for a monetary taxonomy element (`xbrli:balance` attribute).
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Balance {
@@ -173,11 +163,9 @@ mod tests {
         Balance, PeriodType, XbrlError,
         taxonomy::{
             BaseSubstitutionGroup, RoleType,
-            schema::{
-                QName,
-                resolver::{ExpandedName, SubstitutionGroup, XbrlType},
-            },
+            schema::resolver::{ExpandedName, SubstitutionGroup, XbrlType},
         },
+        xml::QName,
     };
     use assert_matches::assert_matches;
     use std::collections::HashMap;
