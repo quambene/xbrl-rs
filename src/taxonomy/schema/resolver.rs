@@ -1,5 +1,5 @@
 use super::parser::{ComplexType, Element, RawSchema, SimpleType};
-use crate::{Balance, PeriodType, xml::QName};
+use crate::{Balance, ExpandedName, PeriodType, xml::QName};
 use std::collections::{HashMap, HashSet};
 
 /// Standard XBRL base types (from xbrli) and common custom types (e.g.,
@@ -78,25 +78,6 @@ impl SubstitutionGroup {
 
     pub fn is_tuple(&self) -> bool {
         self.base == BaseSubstitutionGroup::Tuple
-    }
-}
-
-/// The element's resolved name, based on unique namespace uri instead of
-/// prefix.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct ExpandedName {
-    /// The namespace URI (e.g., "http://xbrl.org/2003/instance").
-    pub namespace_uri: String,
-    /// The local name (e.g., "Revenue").
-    pub local_name: String,
-}
-
-impl ExpandedName {
-    pub fn new(namespace_uri: String, local_name: String) -> Self {
-        Self {
-            namespace_uri,
-            local_name,
-        }
     }
 }
 

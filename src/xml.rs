@@ -52,3 +52,28 @@ pub fn parse_u32(value: &str) -> Result<u32, XbrlError> {
         value: value.to_string(),
     })
 }
+
+/// The element's resolved name, based on unique namespace uri instead of
+/// prefix.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct ExpandedName {
+    /// The namespace URI (e.g., "http://xbrl.org/2003/instance").
+    pub namespace_uri: String,
+    /// The local name (e.g., "Revenue").
+    pub local_name: String,
+}
+
+impl ExpandedName {
+    pub fn new(namespace_uri: String, local_name: String) -> Self {
+        Self {
+            namespace_uri,
+            local_name,
+        }
+    }
+}
+
+impl ToString for ExpandedName {
+    fn to_string(&self) -> String {
+        format!("{{{}}}{}", self.namespace_uri, self.local_name)
+    }
+}

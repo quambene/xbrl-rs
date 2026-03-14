@@ -5,8 +5,7 @@ mod validation;
 use crate::{error::Result, instance::Decimals};
 pub use parser::{ArcroleType, LinkbaseRef, RoleType, SchemaImport, SchemaInclude, SchemaParser};
 pub use resolver::{
-    BaseSubstitutionGroup, Concept, ExpandedName, MaxOccurs, SubstitutionGroup, TupleChild,
-    XbrlType,
+    BaseSubstitutionGroup, Concept, MaxOccurs, SubstitutionGroup, TupleChild, XbrlType,
 };
 use std::{
     collections::HashMap,
@@ -160,10 +159,10 @@ fn is_absolute_uri(value: &str) -> bool {
 mod tests {
     use super::{Concept, TaxonomySchema};
     use crate::{
-        Balance, PeriodType, XbrlError,
+        Balance, ExpandedName, PeriodType, XbrlError,
         taxonomy::{
             BaseSubstitutionGroup, RoleType,
-            schema::resolver::{ExpandedName, SubstitutionGroup, XbrlType},
+            schema::resolver::{SubstitutionGroup, XbrlType},
         },
         xml::QName,
     };

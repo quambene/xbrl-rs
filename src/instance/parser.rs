@@ -1,4 +1,4 @@
-use crate::{QName, XbrlError, xml};
+use crate::{QName, Unit, XbrlError, xml};
 use quick_xml::{
     Reader,
     events::{BytesStart, Event, attributes::Attributes},
@@ -56,11 +56,14 @@ pub struct RawDimension {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct RawUnit {
+    /// Unique ID of the unit as specified in the instance document.
     pub id: String,
-    /// Measures like iso4217:EUR
-    pub measures: Vec<QName>,
-    /// Divide unit (optional)
-    pub divide: Option<RawUnitDivide>,
+    /// For a simple unit, this will be the only measure. For a divide unit,
+    /// this is the numerator.
+    pub numerator: Vec<QName>,
+    /// For a simple unit, this will be empty. For a divide unit, this is the
+    /// denominator.
+    pub denominator: Vec<QName>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -704,9 +707,8 @@ impl<R: BufRead> InstanceParser<R> {
             path: self.path.clone(),
             reason: "missing id in xbrli:unit".to_string(),
         })?;
-
-        let mut measures = Vec::new();
-        let mut divide = None;
+        let mut numerator = Vec::new();
+        let mut denominator = Vec::new();
         let mut buf = Vec::new();
 
         loop {
@@ -717,11 +719,11 @@ impl<R: BufRead> InstanceParser<R> {
                         if let Event::Text(ref text) = self.reader.read_event_into(&mut text_buf)? {
                             let value = text.xml_content().map_err(quick_xml::Error::from)?;
                             let qname = xml::parse_qname(&value);
-                            measures.push(qname);
+                            numerator.push(qname);
                         }
                     }
                     b"divide" => {
-                        divide = Some(self.parse_unit_divide()?);
+                        self.parse_unit_divide(&mut numerator, &mut denominator)?;
                     }
                     _ => {}
                 },
@@ -734,8 +736,8 @@ impl<R: BufRead> InstanceParser<R> {
 
         instance.units.push(RawUnit {
             id,
-            measures,
-            divide,
+            numerator,
+            denominator,
         });
 
         Ok(())
@@ -743,9 +745,11 @@ impl<R: BufRead> InstanceParser<R> {
 
     /// Parse the `divide` element inside a `unit` to extract the numerator and
     /// denominator measures.
-    fn parse_unit_divide(&mut self) -> Result<RawUnitDivide, XbrlError> {
-        let mut numerator = Vec::new();
-        let mut denominator = Vec::new();
+    fn parse_unit_divide(
+        &mut self,
+        numerator: &mut Vec<QName>,
+        denominator: &mut Vec<QName>,
+    ) -> Result<(), XbrlError> {
         let mut in_numerator = false;
         let mut in_denominator = false;
         let mut buf = Vec::new();
@@ -781,10 +785,7 @@ impl<R: BufRead> InstanceParser<R> {
             buf.clear();
         }
 
-        Ok(RawUnitDivide {
-            numerator,
-            denominator,
-        })
+        Ok(())
     }
 
     /// Check if a local element name represents a fact (as opposed to a
@@ -1246,8 +1247,8 @@ mod tests {
             unit,
             &RawUnit {
                 id: "u1".to_string(),
-                measures: vec![QName::from_str("iso4217:EUR").unwrap()],
-                divide: None,
+                numerator: vec![QName::from_str("iso4217:EUR").unwrap()],
+                denominator: vec![],
             }
         );
     }
@@ -1276,11 +1277,8 @@ mod tests {
             unit,
             &RawUnit {
                 id: "USD_per_share".to_string(),
-                measures: vec![],
-                divide: Some(RawUnitDivide {
-                    numerator: vec![QName::from_str("iso4217:USD").unwrap()],
-                    denominator: vec![QName::from_str("xbrli:shares").unwrap()],
-                }),
+                numerator: vec![QName::from_str("iso4217:USD").unwrap()],
+                denominator: vec![QName::from_str("xbrli:shares").unwrap()],
             }
         );
     }
@@ -1514,8 +1512,8 @@ mod tests {
                 }],
                 units: vec![RawUnit {
                     id: "u1".to_string(),
-                    measures: vec![QName::from_str("iso4217:EUR").unwrap()],
-                    divide: None,
+                    numerator: vec![QName::from_str("iso4217:EUR").unwrap()],
+                    denominator: vec![],
                 }],
                 facts: vec![RawFact::Item(RawItemFact {
                     name: "ifrs:Revenue".to_string(),

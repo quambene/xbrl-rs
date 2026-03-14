@@ -2,7 +2,7 @@
 //!
 //! Units define the measurement unit for numeric facts (e.g., EUR, USD, pure).
 
-use crate::{QName, xml};
+use crate::ExpandedName;
 use std::{borrow::Borrow, fmt, ops::Deref};
 
 const NS_XBRLI: &str = "http://www.xbrl.org/2003/instance";
@@ -56,99 +56,75 @@ impl fmt::Display for UnitId {
     }
 }
 
-/// A parsed unit measure QName with namespace resolution.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct UnitMeasure {
-    /// Original QName text as found in XML (for example `iso4217:EUR`).
-    pub qname: QName,
-    /// Resolved namespace URI for `prefix` or default namespace.
-    pub namespace_uri: Option<String>,
-}
-
 /// Represents a unit of measurement
 #[derive(Debug, Clone, PartialEq)]
 pub struct Unit {
-    /// Unique ID of the unit.
+    /// Unique ID of the unit as specified in the instance document.
     pub id: UnitId,
-    /// Unit of measure, e.g., "iso4217:EUR" for Euro or "xbrli:pure" for
-    /// dimensionless.
-    pub measure: QName,
-    /// Numerator measures (or all measures when no divide is present).
-    pub numerator_measures: Vec<UnitMeasure>,
-    /// Denominator measures when divide is present.
-    pub denominator_measures: Vec<UnitMeasure>,
+    /// Numerator measures of the unit. For simple units, this contains all
+    /// measures; for divide units, this is the numerator.
+    pub numerator: Vec<ExpandedName>,
+    /// Denominator measures of the unit.
+    /// Empty for simple units, or populated for divide units.
+    pub denominator: Vec<ExpandedName>,
 }
 
 impl Unit {
-    pub fn new(id: UnitId, measure: QName) -> Self {
-        let namespace_uri = known_unit_namespace(measure.prefix.as_deref()).map(str::to_owned);
-        let first = UnitMeasure {
-            qname: measure.clone(),
-            namespace_uri,
-        };
-
+    pub fn new(id: UnitId, numerator: Vec<ExpandedName>, denominator: Vec<ExpandedName>) -> Self {
         Self {
             id,
-            measure,
-            numerator_measures: vec![first],
-            denominator_measures: Vec::new(),
+            numerator,
+            denominator,
         }
     }
 
     pub fn set_measures(
         &mut self,
-        numerator_measures: Vec<UnitMeasure>,
-        denominator_measures: Vec<UnitMeasure>,
+        numerator_measures: Vec<ExpandedName>,
+        denominator_measures: Vec<ExpandedName>,
     ) {
-        self.measure = numerator_measures
-            .first()
-            .map(|measure| measure.qname.clone())
-            .unwrap_or_else(|| QName {
-                prefix: None,
-                local_name: "".to_string(),
-            });
-        self.numerator_measures = numerator_measures;
-        self.denominator_measures = denominator_measures;
+        self.numerator = numerator_measures;
+        self.denominator = denominator_measures;
     }
 
     pub fn has_denominator(&self) -> bool {
-        !self.denominator_measures.is_empty()
+        !self.denominator.is_empty()
+    }
+
+    pub fn primary_measure(&self) -> Option<&ExpandedName> {
+        self.numerator.first()
     }
 
     pub fn has_single_measure_no_divide(&self) -> bool {
-        self.numerator_measures.len() == 1 && self.denominator_measures.is_empty()
-    }
-
-    pub fn primary_measure(&self) -> Option<&UnitMeasure> {
-        self.numerator_measures.first()
+        self.numerator.len() == 1 && self.denominator.is_empty()
     }
 
     /// Check if this is a currency unit
     pub fn is_currency(&self) -> bool {
         self.primary_measure()
-            .and_then(|measure| measure.namespace_uri.as_deref())
-            .is_some_and(|namespace| namespace == "http://www.xbrl.org/2003/iso4217")
+            .map(|measure| measure.namespace_uri == "http://www.xbrl.org/2003/iso4217")
+            .unwrap_or(false)
     }
 
     /// Get the currency code if this is a currency unit
     pub fn currency_code(&self) -> Option<&str> {
         self.primary_measure()
-            .map(|measure| measure.qname.local_name.as_str())
+            .map(|measure| measure.local_name.as_str())
     }
 
     /// Check if this is a pure (dimensionless) unit
     pub fn is_pure(&self) -> bool {
         self.primary_measure().is_some_and(|measure| {
-            measure.namespace_uri.as_deref() == Some("http://www.xbrl.org/2003/instance")
-                && measure.qname.local_name == "pure"
+            measure.namespace_uri == "http://www.xbrl.org/2003/instance"
+                && measure.local_name == "pure"
         })
     }
 
     /// Check if this is a shares unit
     pub fn is_shares(&self) -> bool {
         self.primary_measure().is_some_and(|measure| {
-            measure.namespace_uri.as_deref() == Some("http://www.xbrl.org/2003/instance")
-                && measure.qname.local_name == "shares"
+            measure.namespace_uri == "http://www.xbrl.org/2003/instance"
+                && measure.local_name == "shares"
         })
     }
 }

@@ -1,9 +1,9 @@
 use super::schema::{DeclaredAccuracy, TaxonomySchema};
 use crate::{
-    ConceptId, Label, Reference, RoleUri, SchemaRefUrl,
+    ConceptId, ExpandedName, Label, Reference, RoleUri, SchemaRefUrl,
     error::{Result, XbrlError},
     taxonomy::{
-        BaseSubstitutionGroup, ExpandedName, RoleType,
+        BaseSubstitutionGroup, RoleType,
         linkbases::{
             parser::{CalculationArc, DefinitionArc, LinkbaseParser, Linkbases, PresentationArc},
             resolver::{self, ResolvedLinkbases},

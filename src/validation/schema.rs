@@ -3,7 +3,7 @@
 
 use super::{Severity, ValidationResult, value::PreparedFactValues};
 use crate::{
-    DeclaredAccuracy, Fact, InstanceDocument, ItemFact, Period, TaxonomySet, TupleFact,
+    DeclaredAccuracy, Fact, InstanceDocument, ItemFact, Period, TaxonomySet, TupleFact, Unit,
     taxonomy::{Concept, MaxOccurs, PeriodType, TupleChild, XbrlType},
 };
 use rust_decimal::Decimal;
@@ -150,50 +150,14 @@ fn validate_essence_alias_units(
     }
 }
 
-fn units_semantically_equal(left: &crate::instance::Unit, right: &crate::instance::Unit) -> bool {
-    let mut left_num: Vec<(Option<&str>, &str)> = left
-        .numerator_measures
-        .iter()
-        .map(|measure| {
-            (
-                measure.namespace_uri.as_deref(),
-                measure.qname.local_name.as_str(),
-            )
-        })
-        .collect();
-    let mut right_num: Vec<(Option<&str>, &str)> = right
-        .numerator_measures
-        .iter()
-        .map(|measure| {
-            (
-                measure.namespace_uri.as_deref(),
-                measure.qname.local_name.as_str(),
-            )
-        })
-        .collect();
+fn units_semantically_equal(left: &Unit, right: &Unit) -> bool {
+    let mut left_num = left.numerator.clone();
+    let mut right_num = right.numerator.clone();
+    let mut left_den = left.denominator.clone();
+    let mut right_den = right.denominator.clone();
+
     left_num.sort();
     right_num.sort();
-
-    let mut left_den: Vec<(Option<&str>, &str)> = left
-        .denominator_measures
-        .iter()
-        .map(|measure| {
-            (
-                measure.namespace_uri.as_deref(),
-                measure.qname.local_name.as_str(),
-            )
-        })
-        .collect();
-    let mut right_den: Vec<(Option<&str>, &str)> = right
-        .denominator_measures
-        .iter()
-        .map(|measure| {
-            (
-                measure.namespace_uri.as_deref(),
-                measure.qname.local_name.as_str(),
-            )
-        })
-        .collect();
     left_den.sort();
     right_den.sort();
 
@@ -888,21 +852,15 @@ fn validate_unit_constraints(
     let concept_name = fact.concept_name();
     let ctx_ref = fact.context_ref();
 
-    if !unit.denominator_measures.is_empty() {
-        let mut numerator_counts: HashMap<(Option<&str>, &str), usize> = HashMap::new();
-        for measure in &unit.numerator_measures {
-            let key = (
-                measure.namespace_uri.as_deref(),
-                measure.qname.local_name.as_str(),
-            );
+    if !unit.denominator.is_empty() {
+        let mut numerator_counts: HashMap<(&str, &str), usize> = HashMap::new();
+        for measure in &unit.numerator {
+            let key = (measure.namespace_uri.as_str(), measure.local_name.as_str());
             *numerator_counts.entry(key).or_default() += 1;
         }
 
-        for measure in &unit.denominator_measures {
-            let key = (
-                measure.namespace_uri.as_deref(),
-                measure.qname.local_name.as_str(),
-            );
+        for measure in &unit.denominator {
+            let key = (measure.namespace_uri.as_str(), measure.local_name.as_str());
             if let Some(count) = numerator_counts.get(&key)
                 && *count > 0
             {
@@ -913,7 +871,7 @@ fn validate_unit_constraints(
                         "Fact '{}' uses unit '{}' that is not in simplest form (canceling measure '{}')",
                         fact.local_name(),
                         unit.id,
-                        measure.qname.to_string()
+                        measure.to_string()
                     ),
                     Some(concept_name),
                     Some(ctx_ref),
@@ -923,14 +881,10 @@ fn validate_unit_constraints(
         }
     }
 
-    for measure in unit
-        .numerator_measures
-        .iter()
-        .chain(unit.denominator_measures.iter())
-    {
-        if measure.namespace_uri.as_deref() == Some(NS_XBRLI)
-            && measure.qname.local_name != "pure"
-            && measure.qname.local_name != "shares"
+    for measure in unit.numerator.iter().chain(unit.denominator.iter()) {
+        if measure.namespace_uri == NS_XBRLI
+            && measure.local_name != "pure"
+            && measure.local_name != "shares"
         {
             result.add(
                 Severity::Error,
@@ -938,7 +892,7 @@ fn validate_unit_constraints(
                 format!(
                     "Fact '{}' uses invalid measure '{}' in XBRL instance namespace",
                     fact.local_name(),
-                    measure.qname.to_string()
+                    measure.to_string()
                 ),
                 Some(concept_name),
                 Some(ctx_ref),
@@ -966,10 +920,9 @@ fn validate_unit_constraints(
         }
 
         if let Some(measure) = unit.primary_measure() {
-            let is_iso = measure.namespace_uri.as_deref() == Some(NS_ISO4217);
-            let is_code = measure.qname.local_name.len() == 3
+            let is_iso = measure.namespace_uri == NS_ISO4217;
+            let is_code = measure.local_name.len() == 3
                 && measure
-                    .qname
                     .local_name
                     .chars()
                     .all(|char| char.is_ascii_uppercase());
@@ -980,7 +933,7 @@ fn validate_unit_constraints(
                     format!(
                         "Monetary fact '{}' must use ISO4217 currency measure, got '{}'",
                         fact.local_name(),
-                        measure.qname.to_string()
+                        measure.to_string()
                     ),
                     Some(concept_name),
                     Some(ctx_ref),
@@ -1005,8 +958,7 @@ fn validate_unit_constraints(
         }
 
         if let Some(measure) = unit.primary_measure()
-            && !(measure.namespace_uri.as_deref() == Some(NS_XBRLI)
-                && measure.qname.local_name == "shares")
+            && !(measure.namespace_uri == NS_XBRLI && measure.local_name == "shares")
         {
             result.add(
                 Severity::Error,
@@ -1014,7 +966,7 @@ fn validate_unit_constraints(
                 format!(
                     "Shares fact '{}' must use xbrli:shares measure, got '{}'",
                     fact.local_name(),
-                    measure.qname.to_string()
+                    measure.to_string()
                 ),
                 Some(concept_name),
                 Some(ctx_ref),
