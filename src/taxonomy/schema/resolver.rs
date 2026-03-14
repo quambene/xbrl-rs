@@ -440,7 +440,7 @@ fn convert_qname(raw: &QName) -> QName {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::NamespaceUri;
+    use crate::{NamespacePrefix, NamespaceUri};
     use std::{collections::HashMap, path::PathBuf};
 
     fn empty_schema() -> RawSchema {
@@ -461,28 +461,28 @@ mod tests {
 
     fn item_qname() -> QName {
         QName {
-            prefix: Some("xbrli".to_owned()),
+            prefix: Some(NamespacePrefix::from("xbrli")),
             local_name: "item".to_owned(),
         }
     }
 
     fn tuple_qname() -> QName {
         QName {
-            prefix: Some("xbrli".to_owned()),
+            prefix: Some(NamespacePrefix::from("xbrli")),
             local_name: "tuple".to_owned(),
         }
     }
 
     fn monetary_type() -> QName {
         QName {
-            prefix: Some("xbrli".to_owned()),
+            prefix: Some(NamespacePrefix::from("xbrli")),
             local_name: "monetaryItemType".to_owned(),
         }
     }
 
     fn string_type() -> QName {
         QName {
-            prefix: Some("xbrli".to_owned()),
+            prefix: Some(NamespacePrefix::from("xbrli")),
             local_name: "stringItemType".to_owned(),
         }
     }
@@ -710,7 +710,7 @@ mod tests {
             name: "SharesOutstanding".to_owned(),
             id: None,
             type_name: Some(QName {
-                prefix: Some("custom".to_owned()),
+                prefix: Some(NamespacePrefix::from("custom")),
                 local_name: "sharesType".to_owned(),
             }),
             substitution_group: Some(item_qname()),

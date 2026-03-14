@@ -1,5 +1,5 @@
 use crate::{
-    Balance, PeriodType, XbrlError,
+    Balance, NamespacePrefix, NamespaceUri, PeriodType, XbrlError,
     xml::{self, QName},
 };
 use quick_xml::{
@@ -216,7 +216,7 @@ pub struct RawSchema {
     /// The targetNamespace of the schema.
     pub target_namespace: Option<String>,
     /// Namespace declarations (prefix -> URI).
-    pub namespaces: HashMap<String, String>,
+    pub namespaces: HashMap<NamespacePrefix, NamespaceUri>,
     /// Parsed `xs:import` references.
     pub imports: Vec<SchemaImport>,
     /// Parsed `xs:include` references.
@@ -378,8 +378,8 @@ impl<R: BufRead> SchemaParser<R> {
                 }
                 b"xmlns" => {
                     schema.namespaces.insert(
-                        str::from_utf8(local_name.as_ref())?.to_string(),
-                        value.to_string(),
+                        NamespacePrefix::from(str::from_utf8(local_name.as_ref())?),
+                        NamespaceUri::from(value.to_string()),
                     );
                 }
                 // Not relevant for XBRL taxonomies.
@@ -1309,11 +1309,11 @@ mod tests {
                 name: "Revenue".to_string(),
                 id: Some("Revenue".to_string()),
                 type_name: Some(QName {
-                    prefix: Some("xbrli".to_string()),
+                    prefix: Some(NamespacePrefix::from("xbrli")),
                     local_name: "monetaryItemType".to_string(),
                 }),
                 substitution_group: Some(QName {
-                    prefix: Some("xbrli".to_string()),
+                    prefix: Some(NamespacePrefix::from("xbrli")),
                     local_name: "item".to_string(),
                 }),
                 is_nillable: true,
@@ -1353,7 +1353,7 @@ mod tests {
                 id: None,
                 type_name: None,
                 substitution_group: Some(QName {
-                    prefix: Some("xbrli".to_string()),
+                    prefix: Some(NamespacePrefix::from("xbrli")),
                     local_name: "tuple".to_string(),
                 }),
                 is_nillable: false,
@@ -1369,7 +1369,7 @@ mod tests {
                     children: vec![
                         RawTupleChild {
                             name: QName {
-                                prefix: Some("my".to_string()),
+                                prefix: Some(NamespacePrefix::from("my")),
                                 local_name: "city".to_string(),
                             },
                             min_occurs: 1,
@@ -1377,7 +1377,7 @@ mod tests {
                         },
                         RawTupleChild {
                             name: QName {
-                                prefix: Some("my".to_string()),
+                                prefix: Some(NamespacePrefix::from("my")),
                                 local_name: "country".to_string(),
                             },
                             min_occurs: 0,
@@ -1416,7 +1416,7 @@ mod tests {
                 id: None,
                 type_name: None,
                 substitution_group: Some(QName {
-                    prefix: Some("xbrli".to_string()),
+                    prefix: Some(NamespacePrefix::from("xbrli")),
                     local_name: "tuple".to_string(),
                 }),
                 is_nillable: false,
@@ -1432,7 +1432,7 @@ mod tests {
                     children: vec![
                         RawTupleChild {
                             name: QName {
-                                prefix: Some("my".to_string()),
+                                prefix: Some(NamespacePrefix::from("my")),
                                 local_name: "itemA".to_string(),
                             },
                             min_occurs: 2,
@@ -1440,7 +1440,7 @@ mod tests {
                         },
                         RawTupleChild {
                             name: QName {
-                                prefix: Some("my".to_string()),
+                                prefix: Some(NamespacePrefix::from("my")),
                                 local_name: "itemB".to_string(),
                             },
                             min_occurs: 0,
@@ -1480,7 +1480,7 @@ mod tests {
                 id: None,
                 type_name: None,
                 substitution_group: Some(QName {
-                    prefix: Some("xbrli".to_string()),
+                    prefix: Some(NamespacePrefix::from("xbrli")),
                     local_name: "tuple".to_string(),
                 }),
                 is_nillable: false,
@@ -1496,7 +1496,7 @@ mod tests {
                     children: vec![
                         RawTupleChild {
                             name: QName {
-                                prefix: Some("my".to_string()),
+                                prefix: Some(NamespacePrefix::from("my")),
                                 local_name: "optA".to_string(),
                             },
                             min_occurs: 1,
@@ -1504,7 +1504,7 @@ mod tests {
                         },
                         RawTupleChild {
                             name: QName {
-                                prefix: Some("my".to_string()),
+                                prefix: Some(NamespacePrefix::from("my")),
                                 local_name: "optB".to_string(),
                             },
                             min_occurs: 1,
@@ -1539,7 +1539,7 @@ mod tests {
             SimpleType {
                 name: Some("myStringType".to_string()),
                 base: Some(QName {
-                    prefix: Some("xs".to_string()),
+                    prefix: Some(NamespacePrefix::from("xs")),
                     local_name: "string".to_string()
                 }),
                 enumerations: vec![],
@@ -1629,7 +1629,7 @@ mod tests {
             SimpleType {
                 name: Some("StatusType".to_string()),
                 base: Some(QName {
-                    prefix: Some("xs".to_string()),
+                    prefix: Some(NamespacePrefix::from("xs")),
                     local_name: "string".to_string()
                 }),
                 enumerations: vec!["Open".to_string(), "Closed".to_string()],
@@ -1662,7 +1662,7 @@ mod tests {
             &ComplexType {
                 name: Some("monetaryItemType".to_string()),
                 base: Some(QName {
-                    prefix: Some("xbrli".to_string()),
+                    prefix: Some(NamespacePrefix::from("xbrli")),
                     local_name: "decimalItemType".to_string(),
                 }),
                 derivation: Some(DerivationKind::Extension),
@@ -1706,7 +1706,7 @@ mod tests {
             &ComplexType {
                 name: Some("restrictedDecimal".to_string()),
                 base: Some(QName {
-                    prefix: Some("xbrli".to_string()),
+                    prefix: Some(NamespacePrefix::from("xbrli")),
                     local_name: "decimalItemType".to_string(),
                 }),
                 derivation: Some(DerivationKind::Restriction),

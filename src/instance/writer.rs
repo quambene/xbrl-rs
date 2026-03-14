@@ -1,13 +1,14 @@
 //! XBRL instance XML writer (serialization).
 
 use crate::{
-    Context, Fact, InstanceDocument, ItemFact, Period, TupleFact, error::Result, instance::Unit,
+    Context, Fact, InstanceDocument, ItemFact, NamespacePrefix, NamespaceUri, Period, QName,
+    TupleFact, XbrlError, error::Result, instance::Unit,
 };
 use quick_xml::{
     Writer,
     events::{BytesDecl, BytesEnd, BytesStart, BytesText, Event},
 };
-use std::io;
+use std::{collections::HashMap, io};
 
 /// Serialize [`InstanceDocument`] to an XBRL XML document.
 pub(crate) fn write_xml<W: io::Write>(
@@ -16,6 +17,12 @@ pub(crate) fn write_xml<W: io::Write>(
 ) -> Result<()> {
     // XML declaration
     writer.write_event(Event::Decl(BytesDecl::new("1.0", Some("utf-8"), None)))?;
+
+    let prefix_to_uri = instance.namespaces();
+    let uri_to_prefix: HashMap<NamespaceUri, NamespacePrefix> = prefix_to_uri
+        .iter()
+        .map(|(prefix, uri)| (uri.clone(), prefix.clone()))
+        .collect();
 
     // <xbrli:xbrl> root element with namespace declarations
     let mut root = BytesStart::new("xbrli:xbrl");
@@ -74,7 +81,7 @@ pub(crate) fn write_xml<W: io::Write>(
     let mut unit_sorted: Vec<_> = instance.units().iter().collect();
     unit_sorted.sort_by_key(|(id, _)| *id);
     for (_, unit) in &unit_sorted {
-        write_unit(writer, unit)?;
+        write_unit(writer, unit, &uri_to_prefix)?;
     }
 
     for fact in instance.facts() {
@@ -147,28 +154,71 @@ fn write_context<W: std::io::Write>(writer: &mut Writer<W>, context: &Context) -
     Ok(())
 }
 
-fn write_unit<W: std::io::Write>(writer: &mut Writer<W>, unit: &Unit) -> Result<()> {
+fn write_unit<W: io::Write>(
+    writer: &mut Writer<W>,
+    unit: &Unit,
+    uri_to_prefix: &HashMap<NamespaceUri, NamespacePrefix>,
+) -> Result<()> {
     let mut elem = BytesStart::new("xbrli:unit");
     elem.push_attribute(("id", unit.id.as_str()));
     writer.write_event(Event::Start(elem))?;
 
-    writer.write_event(Event::Start(BytesStart::new("xbrli:measure")))?;
-    writer.write_event(Event::Text(BytesText::new(&unit.measure.to_string())))?;
-    writer.write_event(Event::End(BytesEnd::new("xbrli:measure")))?;
+    if unit.has_denominator() {
+        writer.write_event(Event::Start(BytesStart::new("xbrli:divide")))?;
+        writer.write_event(Event::Start(BytesStart::new("xbrli:numerator")))?;
+
+        for measure in &unit.numerator {
+            let qname = QName {
+                prefix: uri_to_prefix.get(&measure.namespace_uri).cloned(),
+                local_name: measure.local_name.clone(),
+            };
+            writer.write_event(Event::Start(BytesStart::new("xbrli:measure")))?;
+            writer.write_event(Event::Text(BytesText::new(&qname.to_string())))?;
+            writer.write_event(Event::End(BytesEnd::new("xbrli:measure")))?;
+        }
+
+        writer.write_event(Event::End(BytesEnd::new("xbrli:numerator")))?;
+        writer.write_event(Event::Start(BytesStart::new("xbrli:denominator")))?;
+
+        for measure in &unit.denominator {
+            let qname = QName {
+                prefix: uri_to_prefix.get(&measure.namespace_uri).cloned(),
+                local_name: measure.local_name.clone(),
+            };
+            writer.write_event(Event::Start(BytesStart::new("xbrli:measure")))?;
+            writer.write_event(Event::Text(BytesText::new(&qname.to_string())))?;
+            writer.write_event(Event::End(BytesEnd::new("xbrli:measure")))?;
+        }
+
+        writer.write_event(Event::End(BytesEnd::new("xbrli:denominator")))?;
+        writer.write_event(Event::End(BytesEnd::new("xbrli:divide")))?;
+    } else {
+        writer.write_event(Event::Start(BytesStart::new("xbrli:measure")))?;
+
+        for measure in &unit.numerator {
+            let qname = QName {
+                prefix: uri_to_prefix.get(&measure.namespace_uri).cloned(),
+                local_name: measure.local_name.clone(),
+            };
+            writer.write_event(Event::Start(BytesStart::new("xbrli:measure")))?;
+            writer.write_event(Event::Text(BytesText::new(&qname.to_string())))?;
+            writer.write_event(Event::End(BytesEnd::new("xbrli:measure")))?;
+        }
+    }
 
     writer.write_event(Event::End(BytesEnd::new("xbrli:unit")))?;
 
     Ok(())
 }
 
-fn write_fact<W: std::io::Write>(writer: &mut Writer<W>, fact: &Fact) -> Result<()> {
+fn write_fact<W: io::Write>(writer: &mut Writer<W>, fact: &Fact) -> Result<()> {
     match fact {
         Fact::Item(item) => write_item_fact(writer, item),
         Fact::Tuple(tuple) => write_tuple_fact(writer, tuple),
     }
 }
 
-fn write_tuple_fact<W: std::io::Write>(writer: &mut Writer<W>, fact: &TupleFact) -> Result<()> {
+fn write_tuple_fact<W: io::Write>(writer: &mut Writer<W>, fact: &TupleFact) -> Result<()> {
     let concept_name = fact.concept_name();
     let mut elem = BytesStart::new(concept_name);
     if let Some(id) = fact.id() {

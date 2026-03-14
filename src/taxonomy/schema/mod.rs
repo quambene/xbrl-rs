@@ -2,7 +2,7 @@ mod parser;
 mod resolver;
 mod validation;
 
-use crate::{error::Result, instance::Decimals};
+use crate::{NamespacePrefix, NamespaceUri, error::Result, instance::Decimals};
 pub use parser::{ArcroleType, LinkbaseRef, RoleType, SchemaImport, SchemaInclude, SchemaParser};
 pub use resolver::{
     BaseSubstitutionGroup, Concept, MaxOccurs, SubstitutionGroup, TupleChild, XbrlType,
@@ -51,7 +51,7 @@ pub struct TaxonomySchema {
     /// The targetNamespace of this schema.
     pub target_namespace: Option<String>,
     /// Namespace declarations (prefix -> URI).
-    pub namespaces: HashMap<String, String>,
+    pub namespaces: HashMap<NamespacePrefix, NamespaceUri>,
     /// `xs:import` references.
     pub imports: Vec<SchemaImport>,
     /// `xs:include` references.

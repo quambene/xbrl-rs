@@ -1,7 +1,7 @@
 use crate::XbrlError;
 use std::{borrow::Borrow, fmt, ops::Deref, str::FromStr};
 
-/// Type-safe namespace prefix key (the `xmlns:prefix` declarations on the root
+/// Type-safe namespace prefix key (e.g. `xmlns:xbrli` declaration on the root
 /// `<xbrli:xbrl>` element).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct NamespacePrefix(String);
@@ -97,7 +97,7 @@ impl fmt::Display for NamespaceUri {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct QName {
     /// The namespace prefix (e.g., "xbrli") if present.
-    pub prefix: Option<String>,
+    pub prefix: Option<NamespacePrefix>,
     /// The local name (e.g., "monetaryItemType").
     pub local_name: String,
 }
@@ -125,7 +125,7 @@ impl FromStr for QName {
 pub fn parse_qname(value: &str) -> QName {
     if let Some(idx) = value.find(':') {
         QName {
-            prefix: Some(value[..idx].to_string()),
+            prefix: Some(NamespacePrefix::from(&value[..idx])),
             local_name: value[idx + 1..].to_string(),
         }
     } else {
