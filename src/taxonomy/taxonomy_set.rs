@@ -1,8 +1,7 @@
 use super::schema::{DeclaredAccuracy, TaxonomySchema};
 use crate::{
-    ConceptId, ExpandedName, Label, Reference, RoleUri, SchemaRefUrl,
+    ConceptId, ExpandedName, Label, NamespaceUri, Reference, RoleUri, SchemaRefUrl,
     error::{Result, XbrlError},
-    instance::NamespaceUri,
     taxonomy::{
         BaseSubstitutionGroup, RoleType,
         linkbases::{

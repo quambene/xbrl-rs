@@ -1,5 +1,96 @@
-use crate::{XbrlError, instance::NamespaceUri};
-use std::str::FromStr;
+use crate::XbrlError;
+use std::{borrow::Borrow, fmt, ops::Deref, str::FromStr};
+
+/// Type-safe namespace prefix key (the `xmlns:prefix` declarations on the root
+/// `<xbrli:xbrl>` element).
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct NamespacePrefix(String);
+
+impl NamespacePrefix {
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl From<String> for NamespacePrefix {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+
+impl From<&str> for NamespacePrefix {
+    fn from(value: &str) -> Self {
+        Self(value.to_owned())
+    }
+}
+
+impl Deref for NamespacePrefix {
+    type Target = str;
+    fn deref(&self) -> &Self::Target {
+        self.as_str()
+    }
+}
+
+impl AsRef<str> for NamespacePrefix {
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl Borrow<str> for NamespacePrefix {
+    fn borrow(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl fmt::Display for NamespacePrefix {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+/// Type-safe namespace URI key (e.g.
+/// xmlns:xbrli="http://www.xbrl.org/2003/instance" declarations on the root
+/// `<xbrli:xbrl>` element).
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct NamespaceUri(String);
+
+impl NamespaceUri {
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl From<String> for NamespaceUri {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+
+impl From<&str> for NamespaceUri {
+    fn from(value: &str) -> Self {
+        Self(value.to_owned())
+    }
+}
+
+impl Deref for NamespaceUri {
+    type Target = str;
+    fn deref(&self) -> &Self::Target {
+        self.as_str()
+    }
+}
+
+impl AsRef<str> for NamespaceUri {
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl fmt::Display for NamespaceUri {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
 
 /// Represents a qualified name in the XML document (e.g.,
 /// "xbrli:monetaryItemType").

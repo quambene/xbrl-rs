@@ -440,7 +440,7 @@ fn convert_qname(raw: &QName) -> QName {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::instance::NamespaceUri;
+    use crate::NamespaceUri;
     use std::{collections::HashMap, path::PathBuf};
 
     fn empty_schema() -> RawSchema {

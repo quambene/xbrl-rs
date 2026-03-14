@@ -13,8 +13,8 @@ mod xml;
 pub use error::{LinkbaseType, Result, XbrlError};
 pub use instance::{
     Context, ContextId, Decimals, DocumentView, EntityIdentifier, Fact, FootnoteArc, FootnoteLink,
-    FootnoteLocator, FootnoteResource, InstanceDocument, ItemFact, NamespacePrefix, Period,
-    SectionView, TreeNode, TupleFact, Unit, UnitId,
+    FootnoteLocator, FootnoteResource, InstanceDocument, ItemFact, Period, SectionView, TreeNode,
+    TupleFact, Unit, UnitId,
 };
 pub use quick_xml::{Reader as XmlReader, Writer as XmlWriter};
 #[cfg(feature = "download")]
@@ -25,4 +25,4 @@ pub use taxonomy::{
     SubstitutionGroup, TaxonomySchema, TaxonomySet,
 };
 pub use validation::{Severity, ValidationMessage, ValidationResult};
-pub use xml::{ExpandedName, QName};
+pub use xml::{ExpandedName, NamespacePrefix, NamespaceUri, QName};

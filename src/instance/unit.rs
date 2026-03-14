@@ -5,8 +5,8 @@
 use crate::ExpandedName;
 use std::{borrow::Borrow, fmt, ops::Deref};
 
-const NS_XBRLI: &str = "http://www.xbrl.org/2003/instance";
-const NS_ISO4217: &str = "http://www.xbrl.org/2003/iso4217";
+const NAMESPACE_XBRLI: &str = "http://www.xbrl.org/2003/instance";
+const NAMESPACE_ISO4217: &str = "http://www.xbrl.org/2003/iso4217";
 
 /// Type-safe identifier for an XBRL unit (the `id` attribute on
 /// `<xbrli:unit>` elements).
@@ -131,8 +131,8 @@ impl Unit {
 
 pub(crate) fn known_unit_namespace(prefix: Option<&str>) -> Option<&'static str> {
     match prefix {
-        Some("iso4217") => Some(NS_ISO4217),
-        Some("xbrli") => Some(NS_XBRLI),
+        Some("iso4217") => Some(NAMESPACE_ISO4217),
+        Some("xbrli") => Some(NAMESPACE_XBRLI),
         _ => None,
     }
 }

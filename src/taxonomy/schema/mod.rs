@@ -159,8 +159,7 @@ fn is_absolute_uri(value: &str) -> bool {
 mod tests {
     use super::{Concept, TaxonomySchema};
     use crate::{
-        Balance, ExpandedName, PeriodType, XbrlError,
-        instance::NamespaceUri,
+        Balance, ExpandedName, NamespaceUri, PeriodType, XbrlError,
         taxonomy::{
             BaseSubstitutionGroup, RoleType,
             schema::resolver::{SubstitutionGroup, XbrlType},
