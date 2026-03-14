@@ -14,8 +14,7 @@ use crate::{
 use indexmap::{IndexMap, IndexSet};
 use std::{
     collections::{HashMap, HashSet, VecDeque},
-    fs::{self, File},
-    io::{self, BufReader},
+    fs, io,
     path::{Path, PathBuf},
 };
 
@@ -98,13 +97,7 @@ impl TaxonomySet {
         }
 
         while let Some(path) = queue.pop_front() {
-            let xml_file = fs::File::open(&path).map_err(|err| XbrlError::FileRead {
-                path: path.clone(),
-                context: "schema".to_string(),
-                source: err,
-            })?;
-            let reader = BufReader::new(xml_file);
-            let schema = TaxonomySchema::from_xml(&path, reader)?;
+            let schema = TaxonomySchema::from_file(&path)?;
             let schema_dir = path.parent().unwrap_or(Path::new("."));
 
             // Collect linkbase refs
@@ -121,7 +114,7 @@ impl TaxonomySet {
                         });
                     }
                     let canonical =
-                        std::fs::canonicalize(&resolved).map_err(|err| XbrlError::FileRead {
+                        fs::canonicalize(&resolved).map_err(|err| XbrlError::FileRead {
                             path: resolved.clone(),
                             context: "linkbase referenced from schema".to_string(),
                             source: err,
@@ -161,12 +154,7 @@ impl TaxonomySet {
         let mut linkbases = Linkbases::default();
 
         for path in &linkbase_paths {
-            let xml_file = File::open(path).map_err(|err| XbrlError::FileRead {
-                path: path.clone(),
-                context: "linkbase".to_string(),
-                source: err,
-            })?;
-            let mut parser = LinkbaseParser::new(BufReader::new(xml_file), path.clone());
+            let mut parser = LinkbaseParser::from_file(path)?;
             parser.parse_linkbase(&mut linkbases)?;
         }
 
@@ -301,7 +289,7 @@ impl TaxonomySet {
             .unwrap_or_else(|| self.entry_point.clone());
 
         Err(XbrlError::InvalidSchemaDocument {
-            path: schema_path,
+            path: Some(schema_path),
             reason: format!(
                 "unable to resolve substitutionGroup '{}' for element '{}'",
                 element.substitution_group.original.local_name, element.name.local_name

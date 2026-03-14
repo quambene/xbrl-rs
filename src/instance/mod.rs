@@ -19,12 +19,12 @@ use crate::{
 pub use context::{Context, ContextId, EntityIdentifier, Period};
 pub use fact::{Decimals, Fact, ItemFact, TupleFact};
 pub use footnote::{FootnoteArc, FootnoteLink, FootnoteLocator, FootnoteResource};
-use quick_xml::{Reader, Writer};
+use quick_xml::Writer;
 use std::{
     cmp::Ordering,
     collections::{HashMap, HashSet},
     io,
-    path::{Path, PathBuf},
+    path::Path,
 };
 pub use unit::{Unit, UnitId};
 pub use view::{DocumentView, SectionView, TreeNode};
@@ -182,32 +182,26 @@ impl InstanceDocument {
         instance
     }
 
-    /// Parse an XBRL instance document from XML.
+    /// Parse an XBRL instance document from the file at the given path.
     ///
     /// Automatically extracts the `<xbrli:xbrl>` element if the input
     /// contains a wrapper around it.
-    pub fn from_xml<R>(reader: R) -> Result<Self>
-    where
-        R: io::BufRead,
-    {
-        let mut parser = InstanceParser::from_xml(reader, PathBuf::from(""));
-        let instance = parser.parse_instance()?;
-        let doc = resolver::resolve_instance(instance)?;
-        Ok(doc)
-    }
-
-    pub fn from_reader<R>(reader: Reader<R>) -> Result<Self>
-    where
-        R: io::BufRead,
-    {
-        let mut parser = InstanceParser::new(reader, PathBuf::from(""));
-        let instance = parser.parse_instance()?;
-        let doc = resolver::resolve_instance(instance)?;
-        Ok(doc)
-    }
-
     pub fn from_file(path: &Path) -> Result<Self> {
         let mut parser = InstanceParser::from_file(path)?;
+        let instance = parser.parse_instance()?;
+        let doc = resolver::resolve_instance(instance)?;
+        Ok(doc)
+    }
+
+    /// Parse an XBRL instance document from the reader.
+    ///
+    /// Automatically extracts the `<xbrli:xbrl>` element if the input
+    /// contains a wrapper around it.
+    pub fn from_reader<R>(reader: R) -> Result<Self>
+    where
+        R: io::BufRead,
+    {
+        let mut parser = InstanceParser::from_reader(reader);
         let instance = parser.parse_instance()?;
         let doc = resolver::resolve_instance(instance)?;
         Ok(doc)
@@ -616,7 +610,8 @@ mod tests {
             </xbrli:xbrl>
         "#;
 
-        let instance = InstanceDocument::from_xml(xml.as_bytes()).expect("instance should parse");
+        let instance =
+            InstanceDocument::from_reader(xml.as_bytes()).expect("instance should parse");
 
         assert_eq!(instance.schema_refs().len(), 1);
         assert!(instance.contexts().is_empty());
@@ -700,7 +695,8 @@ mod tests {
             </xbrli:xbrl>
         "#;
 
-        let instance = InstanceDocument::from_xml(xml.as_bytes()).expect("instance should parse");
+        let instance =
+            InstanceDocument::from_reader(xml.as_bytes()).expect("instance should parse");
 
         assert_eq!(instance.role_refs(), ["http://www.xbrl.org/2003/role/link"]);
         assert_eq!(

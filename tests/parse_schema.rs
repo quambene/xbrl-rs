@@ -1,21 +1,15 @@
 //! Integration tests for parsing taxonomy schema files.
 
 use assert_matches::assert_matches;
-use std::{fs::File, io::BufReader, path::Path};
+use std::path::Path;
 use xbrl_rs::{TaxonomySchema, XbrlError};
 
 const SCHEMA_BASE: &str = "test_data/schemas";
 
-fn parse_schema_unchecked(path: &Path) -> Result<TaxonomySchema, XbrlError> {
-    let file = File::open(path).expect("failed to open schema file");
-    let reader = BufReader::new(file);
-    TaxonomySchema::from_xml_unchecked(path, reader)
-}
-
 #[test]
 fn from_xml_unchecked_parses_minimal_valid_schema() {
     let path = Path::new(SCHEMA_BASE).join("minimal_valid_schema.xsd");
-    let schema = parse_schema_unchecked(&path).expect("schema should parse");
+    let schema = TaxonomySchema::from_file_unchecked(&path).unwrap();
 
     assert_eq!(
         schema.target_namespace.as_deref(),
@@ -29,7 +23,7 @@ fn from_xml_unchecked_parses_minimal_valid_schema() {
 #[test]
 fn from_xml_unchecked_requires_schema_root() {
     let path = Path::new(SCHEMA_BASE).join("invalid_missing_schema_root.xml");
-    let res = parse_schema_unchecked(&path);
+    let res = TaxonomySchema::from_file_unchecked(&path);
 
     assert_matches!(res, Err(XbrlError::InvalidSchemaDocument { reason, .. }) => {
         assert!(reason.contains("missing <schema> root element"));
@@ -39,7 +33,7 @@ fn from_xml_unchecked_requires_schema_root() {
 #[test]
 fn from_xml_unchecked_accepts_arcrole_used_on_when_qnames_are_not_s_equal() {
     let path = Path::new(SCHEMA_BASE).join("arcrole_used_on_not_s_equal.xsd");
-    let parsed = parse_schema_unchecked(&path);
+    let parsed = TaxonomySchema::from_file_unchecked(&path);
 
     assert!(parsed.is_ok());
 }
@@ -47,7 +41,7 @@ fn from_xml_unchecked_accepts_arcrole_used_on_when_qnames_are_not_s_equal() {
 #[test]
 fn from_xml_unchecked_rejects_arcrole_used_on_when_qnames_are_s_equal() {
     let path = Path::new(SCHEMA_BASE).join("arcrole_used_on_s_equal_duplicate.xsd");
-    let parsed = parse_schema_unchecked(&path);
+    let parsed = TaxonomySchema::from_file_unchecked(&path);
 
     assert_matches!(parsed, Err(XbrlError::InvalidSchemaDocument { reason, .. }) => {
         assert!(reason.contains("duplicate s-equal usedOn"));
@@ -57,7 +51,7 @@ fn from_xml_unchecked_rejects_arcrole_used_on_when_qnames_are_s_equal() {
 #[test]
 fn from_xml_unchecked_accepts_role_used_on_when_qnames_are_not_s_equal() {
     let path = Path::new(SCHEMA_BASE).join("role_used_on_not_s_equal.xsd");
-    let parsed = parse_schema_unchecked(&path);
+    let parsed = TaxonomySchema::from_file_unchecked(&path);
 
     assert!(parsed.is_ok());
 }
@@ -65,7 +59,7 @@ fn from_xml_unchecked_accepts_role_used_on_when_qnames_are_not_s_equal() {
 #[test]
 fn from_xml_unchecked_rejects_role_used_on_when_qnames_are_s_equal() {
     let path = Path::new(SCHEMA_BASE).join("role_used_on_s_equal_duplicate.xsd");
-    let parsed = parse_schema_unchecked(&path);
+    let parsed = TaxonomySchema::from_file_unchecked(&path);
 
     assert_matches!(parsed, Err(XbrlError::InvalidSchemaDocument { reason, .. }) => {
         assert!(reason.contains("duplicate s-equal usedOn"));

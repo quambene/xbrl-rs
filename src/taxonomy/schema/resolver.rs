@@ -1,5 +1,5 @@
 use super::parser::{ComplexType, Element, RawSchema, SimpleType};
-use crate::{Balance, ExpandedName, PeriodType, xml::QName};
+use crate::{Balance, ExpandedName, PeriodType, TaxonomySchema, xml::QName};
 use std::collections::{HashMap, HashSet};
 
 /// Standard XBRL base types (from xbrli) and common custom types (e.g.,
@@ -157,6 +157,30 @@ impl Concept {
 
     pub fn is_abstract(&self) -> bool {
         self.is_abstract
+    }
+}
+
+pub fn resolve_schema(schema: RawSchema) -> TaxonomySchema {
+    let concepts = resolve_concepts(&schema);
+
+    TaxonomySchema {
+        file_path: None,
+        target_namespace: schema.target_namespace,
+        namespaces: schema.namespaces,
+        imports: schema.imports,
+        includes: schema.includes,
+        linkbase_refs: schema.linkbase_refs,
+        // TODO: parse actual schema location refs from `xsi:schemaLocation`
+        // and `xsi:noNamespaceSchemaLocation` attributes
+        schema_location_refs: Vec::new(),
+        role_types: schema.role_types,
+        arcrole_types: schema.arcrole_types,
+        concepts,
+        // TODO: move tuple definitions from `Concept::tuple_children` to this
+        // top-level map during concept resolution
+        tuple_defs: HashMap::new(),
+        type_bases: HashMap::new(),
+        type_declared_accuracy: HashMap::new(),
     }
 }
 
@@ -362,8 +386,8 @@ fn walk_simple_type_chain(
     let mut seen = HashSet::new();
 
     while seen.insert(current) {
-        let st = simple_types.get(current)?;
-        let base_qname = st.base.as_ref()?;
+        let simple_type = simple_types.get(current)?;
+        let base_qname = simple_type.base.as_ref()?;
 
         if let Some(known) = match_known_type(&base_qname.local_name) {
             return Some(known);

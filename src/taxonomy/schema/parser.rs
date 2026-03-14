@@ -6,7 +6,14 @@ use quick_xml::{
     Reader,
     events::{BytesStart, Event, attributes::Attributes},
 };
-use std::{collections::HashMap, fmt, io::BufRead, path::PathBuf, str::FromStr};
+use std::{
+    collections::HashMap,
+    fmt,
+    fs::File,
+    io::{BufRead, BufReader},
+    path::{Path, PathBuf},
+    str::FromStr,
+};
 
 /// Represents the `elementFormDefault` and `attributeFormDefault` values from
 /// an XBRL schema's root `xs:schema` element.
@@ -235,21 +242,45 @@ pub struct RawSchema {
 
 /// The parser for XBRL schema documents.
 pub struct SchemaParser<R> {
-    /// Path of the currently parsed schema file, used for error reporting.
-    path: PathBuf,
+    /// Path of the currently parsed schema if read from a file. Used for error
+    /// reporting.
+    path: Option<PathBuf>,
     /// The XML reader for the schema document.
     reader: Reader<R>,
 }
 
+impl SchemaParser<BufReader<File>> {
+    pub fn from_file(path: &Path) -> Result<Self, XbrlError> {
+        let file = File::open(&path).map_err(|err| XbrlError::FileOpen {
+            path: path.to_path_buf(),
+            context: "opening file".to_string(),
+            source: err,
+        })?;
+        let mut reader = Reader::from_reader(BufReader::new(file));
+
+        reader.config_mut().trim_text_start = true;
+        reader.config_mut().trim_text_end = true;
+
+        Ok(Self {
+            path: Some(path.to_path_buf()),
+            reader,
+        })
+    }
+}
+
 impl<R: BufRead> SchemaParser<R> {
-    /// Creates a new `SchemaParser` with the given reader and file path.
-    pub fn new(reader: R, path: PathBuf) -> Self {
+    /// Creates a new `SchemaParser` with the given XML reader and file path.
+    pub fn new(reader: Reader<R>) -> Self {
+        Self { path: None, reader }
+    }
+
+    pub fn from_reader(reader: R) -> Self {
         let mut reader = Reader::from_reader(reader);
 
         reader.config_mut().trim_text_start = true;
         reader.config_mut().trim_text_end = true;
 
-        Self { path, reader }
+        Self { path: None, reader }
     }
 
     /// Parses an XBRL schema document from the reader. Path is used for error
@@ -335,8 +366,9 @@ impl<R: BufRead> SchemaParser<R> {
                 Ok(Event::Eof) => break,
                 Err(err) => {
                     return Err(XbrlError::XmlParse {
+                        path: self.path.clone(),
                         position: self.reader.buffer_position(),
-                        element: Some(format!("schema {}", self.path.display())),
+                        element: Some("schema".to_string()),
                         source: err,
                     });
                 }
@@ -346,7 +378,7 @@ impl<R: BufRead> SchemaParser<R> {
 
         if !has_schema_root {
             return Err(XbrlError::InvalidSchemaDocument {
-                path: self.path.to_path_buf(),
+                path: self.path.clone(),
                 reason: "missing <schema> root element".to_string(),
             });
         }
@@ -362,6 +394,7 @@ impl<R: BufRead> SchemaParser<R> {
     ) -> Result<(), XbrlError> {
         for attribute in attributes {
             let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                path: self.path.clone(),
                 position: self.reader.buffer_position(),
                 element: Some("schema".to_string()),
                 source: err.into(),
@@ -399,6 +432,7 @@ impl<R: BufRead> SchemaParser<R> {
 
         for attribute in attributes {
             let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                path: self.path.clone(),
                 position: self.reader.buffer_position(),
                 element: Some("import".to_string()),
                 source: err.into(),
@@ -434,6 +468,7 @@ impl<R: BufRead> SchemaParser<R> {
 
         for attribute in attributes {
             let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                path: self.path.clone(),
                 position: self.reader.buffer_position(),
                 element: Some("include".to_string()),
                 source: err.into(),
@@ -465,6 +500,7 @@ impl<R: BufRead> SchemaParser<R> {
 
         for attribute in attributes {
             let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                path: self.path.clone(),
                 position: self.reader.buffer_position(),
                 element: Some("include".to_string()),
                 source: err.into(),
@@ -504,6 +540,7 @@ impl<R: BufRead> SchemaParser<R> {
 
         for attribute in attributes {
             let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                path: self.path.clone(),
                 position: self.reader.buffer_position(),
                 element: Some("roleType".to_string()),
                 source: err.into(),
@@ -566,6 +603,7 @@ impl<R: BufRead> SchemaParser<R> {
 
         for attribute in attributes {
             let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                path: self.path.clone(),
                 position: self.reader.buffer_position(),
                 element: Some("arcroleType".to_string()),
                 source: err.into(),
@@ -735,6 +773,7 @@ impl<R: BufRead> SchemaParser<R> {
 
         for attribute in start.attributes() {
             let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                path: self.path.clone(),
                 position: self.reader.buffer_position(),
                 element: Some("element".to_string()),
                 source: err.into(),
@@ -822,6 +861,7 @@ impl<R: BufRead> SchemaParser<R> {
 
         for attribute in attributes {
             let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                path: self.path.clone(),
                 position: self.reader.buffer_position(),
                 element: Some("simpleType".to_string()),
                 source: err.into(),
@@ -848,6 +888,7 @@ impl<R: BufRead> SchemaParser<R> {
                         b"restriction" => {
                             for attribute in event.attributes() {
                                 let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                                    path: self.path.clone(),
                                     position: self.reader.buffer_position(),
                                     element: Some("restriction".to_string()),
                                     source: err.into(),
@@ -863,6 +904,7 @@ impl<R: BufRead> SchemaParser<R> {
                         b"enumeration" => {
                             for attribute in event.attributes() {
                                 let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                                    path: self.path.clone(),
                                     position: self.reader.buffer_position(),
                                     element: Some("enumeration".to_string()),
                                     source: err.into(),
@@ -913,6 +955,7 @@ impl<R: BufRead> SchemaParser<R> {
 
         for attribute in start.attributes() {
             let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                path: self.path.clone(),
                 position: self.reader.buffer_position(),
                 element: Some("complexType".to_string()),
                 source: err.into(),
@@ -989,6 +1032,7 @@ impl<R: BufRead> SchemaParser<R> {
 
                     for attribute in event.attributes() {
                         let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                            path: self.path.clone(),
                             position: self.reader.buffer_position(),
                             element: Some("sequence".to_string()),
                             source: err.into(),
@@ -1078,6 +1122,7 @@ impl<R: BufRead> SchemaParser<R> {
         // Parse base attribute
         for attribute in start.attributes() {
             let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                path: self.path.clone(),
                 position: self.reader.buffer_position(),
                 element: Some("extension or restriction".to_string()),
                 source: err.into(),
@@ -1119,6 +1164,7 @@ impl<R: BufRead> SchemaParser<R> {
 
         for attribute in start.attributes() {
             let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                path: self.path.clone(),
                 position: self.reader.buffer_position(),
                 element: Some("extension or restriction attribute".to_string()),
                 source: err.into(),
@@ -1160,7 +1206,7 @@ mod tests {
                                     namespace="http://www.xbrl.org/2003/instance"
                                     schemaLocation="http://www.xbrl.org/2003/xbrl-instance-2003-12-31.xsd" />
                             </xsd:schema>"#;
-        let mut parser = SchemaParser::new(xml.as_bytes(), PathBuf::from("test.xsd"));
+        let mut parser = SchemaParser::from_reader(xml.as_bytes());
         let schema = parser.parse_schema().unwrap();
 
         let imports = &schema.imports;
@@ -1180,7 +1226,7 @@ mod tests {
                                 xmlns="http://example.com">
                                 <xs:include schemaLocation="test.xsd" />
                             </xs:schema>"#;
-        let mut parser = SchemaParser::new(xml.as_bytes(), PathBuf::from("test.xsd"));
+        let mut parser = SchemaParser::from_reader(xml.as_bytes());
         let schema = parser.parse_schema().unwrap();
 
         let includes = &schema.includes;
@@ -1205,7 +1251,7 @@ mod tests {
                                 </xs:appinfo>
                             </xs:annotation>
                         </xs:schema>"#;
-        let mut parser = SchemaParser::new(xml.as_bytes(), PathBuf::from("test.xsd"));
+        let mut parser = SchemaParser::from_reader(xml.as_bytes());
         let schema = parser.parse_schema().unwrap();
 
         assert_eq!(schema.linkbase_refs.len(), 1);
@@ -1238,7 +1284,7 @@ mod tests {
                                 </xs:appinfo>
                             </xs:annotation>
                         </xs:schema>"#;
-        let mut parser = SchemaParser::new(xml.as_bytes(), PathBuf::from("test.xsd"));
+        let mut parser = SchemaParser::from_reader(xml.as_bytes());
         let schema = parser.parse_schema().unwrap();
 
         assert_eq!(schema.role_types.len(), 1);
@@ -1268,7 +1314,7 @@ mod tests {
                                 </xs:appinfo>
                             </xs:annotation>
                         </xs:schema>"#;
-        let mut parser = SchemaParser::new(xml.as_bytes(), PathBuf::from("test.xsd"));
+        let mut parser = SchemaParser::from_reader(xml.as_bytes());
         let schema = parser.parse_schema().unwrap();
 
         assert_eq!(schema.arcrole_types.len(), 1);
@@ -1295,7 +1341,7 @@ mod tests {
                                     abstract="false"
                                     nillable="true" />
                             </xsd:schema>"#;
-        let mut parser = SchemaParser::new(xml.as_bytes(), PathBuf::from("test.xsd"));
+        let mut parser = SchemaParser::from_reader(xml.as_bytes());
         let schema = parser.parse_schema().unwrap();
 
         assert_eq!(schema.elements.len(), 1);
@@ -1338,7 +1384,7 @@ mod tests {
                                 </xs:complexType>
                             </xs:element>
                         </xsd:schema>"#;
-        let mut parser = SchemaParser::new(xml.as_bytes(), PathBuf::from("test.xsd"));
+        let mut parser = SchemaParser::from_reader(xml.as_bytes());
         let mut schema = parser.parse_schema().unwrap();
 
         assert_eq!(schema.elements.len(), 1);
@@ -1401,7 +1447,7 @@ mod tests {
                                 </xs:complexType>
                             </xs:element>
                         </xs:schema>"#;
-        let mut parser = SchemaParser::new(xml.as_bytes(), PathBuf::from("test.xsd"));
+        let mut parser = SchemaParser::from_reader(xml.as_bytes());
         let mut schema = parser.parse_schema().unwrap();
 
         assert_eq!(schema.elements.len(), 1);
@@ -1465,7 +1511,7 @@ mod tests {
                                 </xs:complexType>
                             </xs:element>
                         </xs:schema>"#;
-        let mut parser = SchemaParser::new(xml.as_bytes(), PathBuf::from("test.xsd"));
+        let mut parser = SchemaParser::from_reader(xml.as_bytes());
         let mut schema = parser.parse_schema().unwrap();
 
         assert_eq!(schema.elements.len(), 1);
@@ -1526,7 +1572,7 @@ mod tests {
                                     </xs:restriction>
                                 </xs:simpleType>
                             </xs:schema>"#;
-        let mut parser = SchemaParser::new(xml.as_bytes(), PathBuf::from("test.xsd"));
+        let mut parser = SchemaParser::from_reader(xml.as_bytes());
         let schema = parser.parse_schema().unwrap();
 
         assert_eq!(schema.simple_types.len(), 1);
@@ -1554,7 +1600,7 @@ mod tests {
                                 xmlns:xs="http://www.w3.org/2001/XMLSchema">
                         </xs:complexType>
                         </xs:schema>"#;
-        let mut parser = SchemaParser::new(xml.as_bytes(), PathBuf::from("test.xsd"));
+        let mut parser = SchemaParser::from_reader(xml.as_bytes());
         let schema = parser.parse_schema().unwrap();
 
         assert_eq!(schema.complex_types.len(), 1);
@@ -1582,7 +1628,7 @@ mod tests {
                                 <xs:restriction base="xbrli:decimalItemType" />
                             </xs:complexType>
                         </xs:schema>"#;
-        let mut parser = SchemaParser::new(xml.as_bytes(), PathBuf::from("test.xsd"));
+        let mut parser = SchemaParser::from_reader(xml.as_bytes());
         let res = parser.parse_schema();
 
         assert_matches!(res, Err(XbrlError::InvalidSchemaDocument { .. }));
@@ -1598,7 +1644,7 @@ mod tests {
                                 <xs:extension base="xbrli:decimalItemType" />
                             </xs:complexType>
                         </xs:schema>"#;
-        let mut parser = SchemaParser::new(xml.as_bytes(), PathBuf::from("test.xsd"));
+        let mut parser = SchemaParser::from_reader(xml.as_bytes());
         let res = parser.parse_schema();
 
         assert_matches!(res, Err(XbrlError::InvalidSchemaDocument { .. }));
@@ -1616,7 +1662,7 @@ mod tests {
                                     </xs:restriction>
                                 </xs:simpleType>
                             </xs:schema>"#;
-        let mut parser = SchemaParser::new(xml.as_bytes(), PathBuf::from("test.xsd"));
+        let mut parser = SchemaParser::from_reader(xml.as_bytes());
         let schema = parser.parse_schema().unwrap();
 
         assert_eq!(schema.simple_types.len(), 1);
@@ -1649,7 +1695,7 @@ mod tests {
                                 </xs:simpleContent>
                             </xs:complexType>
                         </xs:schema>"#;
-        let mut parser = SchemaParser::new(xml.as_bytes(), PathBuf::from("test.xsd"));
+        let mut parser = SchemaParser::from_reader(xml.as_bytes());
         let schema = parser.parse_schema().unwrap();
 
         assert_eq!(schema.complex_types.len(), 1);
@@ -1693,7 +1739,7 @@ mod tests {
                                 </xs:simpleContent>
                             </xs:complexType>
                         </xs:schema>"#;
-        let mut parser = SchemaParser::new(xml.as_bytes(), PathBuf::from("test.xsd"));
+        let mut parser = SchemaParser::from_reader(xml.as_bytes());
         let schema = parser.parse_schema().unwrap();
 
         assert_eq!(schema.complex_types.len(), 1);

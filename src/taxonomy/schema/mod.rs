@@ -2,14 +2,15 @@ mod parser;
 mod resolver;
 mod validation;
 
-use crate::{NamespacePrefix, NamespaceUri, error::Result, instance::Decimals};
+use crate::{NamespacePrefix, NamespaceUri, XbrlError, instance::Decimals};
 pub use parser::{ArcroleType, LinkbaseRef, RoleType, SchemaImport, SchemaInclude, SchemaParser};
 pub use resolver::{
     BaseSubstitutionGroup, Concept, MaxOccurs, SubstitutionGroup, TupleChild, XbrlType,
 };
 use std::{
     collections::HashMap,
-    io,
+    fs::File,
+    io::{self, BufReader},
     path::{Path, PathBuf},
 };
 
@@ -46,8 +47,8 @@ pub struct DeclaredAccuracy {
 /// A parsed taxonomy schema (.xsd) file.
 #[derive(Debug)]
 pub struct TaxonomySchema {
-    /// Absolute file path of this schema.
-    pub file_path: PathBuf,
+    /// Absolute file path of this schema if available.
+    pub file_path: Option<PathBuf>,
     /// The targetNamespace of this schema.
     pub target_namespace: Option<String>,
     /// Namespace declarations (prefix -> URI).
@@ -76,46 +77,46 @@ pub struct TaxonomySchema {
 }
 
 impl TaxonomySchema {
-    /// Parse a taxonomy schema from an XML reader without semantic validation.
-    pub fn from_xml_unchecked<R: io::BufRead>(path: &Path, reader: R) -> Result<Self> {
-        let mut parser = SchemaParser::new(reader, path.to_path_buf());
-        let schema = parser.parse_schema()?;
-        let concepts = resolver::resolve_concepts(&schema);
-
-        Ok(TaxonomySchema {
-            file_path: path.to_path_buf(),
-            target_namespace: schema.target_namespace,
-            namespaces: schema.namespaces,
-            imports: schema.imports,
-            includes: schema.includes,
-            linkbase_refs: schema.linkbase_refs,
-            // TODO: parse actual schema location refs from `xsi:schemaLocation`
-            // and `xsi:noNamespaceSchemaLocation` attributes
-            schema_location_refs: Vec::new(),
-            // TODO: parse actual roleType and arcroleType definitions from
-            // linkbase schema documents
-            role_types: Vec::new(),
-            // TODO: parse actual roleType and arcroleType definitions from
-            // linkbase schema documents
-            arcrole_types: Vec::new(),
-            concepts,
-            // TODO: move tuple definitions from `Concept::tuple_children` to this
-            // top-level map during concept resolution
-            tuple_defs: HashMap::new(),
-            type_bases: HashMap::new(),
-            type_declared_accuracy: HashMap::new(),
-        })
-    }
-
-    /// Parse a taxonomy schema from an XML reader with semantic validation.
-    pub fn from_xml<R: io::BufRead>(path: &Path, reader: R) -> Result<Self> {
-        let schema = Self::from_xml_unchecked(path, reader)?;
+    /// Parse a taxonomy schema from the XSD file at the given path with
+    /// semantic validation.
+    pub fn from_file(path: &Path) -> Result<Self, XbrlError> {
+        let schema = Self::from_file_unchecked(path)?;
         schema.validate()?;
         Ok(schema)
     }
 
+    /// Parse a taxonomy schema from an XML reader with semantic validation.
+    pub fn from_reader<R: io::BufRead>(reader: R) -> Result<Self, XbrlError> {
+        let schema = Self::from_reader_unchecked(reader)?;
+        schema.validate()?;
+        Ok(schema)
+    }
+
+    /// Parse a taxonomy schema from the XSD file at the given path without
+    /// semantic validation.
+    pub fn from_file_unchecked(path: &Path) -> Result<Self, XbrlError> {
+        let file = File::open(&path).map_err(|err| XbrlError::FileOpen {
+            path: path.to_path_buf(),
+            context: "opening file".to_string(),
+            source: err,
+        })?;
+        let reader = BufReader::new(file);
+        let mut parser = SchemaParser::from_reader(reader);
+        let raw_schema = parser.parse_schema()?;
+        let schema = resolver::resolve_schema(raw_schema);
+        Ok(schema)
+    }
+
+    /// Parse a taxonomy schema from an XML reader without semantic validation.
+    pub fn from_reader_unchecked<R: io::BufRead>(reader: R) -> Result<Self, XbrlError> {
+        let mut parser = SchemaParser::from_reader(reader);
+        let raw_schema = parser.parse_schema()?;
+        let schema = resolver::resolve_schema(raw_schema);
+        Ok(schema)
+    }
+
     /// Validate schema-level XBRL constraints.
-    pub fn validate(&self) -> Result<()> {
+    pub fn validate(&self) -> Result<(), XbrlError> {
         validation::validate(self)
     }
 }
@@ -195,7 +196,7 @@ mod tests {
     #[test]
     fn validate_requires_period_type_on_items() {
         let schema = TaxonomySchema {
-            file_path: "test.xsd".into(),
+            file_path: None,
             target_namespace: Some("http://example.com/taxonomy".to_string()),
             namespaces: HashMap::new(),
             imports: vec![],
@@ -232,7 +233,7 @@ mod tests {
     #[test]
     fn validate_rejects_balance_on_non_monetary_item() {
         let schema = TaxonomySchema {
-            file_path: "test.xsd".into(),
+            file_path: None,
             target_namespace: Some("http://example.com/taxonomy".to_string()),
             namespaces: HashMap::new(),
             imports: vec![],
@@ -269,7 +270,7 @@ mod tests {
     #[test]
     fn validate_rejects_tuple_with_period_type() {
         let schema = TaxonomySchema {
-            file_path: "test.xsd".into(),
+            file_path: None,
             target_namespace: Some("http://example.com/taxonomy".to_string()),
             namespaces: HashMap::new(),
             imports: vec![],
@@ -306,7 +307,7 @@ mod tests {
     #[test]
     fn validate_rejects_tuple_with_balance() {
         let schema = TaxonomySchema {
-            file_path: "test.xsd".into(),
+            file_path: None,
             target_namespace: Some("http://example.com/taxonomy".to_string()),
             namespaces: HashMap::new(),
             imports: vec![],
@@ -343,7 +344,7 @@ mod tests {
     #[test]
     fn validate_rejects_role_type_with_invalid_ncname_id() {
         let schema = TaxonomySchema {
-            file_path: "test.xsd".into(),
+            file_path: None,
             target_namespace: Some("http://example.com/taxonomy".to_string()),
             namespaces: HashMap::new(),
             imports: vec![],
@@ -374,7 +375,7 @@ mod tests {
     #[test]
     fn validate_accepts_monetary_item_with_balance_and_period_type() {
         let schema = TaxonomySchema {
-            file_path: "test.xsd".into(),
+            file_path: None,
             target_namespace: Some("http://example.com/taxonomy".to_string()),
             namespaces: HashMap::new(),
             imports: vec![],

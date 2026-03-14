@@ -4,7 +4,12 @@ use quick_xml::{
     events::{BytesStart, Event},
 };
 use rust_decimal::Decimal;
-use std::{io::BufRead, path::PathBuf, str};
+use std::{
+    fs::File,
+    io::{BufRead, BufReader},
+    path::{Path, PathBuf},
+    str,
+};
 
 /// A locator in a presentation, calculation, or definition link.
 #[derive(Debug, PartialEq, Eq)]
@@ -256,22 +261,51 @@ fn parse_decimal(value: &str) -> Result<Decimal, XbrlError> {
 
 /// The parser for XBRL linkbase documents.
 pub struct LinkbaseParser<R> {
-    /// Path of the currently parsed linkbase file, used for error reporting.
-    path: PathBuf,
+    /// Path of the currently parsed linkbase file if available. Used for error
+    /// reporting.
+    path: Option<PathBuf>,
     /// The XML reader for the linkbase document.
     reader: Reader<R>,
 }
 
-impl<R: BufRead> LinkbaseParser<R> {
-    /// Creates a new `LinkbaseParser` with the given reader and file path.
-    pub fn new(reader: R, path: PathBuf) -> Self {
-        let mut reader = Reader::from_reader(reader);
+impl LinkbaseParser<BufReader<File>> {
+    /// Creates a new `LinkbaseParser` from the file at the given path.
+    pub fn from_file(path: &Path) -> Result<Self, XbrlError> {
+        let file = File::open(&path).map_err(|err| XbrlError::FileOpen {
+            path: path.to_path_buf(),
+            context: "opening file".to_string(),
+            source: err,
+        })?;
+        let mut reader = Reader::from_reader(BufReader::new(file));
+
         reader.config_mut().trim_text_start = true;
         reader.config_mut().trim_text_end = true;
 
-        Self { path, reader }
+        Ok(Self {
+            path: Some(path.to_path_buf()),
+            reader,
+        })
+    }
+}
+
+impl<R: BufRead> LinkbaseParser<R> {
+    /// Creates a new `LinkbaseParser` from the given XML reader.
+    pub fn new(reader: Reader<R>) -> Self {
+        Self { path: None, reader }
     }
 
+    /// Creates a new `LinkbaseParser` from the given BufReader.
+    pub fn from_reader(reader: R) -> Self {
+        let mut reader = Reader::from_reader(reader);
+
+        reader.config_mut().trim_text_start = true;
+        reader.config_mut().trim_text_end = true;
+
+        Self { path: None, reader }
+    }
+
+    /// Parses the linkbase document and fills the provided `Linkbases` struct
+    /// with the parsed links.
     pub fn parse_linkbase(&mut self, linkbase: &mut Linkbases) -> Result<(), XbrlError> {
         let mut buf = Vec::new();
 
@@ -325,6 +359,7 @@ impl<R: BufRead> LinkbaseParser<R> {
         let mut role = None;
         for attribute in start.attributes() {
             let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                path: self.path.clone(),
                 position: self.reader.buffer_position(),
                 element: Some("presentationLink".to_string()),
                 source: err.into(),
@@ -360,6 +395,7 @@ impl<R: BufRead> LinkbaseParser<R> {
 
                         for attribute in event.attributes() {
                             let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                                path: self.path.clone(),
                                 position: self.reader.buffer_position(),
                                 element: Some("presentationLink".to_string()),
                                 source: err.into(),
@@ -438,6 +474,7 @@ impl<R: BufRead> LinkbaseParser<R> {
         let mut role = None;
         for attribute in start.attributes() {
             let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                path: self.path.clone(),
                 position: self.reader.buffer_position(),
                 element: Some("calculationLink".to_string()),
                 source: err.into(),
@@ -473,6 +510,7 @@ impl<R: BufRead> LinkbaseParser<R> {
 
                         for attribute in event.attributes() {
                             let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                                path: self.path.clone(),
                                 position: self.reader.buffer_position(),
                                 element: Some("calculationLink".to_string()),
                                 source: err.into(),
@@ -551,6 +589,7 @@ impl<R: BufRead> LinkbaseParser<R> {
         let mut role = None;
         for attribute in start.attributes() {
             let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                path: self.path.clone(),
                 position: self.reader.buffer_position(),
                 element: Some("definitionLink".to_string()),
                 source: err.into(),
@@ -585,6 +624,7 @@ impl<R: BufRead> LinkbaseParser<R> {
 
                         for attribute in event.attributes() {
                             let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                                path: self.path.clone(),
                                 position: self.reader.buffer_position(),
                                 element: Some("definitionArc".to_string()),
                                 source: err.into(),
@@ -664,6 +704,7 @@ impl<R: BufRead> LinkbaseParser<R> {
 
         for attribute in start.attributes() {
             let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                path: self.path.clone(),
                 position: self.reader.buffer_position(),
                 element: Some("labelLink".to_string()),
                 source: err.into(),
@@ -693,6 +734,7 @@ impl<R: BufRead> LinkbaseParser<R> {
 
                         for attribute in event.attributes() {
                             let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                                path: self.path.clone(),
                                 position: self.reader.buffer_position(),
                                 element: Some("labelArc".to_string()),
                                 source: err.into(),
@@ -731,6 +773,7 @@ impl<R: BufRead> LinkbaseParser<R> {
 
                         for attribute in event.attributes() {
                             let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                                path: self.path.clone(),
                                 position: self.reader.buffer_position(),
                                 element: Some("label".to_string()),
                                 source: err.into(),
@@ -809,6 +852,7 @@ impl<R: BufRead> LinkbaseParser<R> {
 
         for attribute in start.attributes() {
             let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                path: self.path.clone(),
                 position: self.reader.buffer_position(),
                 element: Some("referenceLink".to_string()),
                 source: err.into(),
@@ -838,6 +882,7 @@ impl<R: BufRead> LinkbaseParser<R> {
 
                         for attribute in event.attributes() {
                             let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                                path: self.path.clone(),
                                 position: self.reader.buffer_position(),
                                 element: Some("referenceArc".to_string()),
                                 source: err.into(),
@@ -875,6 +920,7 @@ impl<R: BufRead> LinkbaseParser<R> {
 
                         for attribute in event.attributes() {
                             let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                                path: self.path.clone(),
                                 position: self.reader.buffer_position(),
                                 element: Some("reference".to_string()),
                                 source: err.into(),
@@ -938,6 +984,7 @@ impl<R: BufRead> LinkbaseParser<R> {
 
         for attribute in event.attributes() {
             let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                path: self.path.clone(),
                 position: self.reader.buffer_position(),
                 element: Some("presentationLink".to_string()),
                 source: err.into(),
@@ -995,7 +1042,7 @@ mod tests {
                                         order="1" />
                                 </link:presentationLink>
                             </link:linkbase>"#;
-        let mut parser = LinkbaseParser::new(xml.as_bytes(), PathBuf::from("test.xml"));
+        let mut parser = LinkbaseParser::from_reader(xml.as_bytes());
         let mut linkbases = Linkbases::default();
         parser.parse_linkbase(&mut linkbases).unwrap();
 
@@ -1042,7 +1089,7 @@ mod tests {
                                     order="1" />
                             </link:calculationLink>
                         </link:linkbase>"#;
-        let mut parser = LinkbaseParser::new(xml.as_bytes(), PathBuf::from("test.xml"));
+        let mut parser = LinkbaseParser::from_reader(xml.as_bytes());
         let mut linkbases = Linkbases::default();
         parser.parse_linkbase(&mut linkbases).unwrap();
 
@@ -1078,7 +1125,7 @@ mod tests {
                                     xlink:to="loc_member" />
                             </link:definitionLink>
                         </link:linkbase>"#;
-        let mut parser = LinkbaseParser::new(xml.as_bytes(), PathBuf::from("test.xml"));
+        let mut parser = LinkbaseParser::from_reader(xml.as_bytes());
         let mut linkbases = Linkbases::default();
         parser.parse_linkbase(&mut linkbases).unwrap();
 
@@ -1124,7 +1171,7 @@ mod tests {
                                     xlink:to="lab_assets" />
                             </link:labelLink>
                         </link:linkbase>"#;
-        let mut parser = LinkbaseParser::new(xml.as_bytes(), PathBuf::from("test.xml"));
+        let mut parser = LinkbaseParser::from_reader(xml.as_bytes());
         let mut linkbases = Linkbases::default();
         parser.parse_linkbase(&mut linkbases).unwrap();
 
@@ -1188,7 +1235,7 @@ mod tests {
                                 </link:reference>
                             </link:referenceLink>
                         </link:linkbase>"#;
-        let mut parser = LinkbaseParser::new(xml.as_bytes(), PathBuf::from("test.xml"));
+        let mut parser = LinkbaseParser::from_reader(xml.as_bytes());
         let mut linkbases = Linkbases::default();
         parser.parse_linkbase(&mut linkbases).unwrap();
 

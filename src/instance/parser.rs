@@ -206,8 +206,9 @@ impl Default for RawInstance {
 
 /// The parser for XBRL instance documents.
 pub struct InstanceParser<R> {
-    /// Path of the currently parsed instance file, used for error reporting.
-    path: PathBuf,
+    /// Path of the currently parsed instance file if available. Used for error
+    /// reporting.
+    path: Option<PathBuf>,
     /// The XML reader for the instance document.
     reader: Reader<R>,
 }
@@ -215,24 +216,32 @@ pub struct InstanceParser<R> {
 impl InstanceParser<BufReader<File>> {
     /// Creates a new `InstanceParser` from the given file path.
     pub fn from_file(path: &Path) -> Result<Self, XbrlError> {
-        let file = File::open(path).map_err(XbrlError::Io)?;
-        let reader = BufReader::new(file);
-        Ok(Self::from_xml(reader, path.to_path_buf()))
+        let file = File::open(&path).map_err(|err| XbrlError::FileOpen {
+            path: path.to_path_buf(),
+            context: "opening file".to_string(),
+            source: err,
+        })?;
+        let reader = Reader::from_reader(BufReader::new(file));
+
+        Ok(Self {
+            path: Some(path.to_path_buf()),
+            reader,
+        })
     }
 }
 
 impl<R: BufRead> InstanceParser<R> {
     /// Creates a new `InstanceParser` with the given reader and file path.
-    pub fn new(reader: Reader<R>, path: PathBuf) -> Self {
-        Self { path, reader }
+    pub fn new(reader: Reader<R>) -> Self {
+        Self { path: None, reader }
     }
 
     /// Creates a new `InstanceParser` from the given reader.
-    pub fn from_xml(reader: R, path: PathBuf) -> Self {
+    pub fn from_reader(reader: R) -> Self {
         let mut reader = Reader::from_reader(reader);
         reader.config_mut().trim_text_start = true;
         reader.config_mut().trim_text_end = true;
-        Self::new(reader, path)
+        Self::new(reader)
     }
 
     /// Parses an XBRL instance document from the reader. Path is used for error
@@ -293,8 +302,9 @@ impl<R: BufRead> InstanceParser<R> {
                 Ok(Event::Eof) => break,
                 Err(err) => {
                     return Err(XbrlError::XmlParse {
+                        path: self.path.clone(),
                         position: self.reader.buffer_position(),
-                        element: Some(format!("schema {}", self.path.display())),
+                        element: Some("schema".to_string()),
                         source: err,
                     });
                 }
@@ -304,7 +314,7 @@ impl<R: BufRead> InstanceParser<R> {
 
         if !has_instance_root {
             return Err(XbrlError::InvalidInstanceDocument {
-                path: self.path.to_path_buf(),
+                path: self.path.clone(),
                 reason: "missing <xbrli:xbrl> root element".to_string(),
             });
         }
@@ -320,6 +330,7 @@ impl<R: BufRead> InstanceParser<R> {
     ) -> Result<(), XbrlError> {
         for attribute in attributes {
             let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                path: self.path.clone(),
                 position: self.reader.buffer_position(),
                 element: Some("xbrl".to_string()),
                 source: err.into(),
@@ -349,6 +360,7 @@ impl<R: BufRead> InstanceParser<R> {
     ) -> Result<(), XbrlError> {
         for attribute in attributes {
             let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                path: self.path.clone(),
                 position: self.reader.buffer_position(),
                 element: Some("schemaRef".to_string()),
                 source: err.into(),
@@ -380,6 +392,7 @@ impl<R: BufRead> InstanceParser<R> {
 
         for attribute in attributes {
             let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                path: self.path.clone(),
                 position: self.reader.buffer_position(),
                 element: Some("roleRef".to_string()),
                 source: err.into(),
@@ -419,6 +432,7 @@ impl<R: BufRead> InstanceParser<R> {
 
         for attribute in attributes {
             let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                path: self.path.clone(),
                 position: self.reader.buffer_position(),
                 element: Some("arcroleRef".to_string()),
                 source: err.into(),
@@ -457,6 +471,7 @@ impl<R: BufRead> InstanceParser<R> {
 
         for attribute in attributes {
             let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                path: self.path.clone(),
                 position: self.reader.buffer_position(),
                 element: Some("context".to_string()),
                 source: err.into(),
@@ -529,6 +544,7 @@ impl<R: BufRead> InstanceParser<R> {
                         b"identifier" => {
                             for attribute in event.attributes() {
                                 let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                                    path: self.path.clone(),
                                     position: self.reader.buffer_position(),
                                     element: Some("identifier".to_string()),
                                     source: err.into(),
@@ -646,6 +662,7 @@ impl<R: BufRead> InstanceParser<R> {
 
                         for attribute in event.attributes() {
                             let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                                path: self.path.clone(),
                                 position: self.reader.buffer_position(),
                                 element: Some("explicitMember".to_string()),
                                 source: err.into(),
@@ -698,6 +715,7 @@ impl<R: BufRead> InstanceParser<R> {
 
         for attribute in attributes {
             let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                path: self.path.clone(),
                 position: self.reader.buffer_position(),
                 element: Some("unit".to_string()),
                 source: err.into(),
@@ -859,6 +877,7 @@ impl<R: BufRead> InstanceParser<R> {
 
         for attribute in event.attributes() {
             let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                path: self.path.clone(),
                 position: self.reader.buffer_position(),
                 element: Some(name.clone()),
                 source: err.into(),
@@ -953,6 +972,7 @@ impl<R: BufRead> InstanceParser<R> {
 
         for attribute in event.attributes() {
             let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                path: self.path.clone(),
                 position: self.reader.buffer_position(),
                 element: Some(name.clone()),
                 source: err.into(),
@@ -1002,6 +1022,7 @@ impl<R: BufRead> InstanceParser<R> {
 
         for attribute in attributes {
             let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                path: self.path.clone(),
                 position: self.reader.buffer_position(),
                 element: Some("footnoteLink".to_string()),
                 source: err.into(),
@@ -1028,6 +1049,7 @@ impl<R: BufRead> InstanceParser<R> {
 
                             for attribute in event.attributes() {
                                 let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                                    path: self.path.clone(),
                                     position: self.reader.buffer_position(),
                                     element: Some("loc".to_string()),
                                     source: err.into(),
@@ -1053,6 +1075,7 @@ impl<R: BufRead> InstanceParser<R> {
 
                             for attribute in event.attributes() {
                                 let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                                    path: self.path.clone(),
                                     position: self.reader.buffer_position(),
                                     element: Some("footnoteArc".to_string()),
                                     source: err.into(),
@@ -1078,6 +1101,7 @@ impl<R: BufRead> InstanceParser<R> {
 
                             for attribute in event.attributes() {
                                 let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                                    path: self.path.clone(),
                                     position: self.reader.buffer_position(),
                                     element: Some("footnote".to_string()),
                                     source: err.into(),
@@ -1154,7 +1178,7 @@ mod tests {
         let xml = r#"<xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance"
                             xmlns:ifrs="http://xbrl.ifrs.org/taxonomy/2023">
                         </xbrli:xbrl>"#;
-        let mut parser = InstanceParser::from_xml(xml.as_bytes(), PathBuf::from("test.xml"));
+        let mut parser = InstanceParser::from_reader(xml.as_bytes());
         let instance = parser.parse_instance().unwrap();
 
         assert_eq!(instance.namespaces.len(), 2);
@@ -1174,7 +1198,7 @@ mod tests {
                             xmlns:ifrs="http://xbrl.ifrs.org/taxonomy/2023">
                             <link:schemaRef xlink:href="ifrs.xsd" />
                         </xbrli:xbrl>"#;
-        let mut parser = InstanceParser::from_xml(xml.as_bytes(), PathBuf::from("test.xml"));
+        let mut parser = InstanceParser::from_reader(xml.as_bytes());
         let instance = parser.parse_instance().unwrap();
 
         assert_eq!(instance.schema_refs.len(), 1);
@@ -1187,7 +1211,7 @@ mod tests {
                             xmlns:ifrs="http://xbrl.ifrs.org/taxonomy/2023">
                             <link:roleRef roleURI="http://example.com/role" xlink:href="role.xml" />
                         </xbrli:xbrl>"#;
-        let mut parser = InstanceParser::from_xml(xml.as_bytes(), PathBuf::from("test.xml"));
+        let mut parser = InstanceParser::from_reader(xml.as_bytes());
         let instance = parser.parse_instance().unwrap();
 
         assert_eq!(instance.role_refs.len(), 1);
@@ -1201,7 +1225,7 @@ mod tests {
                             xmlns:ifrs="http://xbrl.ifrs.org/taxonomy/2023">
                             <link:arcroleRef arcroleURI="http://example.com/arcrole" xlink:href="arcrole.xml" />
                         </xbrli:xbrl>"#;
-        let mut parser = InstanceParser::from_xml(xml.as_bytes(), PathBuf::from("test.xml"));
+        let mut parser = InstanceParser::from_reader(xml.as_bytes());
         let instance = parser.parse_instance().unwrap();
 
         assert_eq!(instance.arcrole_refs.len(), 1);
@@ -1225,7 +1249,7 @@ mod tests {
                                 </period>
                             </context>
                         </xbrli:xbrl>"#;
-        let mut parser = InstanceParser::from_xml(xml.as_bytes(), PathBuf::from("test.xml"));
+        let mut parser = InstanceParser::from_reader(xml.as_bytes());
         let instance = parser.parse_instance().unwrap();
 
         assert_eq!(instance.contexts.len(), 1);
@@ -1244,7 +1268,7 @@ mod tests {
                                 <measure>iso4217:EUR</measure>
                             </unit>
                         </xbrli:xbrl>"#;
-        let mut parser = InstanceParser::from_xml(xml.as_bytes(), PathBuf::from("test.xml"));
+        let mut parser = InstanceParser::from_reader(xml.as_bytes());
         let instance = parser.parse_instance().unwrap();
 
         assert_eq!(instance.units.len(), 1);
@@ -1274,7 +1298,7 @@ mod tests {
                                     </xbrli:divide>
                                 </xbrli:unit>
                             </xbrli:xbrl>"#;
-        let mut parser = InstanceParser::from_xml(xml.as_bytes(), PathBuf::from("test.xml"));
+        let mut parser = InstanceParser::from_reader(xml.as_bytes());
         let instance = parser.parse_instance().unwrap();
 
         assert_eq!(instance.units.len(), 1);
@@ -1297,7 +1321,7 @@ mod tests {
                                 1200000
                             </ifrs:Revenue>
                         </xbrli:xbrl>"#;
-        let mut parser = InstanceParser::from_xml(xml.as_bytes(), PathBuf::from("test.xml"));
+        let mut parser = InstanceParser::from_reader(xml.as_bytes());
         let instance = parser.parse_instance().unwrap();
 
         assert_eq!(instance.facts.len(), 1);
@@ -1321,7 +1345,7 @@ mod tests {
                                     <t:City contextRef="c1">Berlin</t:City>
                                 </t:Address>
                             </xbrli:xbrl>"#;
-        let mut parser = InstanceParser::from_xml(xml.as_bytes(), PathBuf::from("test.xml"));
+        let mut parser = InstanceParser::from_reader(xml.as_bytes());
         let instance = parser.parse_instance().unwrap();
 
         assert_eq!(instance.facts.len(), 1);
@@ -1354,7 +1378,7 @@ mod tests {
                                     </t:Inner>
                                 </t:Outer>
                             </xbrli:xbrl>"#;
-        let mut parser = InstanceParser::from_xml(xml.as_bytes(), PathBuf::from("test.xml"));
+        let mut parser = InstanceParser::from_reader(xml.as_bytes());
         let instance = parser.parse_instance().unwrap();
 
         assert_eq!(instance.facts.len(), 1);
@@ -1385,7 +1409,7 @@ mod tests {
                             xmlns:ifrs="http://xbrl.ifrs.org/taxonomy/2023">
                             <ifrs:Revenue contextRef="c1" xsi:nil="true" />
                         </xbrli:xbrl>"#;
-        let mut parser = InstanceParser::from_xml(xml.as_bytes(), PathBuf::from("test.xml"));
+        let mut parser = InstanceParser::from_reader(xml.as_bytes());
         let instance = parser.parse_instance().unwrap();
 
         assert_eq!(instance.facts.len(), 1);
@@ -1407,7 +1431,7 @@ mod tests {
                             xmlns:t="http://example.com/taxonomy">
                             <t:Address xsi:nil="true" />
                         </xbrli:xbrl>"#;
-        let mut parser = InstanceParser::from_xml(xml.as_bytes(), PathBuf::from("test.xml"));
+        let mut parser = InstanceParser::from_reader(xml.as_bytes());
         let instance = parser.parse_instance().unwrap();
 
         assert_eq!(instance.facts.len(), 1);
@@ -1433,7 +1457,7 @@ mod tests {
                                 <link:footnoteArc xlink:from="loc1" xlink:to="fn1" />
                             </link:footnoteLink>
                         </xbrli:xbrl>"##;
-        let mut parser = InstanceParser::from_xml(xml.as_bytes(), PathBuf::from("test.xml"));
+        let mut parser = InstanceParser::from_reader(xml.as_bytes());
         let instance = parser.parse_instance().unwrap();
 
         assert_eq!(instance.footnote_links.len(), 1);
@@ -1479,7 +1503,7 @@ mod tests {
                                 1200000
                             </ifrs:Revenue>
                         </xbrli:xbrl>"#;
-        let mut parser = InstanceParser::from_xml(xml.as_bytes(), PathBuf::from("test.xml"));
+        let mut parser = InstanceParser::from_reader(xml.as_bytes());
         let instance = parser.parse_instance().unwrap();
 
         assert_eq!(instance.contexts.len(), 1);
