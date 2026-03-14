@@ -255,7 +255,7 @@ fn unit_key(unit: &Unit) -> UnitKey {
         .map(|measure| {
             (
                 measure.namespace_uri.clone(),
-                measure.local_name.to_ascii_lowercase(),
+                measure.qname.local_name.to_ascii_lowercase(),
             )
         })
         .collect();
@@ -267,7 +267,7 @@ fn unit_key(unit: &Unit) -> UnitKey {
         .map(|measure| {
             (
                 measure.namespace_uri.clone(),
-                measure.local_name.to_ascii_lowercase(),
+                measure.qname.local_name.to_ascii_lowercase(),
             )
         })
         .collect();

@@ -1,4 +1,5 @@
 use crate::XbrlError;
+use std::str::FromStr;
 
 /// Represents a qualified name in the XML document (e.g.,
 /// "xbrli:monetaryItemType").
@@ -8,6 +9,24 @@ pub struct QName {
     pub prefix: Option<String>,
     /// The local name (e.g., "monetaryItemType").
     pub local_name: String,
+}
+
+impl ToString for QName {
+    fn to_string(&self) -> String {
+        if let Some(prefix) = &self.prefix {
+            format!("{}:{}", prefix, self.local_name)
+        } else {
+            self.local_name.clone()
+        }
+    }
+}
+
+impl FromStr for QName {
+    type Err = XbrlError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(parse_qname(s))
+    }
 }
 
 /// Parses a QName string (e.g., "xbrli:monetaryItemType") into a `QName`

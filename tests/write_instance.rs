@@ -1,8 +1,8 @@
 use roxmltree::Document;
 use std::{path::PathBuf, str::FromStr};
 use xbrl_rs::{
-    Context, ContextId, EntityIdentifier, InstanceDocument, Period, TaxonomySet, Unit, UnitId,
-    XmlReader, XmlWriter,
+    Context, ContextId, EntityIdentifier, InstanceDocument, Period, QName, TaxonomySet, Unit,
+    UnitId, XmlReader, XmlWriter,
 };
 
 const TAXONOMY_ENTRY_POINT: &str = "test_data/taxonomies";
@@ -80,8 +80,8 @@ fn generate_instance() {
     );
 
     // 3. Define units: monetary (EUR) and pure (for dimensionless numeric items)
-    let monetary_unit = Unit::new(UnitId::from("EUR"), "iso4217:EUR".to_owned());
-    let pure_unit = Unit::new(UnitId::from("pure"), "xbrli:pure".to_owned());
+    let monetary_unit = Unit::new(UnitId::from("EUR"), QName::from_str("iso4217:EUR").unwrap());
+    let pure_unit = Unit::new(UnitId::from("pure"), QName::from_str("xbrli:pure").unwrap());
 
     // 4. Build the instance from the taxonomy.
     let mut instance = InstanceDocument::from_taxonomy(

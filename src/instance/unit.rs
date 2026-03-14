@@ -2,6 +2,7 @@
 //!
 //! Units define the measurement unit for numeric facts (e.g., EUR, USD, pure).
 
+use crate::{QName, xml};
 use std::{borrow::Borrow, fmt, ops::Deref};
 
 const NS_XBRLI: &str = "http://www.xbrl.org/2003/instance";
@@ -59,11 +60,7 @@ impl fmt::Display for UnitId {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UnitMeasure {
     /// Original QName text as found in XML (for example `iso4217:EUR`).
-    pub qname: String,
-    /// QName prefix, if present (for example `iso4217`).
-    pub prefix: Option<String>,
-    /// QName local name (for example `EUR`).
-    pub local_name: String,
+    pub qname: QName,
     /// Resolved namespace URI for `prefix` or default namespace.
     pub namespace_uri: Option<String>,
 }
@@ -75,7 +72,7 @@ pub struct Unit {
     pub id: UnitId,
     /// Unit of measure, e.g., "iso4217:EUR" for Euro or "xbrli:pure" for
     /// dimensionless.
-    pub measure: String,
+    pub measure: QName,
     /// Numerator measures (or all measures when no divide is present).
     pub numerator_measures: Vec<UnitMeasure>,
     /// Denominator measures when divide is present.
@@ -83,13 +80,10 @@ pub struct Unit {
 }
 
 impl Unit {
-    pub fn new(id: UnitId, measure: String) -> Self {
-        let (prefix, local_name) = parse_qname(&measure);
-        let namespace_uri = known_unit_namespace(prefix.as_deref()).map(str::to_owned);
+    pub fn new(id: UnitId, measure: QName) -> Self {
+        let namespace_uri = known_unit_namespace(measure.prefix.as_deref()).map(str::to_owned);
         let first = UnitMeasure {
             qname: measure.clone(),
-            prefix,
-            local_name,
             namespace_uri,
         };
 
@@ -108,8 +102,11 @@ impl Unit {
     ) {
         self.measure = numerator_measures
             .first()
-            .map(|m| m.qname.clone())
-            .unwrap_or_default();
+            .map(|measure| measure.qname.clone())
+            .unwrap_or_else(|| QName {
+                prefix: None,
+                local_name: "".to_string(),
+            });
         self.numerator_measures = numerator_measures;
         self.denominator_measures = denominator_measures;
     }
@@ -136,14 +133,14 @@ impl Unit {
     /// Get the currency code if this is a currency unit
     pub fn currency_code(&self) -> Option<&str> {
         self.primary_measure()
-            .map(|measure| measure.local_name.as_str())
+            .map(|measure| measure.qname.local_name.as_str())
     }
 
     /// Check if this is a pure (dimensionless) unit
     pub fn is_pure(&self) -> bool {
         self.primary_measure().is_some_and(|measure| {
             measure.namespace_uri.as_deref() == Some("http://www.xbrl.org/2003/instance")
-                && measure.local_name == "pure"
+                && measure.qname.local_name == "pure"
         })
     }
 
@@ -151,16 +148,8 @@ impl Unit {
     pub fn is_shares(&self) -> bool {
         self.primary_measure().is_some_and(|measure| {
             measure.namespace_uri.as_deref() == Some("http://www.xbrl.org/2003/instance")
-                && measure.local_name == "shares"
+                && measure.qname.local_name == "shares"
         })
-    }
-}
-
-fn parse_qname(value: &str) -> (Option<String>, String) {
-    if let Some((prefix, local)) = value.split_once(':') {
-        (Some(prefix.to_string()), local.to_string())
-    } else {
-        (None, value.to_string())
     }
 }
 

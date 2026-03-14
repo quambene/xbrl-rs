@@ -153,7 +153,7 @@ fn write_unit<W: std::io::Write>(writer: &mut Writer<W>, unit: &Unit) -> Result<
     writer.write_event(Event::Start(elem))?;
 
     writer.write_event(Event::Start(BytesStart::new("xbrli:measure")))?;
-    writer.write_event(Event::Text(BytesText::new(&unit.measure)))?;
+    writer.write_event(Event::Text(BytesText::new(&unit.measure.to_string())))?;
     writer.write_event(Event::End(BytesEnd::new("xbrli:measure")))?;
 
     writer.write_event(Event::End(BytesEnd::new("xbrli:unit")))?;
