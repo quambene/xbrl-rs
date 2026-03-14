@@ -4,7 +4,6 @@ mod context;
 mod fact;
 mod footnote;
 mod parser;
-mod reader;
 mod resolver;
 mod unit;
 mod view;
@@ -19,6 +18,7 @@ use crate::{
 pub use context::{Context, ContextId, EntityIdentifier, Period};
 pub use fact::{Decimals, Fact, ItemFact, TupleFact};
 pub use footnote::{FootnoteArc, FootnoteLink, FootnoteLocator, FootnoteResource};
+pub use parser::RawUnit;
 use quick_xml::{Reader, Writer};
 use std::{
     borrow::Borrow,
@@ -78,6 +78,46 @@ impl fmt::Display for NamespacePrefix {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct NamespaceUri(String);
+
+impl NamespaceUri {
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl From<String> for NamespaceUri {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+
+impl From<&str> for NamespaceUri {
+    fn from(value: &str) -> Self {
+        Self(value.to_owned())
+    }
+}
+
+impl Deref for NamespaceUri {
+    type Target = str;
+    fn deref(&self) -> &Self::Target {
+        self.as_str()
+    }
+}
+
+impl AsRef<str> for NamespaceUri {
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl fmt::Display for NamespaceUri {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
 /// Represents a complete XBRL instance document
 #[derive(Debug, Default)]
 pub struct InstanceDocument {
@@ -95,7 +135,7 @@ pub struct InstanceDocument {
     facts: Vec<Fact>,
     /// Namespace prefixes used in the document (e.g. "xbrli" ->
     /// "http://www.xbrl.org/2003/instance")
-    namespaces: HashMap<NamespacePrefix, String>,
+    namespaces: HashMap<NamespacePrefix, NamespaceUri>,
     /// Source document file name used for scope-sensitive checks.
     document_name: Option<String>,
     /// Footnote links found in the instance.
@@ -109,7 +149,7 @@ impl InstanceDocument {
         contexts: HashMap<ContextId, Context>,
         units: HashMap<UnitId, Unit>,
         facts: Vec<Fact>,
-        namespaces: HashMap<NamespacePrefix, String>,
+        namespaces: HashMap<NamespacePrefix, NamespaceUri>,
         document_name: Option<String>,
         footnote_links: Vec<FootnoteLink>,
     ) -> Self {
@@ -243,7 +283,7 @@ impl InstanceDocument {
     where
         R: io::BufRead,
     {
-        reader::read_xml(&mut reader)
+        todo!()
     }
 
     /// Validate this instance against a taxonomy.
@@ -388,7 +428,8 @@ impl InstanceDocument {
 
     /// Add a namespace prefix mapping
     pub fn add_namespace(&mut self, prefix: String, uri: String) {
-        self.namespaces.insert(NamespacePrefix::from(prefix), uri);
+        self.namespaces
+            .insert(NamespacePrefix::from(prefix), NamespaceUri::from(uri));
     }
 
     /// Get namespace URI for a prefix
@@ -397,7 +438,7 @@ impl InstanceDocument {
     }
 
     /// Get all namespace prefix mappings
-    pub fn namespaces(&self) -> &HashMap<NamespacePrefix, String> {
+    pub fn namespaces(&self) -> &HashMap<NamespacePrefix, NamespaceUri> {
         &self.namespaces
     }
 
@@ -739,7 +780,7 @@ mod tests {
             </xbrli:xbrl>
         "#;
 
-        let mut reader = Reader::from_str(xml);
+        let reader = Reader::from_str(xml);
         let instance = InstanceDocument::from_xml(reader).expect("instance should parse");
 
         assert_eq!(instance.role_refs(), ["http://www.xbrl.org/2003/role/link"]);

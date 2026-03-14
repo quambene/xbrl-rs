@@ -1,4 +1,4 @@
-use crate::XbrlError;
+use crate::{XbrlError, instance::NamespaceUri};
 use std::str::FromStr;
 
 /// Represents a qualified name in the XML document (e.g.,
@@ -58,7 +58,7 @@ pub fn parse_u32(value: &str) -> Result<u32, XbrlError> {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ExpandedName {
     /// The namespace URI (e.g., "http://xbrl.org/2003/instance").
-    pub namespace_uri: String,
+    pub namespace_uri: NamespaceUri,
     /// The local name (e.g., "Revenue").
     pub local_name: String,
 }
@@ -66,7 +66,7 @@ pub struct ExpandedName {
 impl ExpandedName {
     pub fn new(namespace_uri: String, local_name: String) -> Self {
         Self {
-            namespace_uri,
+            namespace_uri: namespace_uri.into(),
             local_name,
         }
     }

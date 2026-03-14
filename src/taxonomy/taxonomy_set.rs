@@ -2,6 +2,7 @@ use super::schema::{DeclaredAccuracy, TaxonomySchema};
 use crate::{
     ConceptId, ExpandedName, Label, Reference, RoleUri, SchemaRefUrl,
     error::{Result, XbrlError},
+    instance::NamespaceUri,
     taxonomy::{
         BaseSubstitutionGroup, RoleType,
         linkbases::{
@@ -438,7 +439,7 @@ impl TaxonomySet {
                 let target_namespace = schema.target_namespace.as_deref()?;
 
                 return Some(ExpandedName {
-                    namespace_uri: target_namespace.to_string(),
+                    namespace_uri: NamespaceUri::from(target_namespace),
                     local_name: concept.name.local_name.clone(),
                 });
             }

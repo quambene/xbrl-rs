@@ -1,4 +1,4 @@
-use crate::{QName, Unit, XbrlError, xml};
+use crate::{QName, XbrlError, xml};
 use quick_xml::{
     Reader,
     events::{BytesStart, Event, attributes::Attributes},

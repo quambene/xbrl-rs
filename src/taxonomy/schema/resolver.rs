@@ -440,6 +440,7 @@ fn convert_qname(raw: &QName) -> QName {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::instance::NamespaceUri;
     use std::{collections::HashMap, path::PathBuf};
 
     fn empty_schema() -> RawSchema {
@@ -792,6 +793,6 @@ mod tests {
         let concepts = resolve_concepts(&schema);
 
         assert_eq!(concepts.len(), 1);
-        assert_eq!(concepts[0].name.namespace_uri, "");
+        assert_eq!(concepts[0].name.namespace_uri, NamespaceUri::from(""));
     }
 }

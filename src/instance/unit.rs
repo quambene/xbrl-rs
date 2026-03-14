@@ -102,7 +102,7 @@ impl Unit {
     /// Check if this is a currency unit
     pub fn is_currency(&self) -> bool {
         self.primary_measure()
-            .map(|measure| measure.namespace_uri == "http://www.xbrl.org/2003/iso4217")
+            .map(|measure| measure.namespace_uri.as_str() == "http://www.xbrl.org/2003/iso4217")
             .unwrap_or(false)
     }
 
@@ -115,7 +115,7 @@ impl Unit {
     /// Check if this is a pure (dimensionless) unit
     pub fn is_pure(&self) -> bool {
         self.primary_measure().is_some_and(|measure| {
-            measure.namespace_uri == "http://www.xbrl.org/2003/instance"
+            measure.namespace_uri.as_str() == "http://www.xbrl.org/2003/instance"
                 && measure.local_name == "pure"
         })
     }
@@ -123,7 +123,7 @@ impl Unit {
     /// Check if this is a shares unit
     pub fn is_shares(&self) -> bool {
         self.primary_measure().is_some_and(|measure| {
-            measure.namespace_uri == "http://www.xbrl.org/2003/instance"
+            measure.namespace_uri.as_str() == "http://www.xbrl.org/2003/instance"
                 && measure.local_name == "shares"
         })
     }

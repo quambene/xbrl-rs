@@ -882,7 +882,7 @@ fn validate_unit_constraints(
     }
 
     for measure in unit.numerator.iter().chain(unit.denominator.iter()) {
-        if measure.namespace_uri == NS_XBRLI
+        if measure.namespace_uri.as_str() == NS_XBRLI
             && measure.local_name != "pure"
             && measure.local_name != "shares"
         {
@@ -920,7 +920,7 @@ fn validate_unit_constraints(
         }
 
         if let Some(measure) = unit.primary_measure() {
-            let is_iso = measure.namespace_uri == NS_ISO4217;
+            let is_iso = measure.namespace_uri.as_str() == NS_ISO4217;
             let is_code = measure.local_name.len() == 3
                 && measure
                     .local_name
@@ -958,7 +958,7 @@ fn validate_unit_constraints(
         }
 
         if let Some(measure) = unit.primary_measure()
-            && !(measure.namespace_uri == NS_XBRLI && measure.local_name == "shares")
+            && !(measure.namespace_uri.as_str() == NS_XBRLI && measure.local_name == "shares")
         {
             result.add(
                 Severity::Error,

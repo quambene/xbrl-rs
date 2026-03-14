@@ -232,14 +232,14 @@ fn qualified_name() {
     assert_eq!(
         dts.qualified_name("de-gaap-ci_bs.ass"),
         Some(ExpandedName {
-            namespace_uri: "http://www.xbrl.de/taxonomies/de-gaap-ci-2020-04-01".to_string(),
+            namespace_uri: "http://www.xbrl.de/taxonomies/de-gaap-ci-2020-04-01".into(),
             local_name: "bs.ass".to_string()
         })
     );
     assert_eq!(
         dts.qualified_name("de-gaap-ci_bs.ass.fixAss"),
         Some(ExpandedName {
-            namespace_uri: "http://www.xbrl.de/taxonomies/de-gaap-ci-2020-04-01".to_string(),
+            namespace_uri: "http://www.xbrl.de/taxonomies/de-gaap-ci-2020-04-01".into(),
             local_name: "bs.ass.fixAss".to_string()
         })
     );

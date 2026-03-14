@@ -160,6 +160,7 @@ mod tests {
     use super::{Concept, TaxonomySchema};
     use crate::{
         Balance, ExpandedName, PeriodType, XbrlError,
+        instance::NamespaceUri,
         taxonomy::{
             BaseSubstitutionGroup, RoleType,
             schema::resolver::{SubstitutionGroup, XbrlType},
@@ -179,7 +180,7 @@ mod tests {
         Concept {
             id: None,
             name: ExpandedName {
-                namespace_uri: "".to_string(),
+                namespace_uri: NamespaceUri::from(""),
                 local_name: local_name.to_string(),
             },
             data_type: XbrlType::Simple(type_local.to_string()),
