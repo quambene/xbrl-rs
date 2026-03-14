@@ -1,4 +1,4 @@
-use crate::XbrlError;
+use crate::{QName, XbrlError, xml};
 use quick_xml::{
     Reader,
     events::{BytesStart, Event, attributes::Attributes},
@@ -58,15 +58,15 @@ pub struct RawDimension {
 pub struct RawUnit {
     pub id: String,
     /// Measures like iso4217:EUR
-    pub measures: Vec<String>,
+    pub measures: Vec<QName>,
     /// Divide unit (optional)
     pub divide: Option<RawUnitDivide>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct RawUnitDivide {
-    pub numerator: Vec<String>,
-    pub denominator: Vec<String>,
+    pub numerator: Vec<QName>,
+    pub denominator: Vec<QName>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -716,7 +716,8 @@ impl<R: BufRead> InstanceParser<R> {
                         let mut text_buf = Vec::new();
                         if let Event::Text(ref text) = self.reader.read_event_into(&mut text_buf)? {
                             let value = text.xml_content().map_err(quick_xml::Error::from)?;
-                            measures.push(value.into_owned());
+                            let qname = xml::parse_qname(&value);
+                            measures.push(qname);
                         }
                     }
                     b"divide" => {
@@ -758,10 +759,11 @@ impl<R: BufRead> InstanceParser<R> {
                         let mut text_buf = Vec::new();
                         if let Event::Text(ref text) = self.reader.read_event_into(&mut text_buf)? {
                             let value = text.xml_content().map_err(quick_xml::Error::from)?;
+                            let qname = xml::parse_qname(&value);
                             if in_numerator {
-                                numerator.push(value.into_owned());
+                                numerator.push(qname);
                             } else if in_denominator {
-                                denominator.push(value.into_owned());
+                                denominator.push(qname);
                             }
                         }
                     }
@@ -1138,6 +1140,7 @@ impl<R: BufRead> InstanceParser<R> {
 mod tests {
     use super::*;
     use assert_matches::assert_matches;
+    use std::str::FromStr;
 
     #[test]
     fn test_parse_instance_root() {
@@ -1239,8 +1242,47 @@ mod tests {
 
         assert_eq!(instance.units.len(), 1);
         let unit = &instance.units[0];
-        assert_eq!(unit.id, "u1");
-        assert_eq!(unit.measures, vec!["iso4217:EUR".to_string()]);
+        assert_eq!(
+            unit,
+            &RawUnit {
+                id: "u1".to_string(),
+                measures: vec![QName::from_str("iso4217:EUR").unwrap()],
+                divide: None,
+            }
+        );
+    }
+
+    #[test]
+    fn test_parse_unit_divide() {
+        let xml = r#"<xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance"
+                                xmlns:ifrs="http://xbrl.ifrs.org/taxonomy/2023">
+                                <xbrli:unit id="USD_per_share">
+                                    <xbrli:divide>
+                                        <xbrli:unitNumerator>
+                                            <xbrli:measure>iso4217:USD</xbrli:measure>
+                                        </xbrli:unitNumerator>
+                                        <xbrli:unitDenominator>
+                                            <xbrli:measure>xbrli:shares</xbrli:measure>
+                                        </xbrli:unitDenominator>
+                                    </xbrli:divide>
+                                </xbrli:unit>
+                            </xbrli:xbrl>"#;
+        let mut parser = InstanceParser::new(xml.as_bytes(), PathBuf::from("test.xml"));
+        let instance = parser.parse_instance().unwrap();
+
+        assert_eq!(instance.units.len(), 1);
+        let unit = &instance.units[0];
+        assert_eq!(
+            unit,
+            &RawUnit {
+                id: "USD_per_share".to_string(),
+                measures: vec![],
+                divide: Some(RawUnitDivide {
+                    numerator: vec![QName::from_str("iso4217:USD").unwrap()],
+                    denominator: vec![QName::from_str("xbrli:shares").unwrap()],
+                }),
+            }
+        );
     }
 
     #[test]
@@ -1472,7 +1514,7 @@ mod tests {
                 }],
                 units: vec![RawUnit {
                     id: "u1".to_string(),
-                    measures: vec!["iso4217:EUR".to_string()],
+                    measures: vec![QName::from_str("iso4217:EUR").unwrap()],
                     divide: None,
                 }],
                 facts: vec![RawFact::Item(RawItemFact {
