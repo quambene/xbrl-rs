@@ -1,9 +1,6 @@
 //! Integration tests for XBRL instance validation.
 
-use quick_xml::Reader;
 use std::{
-    fs::File,
-    io::BufReader,
     path::{Path, PathBuf},
     str::FromStr,
 };
@@ -13,10 +10,7 @@ const INSTANCE_BASE: &str = "test_data/instances";
 const TAXONOMY_ENTRY_POINT: &str = "test_data/taxonomies";
 
 fn parse_instance(path: &Path) -> InstanceDocument {
-    let file = File::open(path).expect("failed to open instance file");
-    let reader = Reader::from_reader(BufReader::new(file));
-
-    InstanceDocument::from_xml(reader).expect("failed to parse instance")
+    InstanceDocument::from_file(path).expect("failed to parse instance")
 }
 
 fn discover_taxonomy(instance: &InstanceDocument, entry_point: &str) -> TaxonomySet {

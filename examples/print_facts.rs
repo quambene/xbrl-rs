@@ -6,8 +6,7 @@
 //! Usage:
 //!     cargo run --example print_facts
 
-use quick_xml::Reader;
-use std::{fs::File, io::BufReader, path::PathBuf};
+use std::path::{Path, PathBuf};
 use xbrl_rs::{InstanceDocument, ItemFact, TaxonomySet, TreeNode};
 
 const INSTANCE_PATH: &str = "test_data/instances/balance_sheet_v64.xml";
@@ -88,9 +87,7 @@ fn print_node(
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Parse instance
-    let file = File::open(INSTANCE_PATH)?;
-    let reader = Reader::from_reader(BufReader::new(file));
-    let instance = InstanceDocument::from_xml(reader)?;
+    let instance = InstanceDocument::from_file(Path::new(INSTANCE_PATH))?;
 
     // Discover taxonomy
     let schema_refs: Vec<String> = instance.schema_refs().to_vec();

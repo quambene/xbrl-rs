@@ -12,6 +12,7 @@ mod writer;
 use crate::{
     NamespacePrefix, NamespaceUri, PresentationArc, TaxonomySet,
     error::Result,
+    instance::parser::InstanceParser,
     taxonomy::{Concept, PeriodType, TupleChild},
     validation::{self, ValidationResult},
 };
@@ -23,6 +24,7 @@ use std::{
     cmp::Ordering,
     collections::{HashMap, HashSet},
     io,
+    path::{Path, PathBuf},
 };
 pub use unit::{Unit, UnitId};
 pub use view::{DocumentView, SectionView, TreeNode};
@@ -184,11 +186,31 @@ impl InstanceDocument {
     ///
     /// Automatically extracts the `<xbrli:xbrl>` element if the input
     /// contains a wrapper around it.
-    pub fn from_xml<R>(mut reader: Reader<R>) -> Result<Self>
+    pub fn from_xml<R>(reader: R) -> Result<Self>
     where
         R: io::BufRead,
     {
-        todo!()
+        let mut parser = InstanceParser::from_xml(reader, PathBuf::from(""));
+        let instance = parser.parse_instance()?;
+        let doc = resolver::resolve_instance(instance)?;
+        Ok(doc)
+    }
+
+    pub fn from_reader<R>(reader: Reader<R>) -> Result<Self>
+    where
+        R: io::BufRead,
+    {
+        let mut parser = InstanceParser::new(reader, PathBuf::from(""));
+        let instance = parser.parse_instance()?;
+        let doc = resolver::resolve_instance(instance)?;
+        Ok(doc)
+    }
+
+    pub fn from_file(path: &Path) -> Result<Self> {
+        let mut parser = InstanceParser::from_file(path)?;
+        let instance = parser.parse_instance()?;
+        let doc = resolver::resolve_instance(instance)?;
+        Ok(doc)
     }
 
     /// Validate this instance against a taxonomy.
@@ -580,7 +602,6 @@ fn matches_tuple_child_ref(
 mod tests {
     use super::InstanceDocument;
     use crate::TaxonomySet;
-    use quick_xml::Reader;
 
     #[test]
     fn from_xml_parses_basic_instance() {
@@ -595,8 +616,7 @@ mod tests {
             </xbrli:xbrl>
         "#;
 
-        let reader = Reader::from_str(xml);
-        let instance = InstanceDocument::from_xml(reader).expect("instance should parse");
+        let instance = InstanceDocument::from_xml(xml.as_bytes()).expect("instance should parse");
 
         assert_eq!(instance.schema_refs().len(), 1);
         assert!(instance.contexts().is_empty());
@@ -680,8 +700,7 @@ mod tests {
             </xbrli:xbrl>
         "#;
 
-        let reader = Reader::from_str(xml);
-        let instance = InstanceDocument::from_xml(reader).expect("instance should parse");
+        let instance = InstanceDocument::from_xml(xml.as_bytes()).expect("instance should parse");
 
         assert_eq!(instance.role_refs(), ["http://www.xbrl.org/2003/role/link"]);
         assert_eq!(

@@ -1,16 +1,12 @@
 //! Integration tests for parsing XBRL instance files.
 
-use quick_xml::Reader;
-use std::{fs::File, io::BufReader, path::Path};
+use std::path::Path;
 use xbrl_rs::InstanceDocument;
 
 const INSTANCE_BASE: &str = "test_data/instances";
 
 fn parse_instance(path: &Path) -> InstanceDocument {
-    let file = File::open(path).expect("failed to open instance file");
-    let reader = Reader::from_reader(BufReader::new(file));
-
-    InstanceDocument::from_xml(reader).expect("failed to parse instance")
+    InstanceDocument::from_file(path).expect("failed to parse instance")
 }
 
 #[test]

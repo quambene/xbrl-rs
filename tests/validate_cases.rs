@@ -3,19 +3,11 @@
 mod manifest_loader;
 
 use manifest_loader::{discover_case_dirs, load_manifest};
-use quick_xml::Reader;
-use std::{
-    fs::File,
-    io::BufReader,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 use xbrl_rs::{InstanceDocument, TaxonomySet};
 
 fn parse_instance(path: &Path) -> InstanceDocument {
-    let file = File::open(path).expect("failed to open instance file");
-    let reader = Reader::from_reader(BufReader::new(file));
-
-    InstanceDocument::from_xml(reader).expect("failed to parse instance")
+    InstanceDocument::from_file(path).expect("failed to parse instance")
 }
 
 fn discover_taxonomy(instance: &InstanceDocument, entry_point: &Path) -> TaxonomySet {

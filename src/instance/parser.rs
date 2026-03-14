@@ -3,7 +3,12 @@ use quick_xml::{
     Reader,
     events::{BytesStart, Event, attributes::Attributes},
 };
-use std::{collections::HashMap, io::BufRead, path::PathBuf};
+use std::{
+    collections::HashMap,
+    fs::File,
+    io::{BufRead, BufReader},
+    path::{Path, PathBuf},
+};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct SchemaRef {
@@ -63,12 +68,6 @@ pub struct RawUnit {
     pub numerator: Vec<QName>,
     /// For a simple unit, this will be empty. For a divide unit, this is the
     /// denominator.
-    pub denominator: Vec<QName>,
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub struct RawUnitDivide {
-    pub numerator: Vec<QName>,
     pub denominator: Vec<QName>,
 }
 
@@ -218,14 +217,27 @@ pub struct InstanceParser<R> {
     reader: Reader<R>,
 }
 
+impl InstanceParser<BufReader<File>> {
+    /// Creates a new `InstanceParser` from the given file path.
+    pub fn from_file(path: &Path) -> Result<Self, XbrlError> {
+        let file = File::open(path).map_err(XbrlError::Io)?;
+        let reader = BufReader::new(file);
+        Ok(Self::from_xml(reader, path.to_path_buf()))
+    }
+}
+
 impl<R: BufRead> InstanceParser<R> {
     /// Creates a new `InstanceParser` with the given reader and file path.
-    pub fn new(reader: R, path: PathBuf) -> Self {
+    pub fn new(reader: Reader<R>, path: PathBuf) -> Self {
+        Self { path, reader }
+    }
+
+    /// Creates a new `InstanceParser` from the given reader.
+    pub fn from_xml(reader: R, path: PathBuf) -> Self {
         let mut reader = Reader::from_reader(reader);
         reader.config_mut().trim_text_start = true;
         reader.config_mut().trim_text_end = true;
-
-        Self { path, reader }
+        Self::new(reader, path)
     }
 
     /// Parses an XBRL instance document from the reader. Path is used for error
@@ -1148,7 +1160,7 @@ mod tests {
         let xml = r#"<xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance"
                             xmlns:ifrs="http://xbrl.ifrs.org/taxonomy/2023">
                         </xbrli:xbrl>"#;
-        let mut parser = InstanceParser::new(xml.as_bytes(), PathBuf::from("test.xml"));
+        let mut parser = InstanceParser::from_xml(xml.as_bytes(), PathBuf::from("test.xml"));
         let instance = parser.parse_instance().unwrap();
 
         assert_eq!(instance.namespaces.len(), 2);
@@ -1168,7 +1180,7 @@ mod tests {
                             xmlns:ifrs="http://xbrl.ifrs.org/taxonomy/2023">
                             <link:schemaRef xlink:href="ifrs.xsd" />
                         </xbrli:xbrl>"#;
-        let mut parser = InstanceParser::new(xml.as_bytes(), PathBuf::from("test.xml"));
+        let mut parser = InstanceParser::from_xml(xml.as_bytes(), PathBuf::from("test.xml"));
         let instance = parser.parse_instance().unwrap();
 
         assert_eq!(instance.schema_refs.len(), 1);
@@ -1181,7 +1193,7 @@ mod tests {
                             xmlns:ifrs="http://xbrl.ifrs.org/taxonomy/2023">
                             <link:roleRef roleURI="http://example.com/role" xlink:href="role.xml" />
                         </xbrli:xbrl>"#;
-        let mut parser = InstanceParser::new(xml.as_bytes(), PathBuf::from("test.xml"));
+        let mut parser = InstanceParser::from_xml(xml.as_bytes(), PathBuf::from("test.xml"));
         let instance = parser.parse_instance().unwrap();
 
         assert_eq!(instance.role_refs.len(), 1);
@@ -1195,7 +1207,7 @@ mod tests {
                             xmlns:ifrs="http://xbrl.ifrs.org/taxonomy/2023">
                             <link:arcroleRef arcroleURI="http://example.com/arcrole" xlink:href="arcrole.xml" />
                         </xbrli:xbrl>"#;
-        let mut parser = InstanceParser::new(xml.as_bytes(), PathBuf::from("test.xml"));
+        let mut parser = InstanceParser::from_xml(xml.as_bytes(), PathBuf::from("test.xml"));
         let instance = parser.parse_instance().unwrap();
 
         assert_eq!(instance.arcrole_refs.len(), 1);
@@ -1219,7 +1231,7 @@ mod tests {
                                 </period>
                             </context>
                         </xbrli:xbrl>"#;
-        let mut parser = InstanceParser::new(xml.as_bytes(), PathBuf::from("test.xml"));
+        let mut parser = InstanceParser::from_xml(xml.as_bytes(), PathBuf::from("test.xml"));
         let instance = parser.parse_instance().unwrap();
 
         assert_eq!(instance.contexts.len(), 1);
@@ -1238,7 +1250,7 @@ mod tests {
                                 <measure>iso4217:EUR</measure>
                             </unit>
                         </xbrli:xbrl>"#;
-        let mut parser = InstanceParser::new(xml.as_bytes(), PathBuf::from("test.xml"));
+        let mut parser = InstanceParser::from_xml(xml.as_bytes(), PathBuf::from("test.xml"));
         let instance = parser.parse_instance().unwrap();
 
         assert_eq!(instance.units.len(), 1);
@@ -1268,7 +1280,7 @@ mod tests {
                                     </xbrli:divide>
                                 </xbrli:unit>
                             </xbrli:xbrl>"#;
-        let mut parser = InstanceParser::new(xml.as_bytes(), PathBuf::from("test.xml"));
+        let mut parser = InstanceParser::from_xml(xml.as_bytes(), PathBuf::from("test.xml"));
         let instance = parser.parse_instance().unwrap();
 
         assert_eq!(instance.units.len(), 1);
@@ -1291,7 +1303,7 @@ mod tests {
                                 1200000
                             </ifrs:Revenue>
                         </xbrli:xbrl>"#;
-        let mut parser = InstanceParser::new(xml.as_bytes(), PathBuf::from("test.xml"));
+        let mut parser = InstanceParser::from_xml(xml.as_bytes(), PathBuf::from("test.xml"));
         let instance = parser.parse_instance().unwrap();
 
         assert_eq!(instance.facts.len(), 1);
@@ -1315,7 +1327,7 @@ mod tests {
                                     <t:City contextRef="c1">Berlin</t:City>
                                 </t:Address>
                             </xbrli:xbrl>"#;
-        let mut parser = InstanceParser::new(xml.as_bytes(), PathBuf::from("test.xml"));
+        let mut parser = InstanceParser::from_xml(xml.as_bytes(), PathBuf::from("test.xml"));
         let instance = parser.parse_instance().unwrap();
 
         assert_eq!(instance.facts.len(), 1);
@@ -1348,7 +1360,7 @@ mod tests {
                                     </t:Inner>
                                 </t:Outer>
                             </xbrli:xbrl>"#;
-        let mut parser = InstanceParser::new(xml.as_bytes(), PathBuf::from("test.xml"));
+        let mut parser = InstanceParser::from_xml(xml.as_bytes(), PathBuf::from("test.xml"));
         let instance = parser.parse_instance().unwrap();
 
         assert_eq!(instance.facts.len(), 1);
@@ -1379,7 +1391,7 @@ mod tests {
                             xmlns:ifrs="http://xbrl.ifrs.org/taxonomy/2023">
                             <ifrs:Revenue contextRef="c1" xsi:nil="true" />
                         </xbrli:xbrl>"#;
-        let mut parser = InstanceParser::new(xml.as_bytes(), PathBuf::from("test.xml"));
+        let mut parser = InstanceParser::from_xml(xml.as_bytes(), PathBuf::from("test.xml"));
         let instance = parser.parse_instance().unwrap();
 
         assert_eq!(instance.facts.len(), 1);
@@ -1401,7 +1413,7 @@ mod tests {
                             xmlns:t="http://example.com/taxonomy">
                             <t:Address xsi:nil="true" />
                         </xbrli:xbrl>"#;
-        let mut parser = InstanceParser::new(xml.as_bytes(), PathBuf::from("test.xml"));
+        let mut parser = InstanceParser::from_xml(xml.as_bytes(), PathBuf::from("test.xml"));
         let instance = parser.parse_instance().unwrap();
 
         assert_eq!(instance.facts.len(), 1);
@@ -1427,7 +1439,7 @@ mod tests {
                                 <link:footnoteArc xlink:from="loc1" xlink:to="fn1" />
                             </link:footnoteLink>
                         </xbrli:xbrl>"##;
-        let mut parser = InstanceParser::new(xml.as_bytes(), PathBuf::from("test.xml"));
+        let mut parser = InstanceParser::from_xml(xml.as_bytes(), PathBuf::from("test.xml"));
         let instance = parser.parse_instance().unwrap();
 
         assert_eq!(instance.footnote_links.len(), 1);
@@ -1473,7 +1485,7 @@ mod tests {
                                 1200000
                             </ifrs:Revenue>
                         </xbrli:xbrl>"#;
-        let mut parser = InstanceParser::new(xml.as_bytes(), PathBuf::from("test.xml"));
+        let mut parser = InstanceParser::from_xml(xml.as_bytes(), PathBuf::from("test.xml"));
         let instance = parser.parse_instance().unwrap();
 
         assert_eq!(instance.contexts.len(), 1);

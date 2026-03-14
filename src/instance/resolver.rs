@@ -248,12 +248,10 @@ mod tests {
     use super::*;
     use crate::{
         Decimals,
-        instance::parser::{
-            ArcroleRef, RawDimension, RawEntity, RawUnitDivide, RoleRef, SchemaRef,
-        },
+        instance::parser::{ArcroleRef, RawDimension, RawEntity, RoleRef, SchemaRef},
     };
     use assert_matches::assert_matches;
-    use std::{path::PathBuf, str::FromStr};
+    use std::str::FromStr;
 
     #[test]
     fn resolve_empty_instance() {

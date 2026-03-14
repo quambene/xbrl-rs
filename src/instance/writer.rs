@@ -2,7 +2,7 @@
 
 use crate::{
     Context, Fact, InstanceDocument, ItemFact, NamespacePrefix, NamespaceUri, Period, QName,
-    TupleFact, XbrlError, error::Result, instance::Unit,
+    TupleFact, error::Result, instance::Unit,
 };
 use quick_xml::{
     Writer,
