@@ -141,8 +141,6 @@ pub struct FootnoteResource {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct RawInstance {
-    /// Absolute file path of the instance document
-    pub file_path: PathBuf,
     /// Namespace declarations (prefix -> URI)
     pub namespaces: HashMap<String, String>,
     /// Schema references
@@ -169,7 +167,6 @@ pub struct RawInstance {
 
 impl RawInstance {
     pub fn new(
-        file_path: PathBuf,
         namespaces: HashMap<String, String>,
         schema_refs: Vec<SchemaRef>,
         role_refs: Vec<RoleRef>,
@@ -180,7 +177,6 @@ impl RawInstance {
         footnote_links: Vec<RawFootnoteLink>,
     ) -> Self {
         Self {
-            file_path,
             namespaces,
             schema_refs,
             role_refs,
@@ -196,7 +192,6 @@ impl RawInstance {
 impl Default for RawInstance {
     fn default() -> Self {
         Self {
-            file_path: PathBuf::new(),
             namespaces: HashMap::new(),
             schema_refs: Vec::new(),
             role_refs: Vec::new(),
@@ -244,7 +239,6 @@ impl<R: BufRead> InstanceParser<R> {
     /// reporting.
     pub fn parse_instance(&mut self) -> Result<RawInstance, XbrlError> {
         let mut instance = RawInstance::default();
-        instance.file_path = self.path.clone();
         let mut has_instance_root = false;
         let mut buf = Vec::new();
 
@@ -1495,7 +1489,6 @@ mod tests {
         assert_eq!(
             instance,
             RawInstance {
-                file_path: PathBuf::from("test.xml"),
                 namespaces: {
                     let mut namespaces = HashMap::new();
                     namespaces.insert(

@@ -441,11 +441,10 @@ fn convert_qname(raw: &QName) -> QName {
 mod tests {
     use super::*;
     use crate::{NamespacePrefix, NamespaceUri};
-    use std::{collections::HashMap, path::PathBuf};
+    use std::collections::HashMap;
 
     fn empty_schema() -> RawSchema {
         RawSchema {
-            file_path: PathBuf::from("test.xsd"),
             target_namespace: Some("http://example.com/taxonomy".to_owned()),
             namespaces: HashMap::new(),
             imports: vec![],

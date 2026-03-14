@@ -211,8 +211,6 @@ pub struct Element {
 /// resolved `Concept`s yet.
 #[derive(Debug, PartialEq, Eq)]
 pub struct RawSchema {
-    /// Absolute file path of this schema.
-    pub file_path: PathBuf,
     /// The targetNamespace of the schema.
     pub target_namespace: Option<String>,
     /// Namespace declarations (prefix -> URI).
@@ -258,7 +256,6 @@ impl<R: BufRead> SchemaParser<R> {
     /// reporting.
     pub fn parse_schema(&mut self) -> Result<RawSchema, XbrlError> {
         let mut schema = RawSchema {
-            file_path: self.path.clone(),
             target_namespace: None,
             namespaces: HashMap::new(),
             imports: vec![],
