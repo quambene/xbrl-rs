@@ -1244,7 +1244,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_fact() {
+    fn test_parse_item_fact() {
         let xml = r#"<xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance"
                             xmlns:ifrs="http://xbrl.ifrs.org/taxonomy/2023">
                             <ifrs:Revenue contextRef="c1" unitRef="u1" decimals="-3">
@@ -1255,55 +1255,15 @@ mod tests {
         let instance = parser.parse_instance().unwrap();
 
         assert_eq!(instance.facts.len(), 1);
-        match &instance.facts[0] {
-            RawFact::Item(fact) => {
-                assert_eq!(fact.name, "ifrs:Revenue");
-                assert_eq!(fact.value, "1200000");
-                assert_eq!(fact.context_ref, "c1");
-                assert_eq!(fact.unit_ref.as_deref(), Some("u1"));
-                assert_eq!(fact.decimals.as_deref(), Some("-3"));
-                assert!(!fact.is_nil);
-            }
-            RawFact::Tuple(_) => panic!("expected item fact"),
-        }
-    }
-
-    #[test]
-    fn test_parse_footnote_link() {
-        let xml = r##"<xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance"
-                            xmlns:ifrs="http://xbrl.ifrs.org/taxonomy/2023">
-                            <link:footnoteLink role="http://example.com/footnote">
-                                <link:loc xlink:label="loc1" xlink:href="#c1" />
-                                <link:footnote xlink:label="fn1" xml:lang="en">
-                                    This is a footnote.
-                                </link:footnote>
-                                <link:footnoteArc xlink:from="loc1" xlink:to="fn1" />
-                            </link:footnoteLink>
-                        </xbrli:xbrl>"##;
-        let mut parser = InstanceParser::new(xml.as_bytes(), PathBuf::from("test.xml"));
-        let instance = parser.parse_instance().unwrap();
-
-        assert_eq!(instance.footnote_links.len(), 1);
-        let footnote_link = &instance.footnote_links[0];
-        assert_eq!(
-            footnote_link,
-            &RawFootnoteLink {
-                role: "http://example.com/footnote".to_string(),
-                locators: vec![Locator {
-                    label: "loc1".to_string(),
-                    href: "#c1".to_string(),
-                }],
-                arcs: vec![FootnoteArc {
-                    from: "loc1".to_string(),
-                    to: "fn1".to_string(),
-                }],
-                footnotes: vec![FootnoteResource {
-                    label: "fn1".to_string(),
-                    lang: Some("en".to_string()),
-                    text: "This is a footnote.".to_string(),
-                }],
-            }
-        );
+        let fact = &instance.facts[0];
+        assert_matches!(fact, RawFact::Item(fact) => {
+            assert_eq!(fact.name, "ifrs:Revenue");
+            assert_eq!(fact.value, "1200000");
+            assert_eq!(fact.context_ref, "c1");
+            assert_eq!(fact.unit_ref.as_deref(), Some("u1"));
+            assert_eq!(fact.decimals.as_deref(), Some("-3"));
+            assert!(!fact.is_nil);
+        });
     }
 
     #[test]
@@ -1413,6 +1373,44 @@ mod tests {
             }
             RawFact::Item(_) => panic!("expected tuple fact"),
         }
+    }
+
+    #[test]
+    fn test_parse_footnote_link() {
+        let xml = r##"<xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance"
+                            xmlns:ifrs="http://xbrl.ifrs.org/taxonomy/2023">
+                            <link:footnoteLink role="http://example.com/footnote">
+                                <link:loc xlink:label="loc1" xlink:href="#c1" />
+                                <link:footnote xlink:label="fn1" xml:lang="en">
+                                    This is a footnote.
+                                </link:footnote>
+                                <link:footnoteArc xlink:from="loc1" xlink:to="fn1" />
+                            </link:footnoteLink>
+                        </xbrli:xbrl>"##;
+        let mut parser = InstanceParser::new(xml.as_bytes(), PathBuf::from("test.xml"));
+        let instance = parser.parse_instance().unwrap();
+
+        assert_eq!(instance.footnote_links.len(), 1);
+        let footnote_link = &instance.footnote_links[0];
+        assert_eq!(
+            footnote_link,
+            &RawFootnoteLink {
+                role: "http://example.com/footnote".to_string(),
+                locators: vec![Locator {
+                    label: "loc1".to_string(),
+                    href: "#c1".to_string(),
+                }],
+                arcs: vec![FootnoteArc {
+                    from: "loc1".to_string(),
+                    to: "fn1".to_string(),
+                }],
+                footnotes: vec![FootnoteResource {
+                    label: "fn1".to_string(),
+                    lang: Some("en".to_string()),
+                    text: "This is a footnote.".to_string(),
+                }],
+            }
+        );
     }
 
     #[test]
