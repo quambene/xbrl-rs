@@ -206,7 +206,7 @@ pub struct LabelLink {
 
 /// The complete linkbase, containing all types of links.
 #[derive(Debug, PartialEq, Default)]
-pub struct Linkbases {
+pub struct RawLinkbases {
     /// The presentation links in the linkbase, used to specify the presentation
     /// of elements in the taxonomy.
     pub presentation_links: Vec<PresentationLink>,
@@ -224,7 +224,7 @@ pub struct Linkbases {
     pub reference_links: Vec<ReferenceLink>,
 }
 
-impl Linkbases {
+impl RawLinkbases {
     /// Creates a new `Linkbase` with the given links.
     pub fn new(
         presentation_links: Vec<PresentationLink>,
@@ -298,7 +298,7 @@ impl<R: BufRead> LinkbaseParser<R> {
 
     /// Parses the linkbase document and fills the provided `Linkbases` struct
     /// with the parsed links.
-    pub fn parse_linkbase(&mut self, linkbase: &mut Linkbases) -> Result<(), XbrlError> {
+    pub fn parse_linkbase(&mut self, linkbase: &mut RawLinkbases) -> Result<(), XbrlError> {
         let mut buf = Vec::new();
         let mut has_linkbase_root = false;
 
@@ -1053,7 +1053,7 @@ mod tests {
                                 xlink:role="http://example.com/role/balanceSheet">
                             </presentationLink>"#;
         let mut parser = LinkbaseParser::from_reader(xml.as_bytes());
-        let mut linkbases = Linkbases::default();
+        let mut linkbases = RawLinkbases::default();
 
         let result = parser.parse_linkbase(&mut linkbases);
 
@@ -1083,7 +1083,7 @@ mod tests {
                                 </link:presentationLink>
                             </link:linkbase>"#;
         let mut parser = LinkbaseParser::from_reader(xml.as_bytes());
-        let mut linkbases = Linkbases::default();
+        let mut linkbases = RawLinkbases::default();
         parser.parse_linkbase(&mut linkbases).unwrap();
 
         assert_eq!(linkbases.presentation_links.len(), 1);
@@ -1132,7 +1132,7 @@ mod tests {
                             </link:calculationLink>
                         </link:linkbase>"#;
         let mut parser = LinkbaseParser::from_reader(xml.as_bytes());
-        let mut linkbases = Linkbases::default();
+        let mut linkbases = RawLinkbases::default();
         parser.parse_linkbase(&mut linkbases).unwrap();
 
         assert_eq!(linkbases.presentation_links.len(), 0);
@@ -1169,7 +1169,7 @@ mod tests {
                             </link:definitionLink>
                         </link:linkbase>"#;
         let mut parser = LinkbaseParser::from_reader(xml.as_bytes());
-        let mut linkbases = Linkbases::default();
+        let mut linkbases = RawLinkbases::default();
         parser.parse_linkbase(&mut linkbases).unwrap();
 
         assert_eq!(linkbases.presentation_links.len(), 0);
@@ -1215,7 +1215,7 @@ mod tests {
                             </link:labelLink>
                         </link:linkbase>"#;
         let mut parser = LinkbaseParser::from_reader(xml.as_bytes());
-        let mut linkbases = Linkbases::default();
+        let mut linkbases = RawLinkbases::default();
         parser.parse_linkbase(&mut linkbases).unwrap();
 
         assert_eq!(linkbases.presentation_links.len(), 0);
@@ -1279,7 +1279,7 @@ mod tests {
                             </link:referenceLink>
                         </link:linkbase>"#;
         let mut parser = LinkbaseParser::from_reader(xml.as_bytes());
-        let mut linkbases = Linkbases::default();
+        let mut linkbases = RawLinkbases::default();
         parser.parse_linkbase(&mut linkbases).unwrap();
 
         assert_eq!(linkbases.presentation_links.len(), 0);

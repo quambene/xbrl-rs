@@ -1,7 +1,8 @@
 use crate::{
     ConceptId, RoleUri, XbrlError,
     taxonomy::linkbases::parser::{
-        CalculationArc, DefinitionArc, LabelResource, Linkbases, PresentationArc, ReferenceResource,
+        CalculationArc, DefinitionArc, LabelResource, PresentationArc, RawLinkbases,
+        ReferenceResource,
     },
 };
 use indexmap::IndexMap;
@@ -36,7 +37,7 @@ pub struct Label {
 
 /// Resolved linkbase data suitable for use in `TaxonomySet`.
 #[derive(Debug, Default)]
-pub struct ResolvedLinkbases {
+pub struct Linkbases {
     /// Concept labels parsed from label linkbase files.
     /// Keyed by concept element ID (e.g., "de-gaap-ci_bs.ass").
     pub labels: HashMap<ConceptId, Vec<Label>>,
@@ -54,7 +55,7 @@ pub struct ResolvedLinkbases {
 
 /// Resolve locator references from a linkbase and merge them into the provided
 /// accumulator maps.
-pub fn resolve_linkbases(linkbases: Linkbases) -> Result<ResolvedLinkbases, XbrlError> {
+pub fn resolve_linkbases(linkbases: RawLinkbases) -> Result<Linkbases, XbrlError> {
     let mut labels: HashMap<ConceptId, Vec<Label>> = HashMap::new();
     let mut presentations: IndexMap<RoleUri, Vec<PresentationArc>> = IndexMap::new();
     let mut calculations: HashMap<RoleUri, Vec<CalculationArc>> = HashMap::new();
@@ -207,7 +208,7 @@ pub fn resolve_linkbases(linkbases: Linkbases) -> Result<ResolvedLinkbases, Xbrl
         }
     }
 
-    Ok(ResolvedLinkbases {
+    Ok(Linkbases {
         labels,
         presentations,
         calculations,

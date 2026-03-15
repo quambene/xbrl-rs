@@ -5,8 +5,10 @@ use crate::{
     taxonomy::{
         BaseSubstitutionGroup, RoleType,
         linkbases::{
-            parser::{CalculationArc, DefinitionArc, LinkbaseParser, Linkbases, PresentationArc},
-            resolver::{self, ResolvedLinkbases},
+            parser::{
+                CalculationArc, DefinitionArc, LinkbaseParser, PresentationArc, RawLinkbases,
+            },
+            resolver::{self, Linkbases},
         },
         schema::Concept,
     },
@@ -35,7 +37,7 @@ pub struct TaxonomySet {
     /// All linkbase file paths discovered (canonical absolute paths).
     linkbase_paths: Vec<PathBuf>,
     /// Resolved linkbase data merged from all linkbase files.
-    linkbases: ResolvedLinkbases,
+    linkbases: Linkbases,
     /// Maps each role URI to the schema file that defines it (`link:roleType`).
     role_source_schema: HashMap<RoleUri, PathBuf>,
     /// Taxonomy version extracted from the schema ref URLs.
@@ -151,7 +153,7 @@ impl TaxonomySet {
         }
 
         let linkbase_paths: Vec<PathBuf> = linkbase_set.into_iter().collect();
-        let mut linkbases = Linkbases::default();
+        let mut linkbases = RawLinkbases::default();
 
         for path in &linkbase_paths {
             let mut parser = LinkbaseParser::from_file(path)?;
