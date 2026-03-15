@@ -36,7 +36,7 @@ pub struct Label {
 
 /// Resolved linkbase data suitable for use in `TaxonomySet`.
 #[derive(Debug, Default)]
-pub(crate) struct ResolvedLinkbases {
+pub struct ResolvedLinkbases {
     /// Concept labels parsed from label linkbase files.
     /// Keyed by concept element ID (e.g., "de-gaap-ci_bs.ass").
     pub labels: HashMap<ConceptId, Vec<Label>>,
@@ -54,7 +54,7 @@ pub(crate) struct ResolvedLinkbases {
 
 /// Resolve locator references from a linkbase and merge them into the provided
 /// accumulator maps.
-pub(crate) fn resolve_linkbases(linkbases: Linkbases) -> Result<ResolvedLinkbases, XbrlError> {
+pub fn resolve_linkbases(linkbases: Linkbases) -> Result<ResolvedLinkbases, XbrlError> {
     let mut labels: HashMap<ConceptId, Vec<Label>> = HashMap::new();
     let mut presentations: IndexMap<RoleUri, Vec<PresentationArc>> = IndexMap::new();
     let mut calculations: HashMap<RoleUri, Vec<CalculationArc>> = HashMap::new();

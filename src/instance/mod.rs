@@ -12,13 +12,13 @@ mod writer;
 use crate::{
     NamespacePrefix, NamespaceUri, PresentationArc, TaxonomySet,
     error::Result,
-    instance::parser::InstanceParser,
     taxonomy::{Concept, PeriodType, TupleChild},
     validation::{self, ValidationResult},
 };
 pub use context::{Context, ContextId, EntityIdentifier, Period};
 pub use fact::{Decimals, Fact, ItemFact, TupleFact};
 pub use footnote::{FootnoteArc, FootnoteLink, FootnoteLocator, FootnoteResource};
+pub use parser::InstanceParser;
 use quick_xml::Writer;
 use std::{
     cmp::Ordering,

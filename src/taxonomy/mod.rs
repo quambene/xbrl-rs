@@ -7,14 +7,14 @@ mod types;
 
 pub use linkbases::{
     locator::LinkbaseLocator,
-    parser::{CalculationArc, DefinitionArc, PresentationArc},
+    parser::{CalculationArc, DefinitionArc, LinkbaseParser, PresentationArc},
     resolver::{Label, Reference, ReferencePart},
 };
 #[cfg(feature = "download")]
 pub use loader::TaxonomyLoader;
 pub use schema::{
     Balance, BaseSubstitutionGroup, Concept, DeclaredAccuracy, MaxOccurs, PeriodType, RoleType,
-    SubstitutionGroup, TaxonomySchema, TupleChild, XbrlType,
+    SchemaParser, SubstitutionGroup, TaxonomySchema, TupleChild, XbrlType,
 };
 pub use taxonomy_set::TaxonomySet;
 pub use types::{ConceptId, RoleUri, SchemaRefUrl};
