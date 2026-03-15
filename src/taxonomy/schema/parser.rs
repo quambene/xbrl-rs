@@ -1199,7 +1199,16 @@ mod tests {
     use assert_matches::assert_matches;
 
     #[test]
-    fn test_parse_missing_schema_root() {
+    fn test_parse_schema_root_invalid() {
+        let xml = r#"<root/>"#;
+        let mut parser = SchemaParser::from_reader(xml.as_bytes());
+        let result = parser.parse_schema();
+
+        assert_matches!(result, Err(XbrlError::InvalidSchemaDocument { reason, .. }) if reason == "root is not allowed in taxonomy schemas");
+    }
+
+    #[test]
+    fn test_parse_schema_root_missing() {
         let xml = r#"<xsd:import
                             xmlns:xsd="http://www.w3.org/2001/XMLSchema"
                             namespace="http://www.xbrl.org/2003/instance"

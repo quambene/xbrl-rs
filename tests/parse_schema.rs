@@ -21,16 +21,6 @@ fn from_xml_unchecked_parses_minimal_valid_schema() {
 }
 
 #[test]
-fn from_xml_unchecked_requires_schema_root() {
-    let path = Path::new(SCHEMA_BASE).join("invalid_missing_schema_root.xml");
-    let res = TaxonomySchema::from_file_unchecked(&path);
-
-    assert_matches!(res, Err(XbrlError::InvalidSchemaDocument { reason, .. }) => {
-        assert!(reason.contains("missing <schema> root element"));
-    });
-}
-
-#[test]
 fn from_xml_unchecked_accepts_arcrole_used_on_when_qnames_are_not_s_equal() {
     let path = Path::new(SCHEMA_BASE).join("arcrole_used_on_not_s_equal.xsd");
     let parsed = TaxonomySchema::from_file_unchecked(&path);
