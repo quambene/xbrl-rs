@@ -833,7 +833,7 @@ fn validate_contexts(
         {
             let local = qname.rsplit(':').next().unwrap_or(qname);
             if let Some(concept) = taxonomy.find_concept(local)
-                && (taxonomy.concept_is_item(concept) || taxonomy.concept_is_tuple(concept))
+                && (concept.is_item() || concept.is_tuple())
             {
                 result.add(
                     Severity::Error,

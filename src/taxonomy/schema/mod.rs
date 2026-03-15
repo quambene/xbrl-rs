@@ -6,9 +6,7 @@ use crate::{NamespacePrefix, NamespaceUri, XbrlError, instance::Decimals};
 pub use parser::{
     ArcroleType, Compositor, LinkbaseRef, RoleType, SchemaImport, SchemaInclude, SchemaParser,
 };
-pub use resolver::{
-    BaseSubstitutionGroup, Concept, MaxOccurs, SubstitutionGroup, TupleChild, XbrlType,
-};
+pub use resolver::{Concept, MaxOccurs, SubstitutionGroup, TupleChild, XbrlType};
 use std::{
     collections::HashMap,
     fs::File,
@@ -155,8 +153,8 @@ mod tests {
     use crate::{
         Balance, ExpandedName, NamespaceUri, PeriodType, XbrlError,
         taxonomy::{
-            BaseSubstitutionGroup, RoleType,
-            schema::resolver::{SubstitutionGroup, XbrlType},
+            RoleType,
+            schema::resolver::{BaseSubstitutionGroup, SubstitutionGroup, XbrlType},
         },
         xml::QName,
     };

@@ -417,7 +417,7 @@ impl InstanceDocument {
         let children = arc_index.get(concept_id).map(Vec::as_slice).unwrap_or(&[]);
 
         if let Some(concept) = taxonomy.find_concept_by_id(concept_id) {
-            if taxonomy.concept_is_tuple(concept) && !concept.is_abstract {
+            if concept.is_tuple() && !concept.is_abstract {
                 if emitted_tuples.insert(concept_id.to_string()) {
                     let concept_name = concept_id.replacen('_', ":", 1);
                     facts.push(Fact::Tuple(TupleFact::new(concept_name)));

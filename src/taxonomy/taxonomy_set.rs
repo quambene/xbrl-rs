@@ -3,7 +3,7 @@ use crate::{
     ConceptId, ExpandedName, Label, NamespaceUri, Reference, RoleUri, SchemaRefUrl,
     error::{Result, XbrlError},
     taxonomy::{
-        BaseSubstitutionGroup, RoleType,
+        RoleType,
         linkbases::{
             parser::{
                 CalculationArc, DefinitionArc, LinkbaseParser, PresentationArc, RawLinkbases,
@@ -242,77 +242,6 @@ impl TaxonomySet {
             .find(|concept| concept.id.as_deref() == Some(id))
     }
 
-    /// Resolve the effective substitution-group base by following chained
-    /// substitutions until the head (`xbrli:item` or `xbrli:tuple`) is reached.
-    pub fn substitution_group_base(&self, element: &Concept) -> Result<BaseSubstitutionGroup> {
-        // Fast-path: element's substitutionGroup may directly name the XBRL
-        // head element (local name `item` or `tuple`). Check the local name
-        // rather than relying on a removed `Other` variant.
-        let start_local = element.substitution_group.original.local_name.as_str();
-        if start_local == "item" {
-            return Ok(BaseSubstitutionGroup::Item);
-        }
-        if start_local == "tuple" {
-            return Ok(BaseSubstitutionGroup::Tuple);
-        }
-
-        // Walk the substitution chain by following the referenced element
-        // names until we reach a declared head (item/tuple) or exhaust the
-        // chain.
-        let mut current = element.substitution_group.original.local_name.clone();
-        let mut seen: HashSet<String> = HashSet::new();
-
-        while seen.insert(current.clone()) {
-            let Some(parent) = self.find_concept(&current) else {
-                break;
-            };
-
-            let parent_local = parent.substitution_group.original.local_name.as_str();
-            if parent_local == "item" {
-                return Ok(BaseSubstitutionGroup::Item);
-            }
-            if parent_local == "tuple" {
-                return Ok(BaseSubstitutionGroup::Tuple);
-            }
-
-            current = parent.substitution_group.original.local_name.clone();
-        }
-
-        let schema_path = self
-            .schemas
-            .iter()
-            .find_map(|(path, schema)| {
-                schema
-                    .concepts
-                    .iter()
-                    .any(|candidate| candidate.id == element.id)
-                    .then(|| path.clone())
-            })
-            .unwrap_or_else(|| self.entry_point.clone());
-
-        Err(XbrlError::InvalidSchemaDocument {
-            path: Some(schema_path),
-            reason: format!(
-                "unable to resolve substitutionGroup '{}' for element '{}'",
-                element.substitution_group.original.local_name, element.name.local_name
-            ),
-        })
-    }
-
-    pub fn concept_is_tuple(&self, concept: &Concept) -> bool {
-        matches!(
-            self.substitution_group_base(concept),
-            Ok(BaseSubstitutionGroup::Tuple)
-        )
-    }
-
-    pub fn concept_is_item(&self, concept: &Concept) -> bool {
-        matches!(
-            self.substitution_group_base(concept),
-            Ok(BaseSubstitutionGroup::Item)
-        )
-    }
-
     /// Find the tuple element that directly contains the given concept, if any.
     ///
     /// A concept belongs to a tuple when its `substitutionGroup` points to an abstract
@@ -325,7 +254,7 @@ impl TaxonomySet {
             .values()
             .flat_map(|schema| &schema.concepts)
             .find(|concept| {
-                self.concept_is_tuple(concept)
+                concept.is_tuple()
                     && concept
                         .tuple_children
                         .iter()

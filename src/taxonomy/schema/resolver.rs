@@ -147,13 +147,21 @@ pub struct Concept {
 }
 
 impl Concept {
-    /// Returns `true` if this element is an XBRL tuple (`substitutionGroup="xbrli:tuple"`).
+    /// Returns `true` if this element is an XBRL item
+    /// (`substitutionGroup="xbrli:item"`).
+    pub fn is_item(&self) -> bool {
+        self.substitution_group.is_item()
+    }
+
+    /// Returns `true` if this element is an XBRL tuple
+    /// (`substitutionGroup="xbrli:tuple"`).
     pub fn is_tuple(&self) -> bool {
         self.substitution_group.is_tuple()
     }
 
     /// Returns `true` if this element is a concrete (non-abstract) item fact.
-    /// Such elements are the only ones that should appear as facts in an instance document.
+    /// Such elements are the only ones that should appear as facts in an
+    /// instance document.
     pub fn is_concrete_item(&self) -> bool {
         !self.is_abstract && self.period_type.is_some()
     }
