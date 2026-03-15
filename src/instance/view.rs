@@ -228,6 +228,7 @@ mod tests {
                     to: "child_a".to_string(),
                     order: Some(Decimal::new(1, 0)),
                     preferred_label: None,
+                    arcrole: "http://www.xbrl.org/2003/arcrole/parent-child".to_string(),
                 },
             ),
             (
@@ -237,6 +238,7 @@ mod tests {
                     to: "child_b".to_string(),
                     order: Some(Decimal::new(2, 0)),
                     preferred_label: None,
+                    arcrole: "http://www.xbrl.org/2003/arcrole/parent-child".to_string(),
                 },
             ),
             (
@@ -246,6 +248,7 @@ mod tests {
                     to: "grandchild".to_string(),
                     order: Some(Decimal::new(1, 0)),
                     preferred_label: None,
+                    arcrole: "http://www.xbrl.org/2003/arcrole/parent-child".to_string(),
                 },
             ),
         ];
@@ -314,6 +317,7 @@ mod tests {
                     to: "b".to_string(),
                     order: Some(Decimal::new(1, 0)),
                     preferred_label: None,
+                    arcrole: "http://www.xbrl.org/2003/arcrole/parent-child".to_string(),
                 },
             ),
             (
@@ -323,6 +327,7 @@ mod tests {
                     to: "a".to_string(),
                     order: Some(Decimal::new(1, 0)),
                     preferred_label: None,
+                    arcrole: "http://www.xbrl.org/2003/arcrole/parent-child".to_string(),
                 },
             ),
         ];
@@ -343,6 +348,7 @@ mod tests {
                     to: "b".to_string(),
                     order: Some(Decimal::new(2, 0)),
                     preferred_label: None,
+                    arcrole: "http://www.xbrl.org/2003/arcrole/parent-child".to_string(),
                 },
             ),
             (
@@ -352,6 +358,7 @@ mod tests {
                     to: "a".to_string(),
                     order: Some(Decimal::new(1, 0)),
                     preferred_label: None,
+                    arcrole: "http://www.xbrl.org/2003/arcrole/parent-child".to_string(),
                 },
             ),
         ];

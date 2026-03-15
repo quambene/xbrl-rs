@@ -106,6 +106,7 @@ pub fn resolve_linkbases(linkbases: Linkbases) -> Result<ResolvedLinkbases, Xbrl
                     to: locator_map.get(arc.to.as_str())?.to_string(),
                     order: arc.order,
                     preferred_label: arc.preferred_label.clone(),
+                    arcrole: arc.arcrole.clone(),
                 })
             })
             .collect();
@@ -135,6 +136,7 @@ pub fn resolve_linkbases(linkbases: Linkbases) -> Result<ResolvedLinkbases, Xbrl
                     to: locator_map.get(arc.to.as_str())?.to_string(),
                     order: arc.order,
                     weight: arc.weight,
+                    arcrole: arc.arcrole.clone(),
                 })
             })
             .collect();

@@ -60,6 +60,8 @@ pub struct PresentationArc {
     pub order: Option<Decimal>,
     /// The preferred label role URI, if specified.
     pub preferred_label: Option<String>,
+    /// The arc role URI (e.g., `http://www.xbrl.org/2003/arcrole/parent-child`).
+    pub arcrole: String,
 }
 
 /// A summation-item relationship from a calculation linkbase.
@@ -73,6 +75,8 @@ pub struct CalculationArc {
     pub order: Option<Decimal>,
     /// Weight factor (typically 1.0 or -1.0).
     pub weight: Decimal,
+    /// The arc role URI (e.g., `http://www.xbrl.org/2003/arcrole/summation-item`).
+    pub arcrole: String,
 }
 
 /// A dimensional relationship from a definition linkbase.
@@ -403,6 +407,7 @@ impl<R: BufRead> LinkbaseParser<R> {
                         let mut to = None;
                         let mut order = None;
                         let mut preferred_label = None;
+                        let mut arcrole = None;
 
                         for attribute in event.attributes() {
                             let attribute = attribute.map_err(|err| XbrlError::XmlParse {
@@ -433,6 +438,11 @@ impl<R: BufRead> LinkbaseParser<R> {
                                         .decode_and_unescape_value(self.reader.decoder())?;
                                     preferred_label = Some(value.to_string())
                                 }
+                                b"xlink:arcrole" => {
+                                    let value = attribute
+                                        .decode_and_unescape_value(self.reader.decoder())?;
+                                    arcrole = Some(value.to_string())
+                                }
                                 _ => {}
                             }
                         }
@@ -444,6 +454,10 @@ impl<R: BufRead> LinkbaseParser<R> {
                             })?,
                             to: to.ok_or_else(|| XbrlError::ParseError {
                                 expected: "xlink:to on presentationArc",
+                                value: "".to_string(),
+                            })?,
+                            arcrole: arcrole.ok_or_else(|| XbrlError::ParseError {
+                                expected: "xlink:arcrole on presentationArc",
                                 value: "".to_string(),
                             })?,
                             order,
@@ -518,6 +532,7 @@ impl<R: BufRead> LinkbaseParser<R> {
                         let mut to = None;
                         let mut order = None;
                         let mut weight = None;
+                        let mut arcrole = None;
 
                         for attribute in event.attributes() {
                             let attribute = attribute.map_err(|err| XbrlError::XmlParse {
@@ -537,6 +552,11 @@ impl<R: BufRead> LinkbaseParser<R> {
                                     let value = attribute
                                         .decode_and_unescape_value(self.reader.decoder())?;
                                     to = Some(value.to_string())
+                                }
+                                b"xlink:arcrole" => {
+                                    let value = attribute
+                                        .decode_and_unescape_value(self.reader.decoder())?;
+                                    arcrole = Some(value.to_string())
                                 }
                                 b"order" => {
                                     let value = attribute
@@ -559,6 +579,10 @@ impl<R: BufRead> LinkbaseParser<R> {
                             })?,
                             to: to.ok_or_else(|| XbrlError::ParseError {
                                 expected: "xlink:to on calculationArc",
+                                value: "".to_string(),
+                            })?,
+                            arcrole: arcrole.ok_or_else(|| XbrlError::ParseError {
+                                expected: "xlink:arcrole on calculationArc",
                                 value: "".to_string(),
                             })?,
                             order,
@@ -1064,6 +1088,7 @@ mod tests {
                                         xlink:label="loc_cash" />
                                     <link:presentationArc
                                         xlink:type="arc"
+                                        xlink:arcrole="http://www.xbrl.org/2003/arcrole/parent-child"
                                         xlink:from="loc_assets"
                                         xlink:to="loc_cash"
                                         order="1" />
@@ -1099,6 +1124,7 @@ mod tests {
                     to: "loc_cash".to_string(),
                     order: Some(Decimal::new(1, 0)),
                     preferred_label: None,
+                    arcrole: "http://www.xbrl.org/2003/arcrole/parent-child".to_string(),
                 }],
             }
         );
@@ -1110,6 +1136,7 @@ mod tests {
                             <link:calculationLink xlink:type="extended" xlink:role="">
                                 <link:calculationArc
                                     xlink:type="arc"
+                                    xlink:arcrole="http://www.xbrl.org/2003/arcrole/summation-item"
                                     xlink:from="loc_assets"
                                     xlink:to="loc_cash"
                                     weight="1"
@@ -1136,6 +1163,7 @@ mod tests {
                     to: "loc_cash".to_string(),
                     order: Some(Decimal::new(1, 0)),
                     weight: Decimal::new(1, 0),
+                    arcrole: "http://www.xbrl.org/2003/arcrole/summation-item".to_string(),
                 }],
             }
         );
