@@ -1199,6 +1199,18 @@ mod tests {
     use assert_matches::assert_matches;
 
     #[test]
+    fn test_parse_missing_schema_root() {
+        let xml = r#"<xsd:import
+                            xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+                            namespace="http://www.xbrl.org/2003/instance"
+                            schemaLocation="http://www.xbrl.org/2003/xbrl-instance-2003-12-31.xsd" />"#;
+        let mut parser = SchemaParser::from_reader(xml.as_bytes());
+        let result = parser.parse_schema();
+
+        assert_matches!(result, Err(XbrlError::InvalidSchemaDocument { reason, .. }) if reason == "missing <schema> root element");
+    }
+
+    #[test]
     fn test_parse_import() {
         let xml = r#"<xsd:schema
                                 xmlns:xsd="http://www.w3.org/2001/XMLSchema"

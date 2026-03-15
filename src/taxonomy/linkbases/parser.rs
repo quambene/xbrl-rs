@@ -308,10 +308,14 @@ impl<R: BufRead> LinkbaseParser<R> {
     /// with the parsed links.
     pub fn parse_linkbase(&mut self, linkbase: &mut Linkbases) -> Result<(), XbrlError> {
         let mut buf = Vec::new();
+        let mut has_linkbase_root = false;
 
         loop {
             match self.reader.read_event_into(&mut buf)? {
                 quick_xml::events::Event::Start(event) => match event.local_name().as_ref() {
+                    b"linkbase" => {
+                        has_linkbase_root = true;
+                    }
                     b"presentationLink" => {
                         let link = self.parse_presentation_link(event)?;
                         linkbase.presentation_links.push(link);
@@ -345,6 +349,13 @@ impl<R: BufRead> LinkbaseParser<R> {
             }
 
             buf.clear();
+        }
+
+        if !has_linkbase_root {
+            return Err(XbrlError::InvalidLinkbaseDocument {
+                path: self.path.clone(),
+                reason: "missing <linkbase> root element".to_string(),
+            });
         }
 
         Ok(())
@@ -1020,6 +1031,22 @@ impl<R: BufRead> LinkbaseParser<R> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use assert_matches::assert_matches;
+
+    #[test]
+    fn test_parse_missing_linkbase_root() {
+        let xml = r#"<presentationLink
+                                xmlns:link="http://www.xbrl.org/2003/linkbase"
+                                xlink:type="extended"
+                                xlink:role="http://example.com/role/balanceSheet">
+                            </presentationLink>"#;
+        let mut parser = LinkbaseParser::from_reader(xml.as_bytes());
+        let mut linkbases = Linkbases::default();
+
+        let result = parser.parse_linkbase(&mut linkbases);
+
+        assert_matches!(result, Err(XbrlError::InvalidLinkbaseDocument { reason, .. }) if reason == "missing <linkbase> root element");
+    }
 
     #[test]
     fn test_parse_linkbase_presentation_link() {
