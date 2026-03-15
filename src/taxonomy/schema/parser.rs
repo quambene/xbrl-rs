@@ -15,6 +15,15 @@ use std::{
     str::FromStr,
 };
 
+/// Represents the `elementFormDefault` and `attributeFormDefault` values from
+/// an XBRL schema's root `xs:schema` element.
+#[derive(Debug, PartialEq, Eq, Default)]
+pub enum FormDefault {
+    Qualified,
+    #[default]
+    Unqualified,
+}
+
 /// The kind of derivation in a `simpleContent` extension or restriction.
 #[derive(Debug, PartialEq, Eq)]
 pub enum DerivationKind {
@@ -219,6 +228,10 @@ pub struct RawSchema {
     pub target_namespace: Option<String>,
     /// Namespace declarations (prefix -> URI).
     pub namespaces: HashMap<NamespacePrefix, NamespaceUri>,
+    /// The `elementFormDefault` of the schema.
+    pub element_form_default: FormDefault,
+    /// The `attributeFormDefault` of the schema.
+    pub attribute_form_default: FormDefault,
     /// Parsed `xs:import` references.
     pub imports: Vec<SchemaImport>,
     /// Parsed `xs:include` references.
@@ -286,6 +299,8 @@ impl<R: BufRead> SchemaParser<R> {
         let mut schema = RawSchema {
             target_namespace: None,
             namespaces: HashMap::new(),
+            element_form_default: FormDefault::Unqualified,
+            attribute_form_default: FormDefault::Unqualified,
             imports: vec![],
             includes: vec![],
             linkbase_refs: vec![],
@@ -442,7 +457,30 @@ impl<R: BufRead> SchemaParser<R> {
                     );
                 }
                 // Not relevant for XBRL taxonomies.
-                b"elementFormDefault" | b"attributeFormDefault" => continue,
+                b"elementFormDefault" => {
+                    schema.element_form_default = match value.as_ref() {
+                        "qualified" => FormDefault::Qualified,
+                        "unqualified" => FormDefault::Unqualified,
+                        _ => {
+                            return Err(XbrlError::ParseError {
+                                expected: "elementFormDefault value",
+                                value: value.to_string(),
+                            });
+                        }
+                    };
+                }
+                b"attributeFormDefault" => {
+                    schema.attribute_form_default = match value.as_ref() {
+                        "qualified" => FormDefault::Qualified,
+                        "unqualified" => FormDefault::Unqualified,
+                        _ => {
+                            return Err(XbrlError::ParseError {
+                                expected: "attributeFormDefault value",
+                                value: value.to_string(),
+                            });
+                        }
+                    };
+                }
                 _ => {}
             }
         }
@@ -1298,6 +1336,32 @@ mod tests {
         let result = parser.parse_schema();
 
         assert_matches!(result, Err(XbrlError::InvalidSchemaDocument { reason, .. }) if reason == "missing <schema> root element");
+    }
+
+    #[test]
+    fn test_parse_schema_root() {
+        let xml = r#"<xsd:schema
+                                xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+                                xmlns:xbrli="http://www.xbrl.org/2003/instance"
+                                targetNamespace="http://example.com/taxonomy"
+                                elementFormDefault="qualified">
+                            </xsd:schema>"#;
+        let mut parser = SchemaParser::from_reader(xml.as_bytes());
+        let schema = parser.parse_schema().unwrap();
+
+        assert_matches!(schema.element_form_default, FormDefault::Qualified);
+        assert_matches!(schema.attribute_form_default, FormDefault::Unqualified);
+        assert_eq!(
+            schema.target_namespace,
+            Some("http://example.com/taxonomy".to_string())
+        );
+        assert_eq!(
+            schema.namespaces,
+            HashMap::from_iter([
+                ("xsd".into(), "http://www.w3.org/2001/XMLSchema".into()),
+                ("xbrli".into(), "http://www.xbrl.org/2003/instance".into()),
+            ])
+        );
     }
 
     #[test]

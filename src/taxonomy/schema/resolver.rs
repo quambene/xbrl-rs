@@ -471,13 +471,15 @@ fn convert_qname(raw: &QName) -> QName {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{NamespacePrefix, NamespaceUri};
+    use crate::{NamespacePrefix, NamespaceUri, taxonomy::schema::parser::FormDefault};
     use std::collections::HashMap;
 
     fn empty_schema() -> RawSchema {
         RawSchema {
             target_namespace: Some("http://example.com/taxonomy".to_owned()),
             namespaces: HashMap::new(),
+            element_form_default: FormDefault::Unqualified,
+            attribute_form_default: FormDefault::Unqualified,
             imports: vec![],
             includes: vec![],
             linkbase_refs: vec![],
