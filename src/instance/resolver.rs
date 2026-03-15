@@ -122,7 +122,7 @@ fn resolve_measure(
         namespaces
             .get(prefix)
             .cloned()
-            .or_else(|| known_unit_namespace(Some(prefix)).map(|uri| NamespaceUri::from(uri)))
+            .or_else(|| known_unit_namespace(Some(prefix)).map(NamespaceUri::from))
     } else {
         None
     }

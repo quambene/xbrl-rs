@@ -1,5 +1,10 @@
 use crate::XbrlError;
-use std::{borrow::Borrow, fmt, ops::Deref, str::FromStr};
+use std::{
+    borrow::Borrow,
+    fmt::{self, Display},
+    ops::Deref,
+    str::FromStr,
+};
 
 /// Type-safe namespace prefix key (e.g. `xmlns:xbrli` declaration on the root
 /// `<xbrli:xbrl>` element).
@@ -102,12 +107,12 @@ pub struct QName {
     pub local_name: String,
 }
 
-impl ToString for QName {
-    fn to_string(&self) -> String {
+impl Display for QName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(prefix) = &self.prefix {
-            format!("{}:{}", prefix, self.local_name)
+            write!(f, "{}:{}", prefix, self.local_name)
         } else {
-            self.local_name.clone()
+            f.write_str(&self.local_name)
         }
     }
 }
@@ -163,8 +168,8 @@ impl ExpandedName {
     }
 }
 
-impl ToString for ExpandedName {
-    fn to_string(&self) -> String {
-        format!("{{{}}}{}", self.namespace_uri, self.local_name)
+impl Display for ExpandedName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{{{}}}{}", self.namespace_uri, self.local_name)
     }
 }

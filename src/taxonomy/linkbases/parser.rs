@@ -205,7 +205,7 @@ pub struct LabelLink {
 }
 
 /// The complete linkbase, containing all types of links.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Default)]
 pub struct Linkbases {
     /// The presentation links in the linkbase, used to specify the presentation
     /// of elements in the taxonomy.
@@ -243,18 +243,6 @@ impl Linkbases {
     }
 }
 
-impl Default for Linkbases {
-    fn default() -> Self {
-        Self {
-            presentation_links: Vec::new(),
-            calculation_links: Vec::new(),
-            definition_links: Vec::new(),
-            label_links: Vec::new(),
-            reference_links: Vec::new(),
-        }
-    }
-}
-
 /// Parses a string into a Decimal.
 fn parse_decimal(value: &str) -> Result<Decimal, XbrlError> {
     value.parse::<Decimal>().map_err(|_| XbrlError::ParseError {
@@ -275,7 +263,7 @@ pub struct LinkbaseParser<R> {
 impl LinkbaseParser<BufReader<File>> {
     /// Creates a new `LinkbaseParser` from the file at the given path.
     pub fn from_file(path: &Path) -> Result<Self, XbrlError> {
-        let file = File::open(&path).map_err(|err| XbrlError::FileOpen {
+        let file = File::open(path).map_err(|err| XbrlError::FileOpen {
             path: path.to_path_buf(),
             context: "opening file".to_string(),
             source: err,
@@ -839,7 +827,7 @@ impl<R: BufRead> LinkbaseParser<R> {
                             .reader
                             .read_text_into(event.to_end().name(), &mut text_buf)?;
                         let text = str::from_utf8(bytes_text.as_ref())
-                            .map_err(|err| XbrlError::Utf8(err))?
+                            .map_err(XbrlError::Utf8)?
                             .trim()
                             .to_string();
 

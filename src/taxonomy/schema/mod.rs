@@ -86,7 +86,7 @@ impl TaxonomySchema {
     /// Parse a taxonomy schema from the XSD file at the given path without
     /// semantic validation.
     pub fn from_file_unchecked(path: &Path) -> Result<Self, XbrlError> {
-        let file = File::open(&path).map_err(|err| XbrlError::FileOpen {
+        let file = File::open(path).map_err(|err| XbrlError::FileOpen {
             path: path.to_path_buf(),
             context: "opening file".to_string(),
             source: err,

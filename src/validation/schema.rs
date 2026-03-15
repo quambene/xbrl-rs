@@ -854,7 +854,7 @@ fn validate_unit_constraints(
                         "Fact '{}' uses unit '{}' that is not in simplest form (canceling measure '{}')",
                         fact.local_name(),
                         unit.id,
-                        measure.to_string()
+                        measure
                     ),
                     Some(concept_name),
                     Some(ctx_ref),
@@ -875,7 +875,7 @@ fn validate_unit_constraints(
                 format!(
                     "Fact '{}' uses invalid measure '{}' in XBRL instance namespace",
                     fact.local_name(),
-                    measure.to_string()
+                    measure
                 ),
                 Some(concept_name),
                 Some(ctx_ref),
@@ -916,7 +916,7 @@ fn validate_unit_constraints(
                     format!(
                         "Monetary fact '{}' must use ISO4217 currency measure, got '{}'",
                         fact.local_name(),
-                        measure.to_string()
+                        measure
                     ),
                     Some(concept_name),
                     Some(ctx_ref),
@@ -949,7 +949,7 @@ fn validate_unit_constraints(
                 format!(
                     "Shares fact '{}' must use xbrli:shares measure, got '{}'",
                     fact.local_name(),
-                    measure.to_string()
+                    measure
                 ),
                 Some(concept_name),
                 Some(ctx_ref),

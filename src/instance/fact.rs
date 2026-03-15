@@ -75,6 +75,7 @@ pub struct ItemFact {
 }
 
 impl ItemFact {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         id: Option<String>,
         concept_name: String,

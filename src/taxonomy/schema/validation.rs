@@ -50,8 +50,7 @@ pub fn validate(taxonomy: &TaxonomySchema) -> Result<(), XbrlError> {
                 });
             }
 
-            let is_monetary = matches!(element.data_type, XbrlType::Monetary)
-                || matches!(element.data_type, XbrlType::Monetary);
+            let is_monetary = matches!(element.data_type, XbrlType::Monetary);
 
             if !is_monetary {
                 return Err(XbrlError::InvalidSchemaDocument {

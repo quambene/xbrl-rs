@@ -139,7 +139,7 @@ pub struct FootnoteResource {
     pub text: String,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Default)]
 pub struct RawInstance {
     /// Namespace declarations (prefix -> URI)
     pub namespaces: HashMap<String, String>,
@@ -166,6 +166,7 @@ pub struct RawInstance {
 }
 
 impl RawInstance {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         namespaces: HashMap<String, String>,
         schema_refs: Vec<SchemaRef>,
@@ -189,21 +190,6 @@ impl RawInstance {
     }
 }
 
-impl Default for RawInstance {
-    fn default() -> Self {
-        Self {
-            namespaces: HashMap::new(),
-            schema_refs: Vec::new(),
-            role_refs: Vec::new(),
-            arcrole_refs: Vec::new(),
-            contexts: Vec::new(),
-            units: Vec::new(),
-            facts: Vec::new(),
-            footnote_links: Vec::new(),
-        }
-    }
-}
-
 /// The parser for XBRL instance documents.
 pub struct InstanceParser<R> {
     /// Path of the currently parsed instance file if available. Used for error
@@ -216,7 +202,7 @@ pub struct InstanceParser<R> {
 impl InstanceParser<BufReader<File>> {
     /// Creates a new `InstanceParser` from the given file path.
     pub fn from_file(path: &Path) -> Result<Self, XbrlError> {
-        let file = File::open(&path).map_err(|err| XbrlError::FileOpen {
+        let file = File::open(path).map_err(|err| XbrlError::FileOpen {
             path: path.to_path_buf(),
             context: "opening file".to_string(),
             source: err,
@@ -1355,12 +1341,12 @@ mod tests {
             assert!(!tuple.is_nil);
             assert_eq!(tuple.children.len(), 2);
 
-            assert_matches!(&tuple.children[0], &RawFact::Item(ref item) => {
+            assert_matches!(&tuple.children[0], RawFact::Item(item) => {
                 assert_eq!(item.name, "t:Street");
                 assert_eq!(item.value, "Main Street");
                 assert_eq!(item.context_ref, "c1");
             });
-            assert_matches!(&tuple.children[1], &RawFact::Item(ref item) => {
+            assert_matches!(&tuple.children[1], RawFact::Item(item) => {
                 assert_eq!(item.name, "t:City");
                 assert_eq!(item.value, "Berlin");
                 assert_eq!(item.context_ref, "c1");

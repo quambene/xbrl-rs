@@ -140,12 +140,10 @@ fn expected_value_kind(element: &Concept) -> ExpectedValueKind {
         | XbrlType::Double
         | XbrlType::Shares
         | XbrlType::Pure
-        | XbrlType::Fraction => {
-            return ExpectedValueKind::Numeric;
-        }
-        XbrlType::Boolean => return ExpectedValueKind::Boolean,
-        XbrlType::Date => return ExpectedValueKind::Date,
-        XbrlType::DateTime => return ExpectedValueKind::DateTime,
+        | XbrlType::Fraction => ExpectedValueKind::Numeric,
+        XbrlType::Boolean => ExpectedValueKind::Boolean,
+        XbrlType::Date => ExpectedValueKind::Date,
+        XbrlType::DateTime => ExpectedValueKind::DateTime,
         XbrlType::Percent
         | XbrlType::PerShare
         | XbrlType::String
