@@ -59,9 +59,6 @@ pub struct TaxonomySchema {
     pub includes: Vec<SchemaInclude>,
     /// `link:linkbaseRef` entries.
     pub linkbase_refs: Vec<LinkbaseRef>,
-    /// Locations referenced by `xsi:schemaLocation` and
-    /// `xsi:noNamespaceSchemaLocation` attributes.
-    pub schema_location_refs: Vec<String>,
     /// `link:roleType` definitions.
     pub role_types: Vec<RoleType>,
     /// `link:arcroleType` definitions.
@@ -202,7 +199,6 @@ mod tests {
             imports: vec![],
             includes: vec![],
             linkbase_refs: vec![],
-            schema_location_refs: vec![],
             role_types: vec![],
             arcrole_types: vec![],
             concepts: vec![test_concept(
@@ -239,7 +235,6 @@ mod tests {
             imports: vec![],
             includes: vec![],
             linkbase_refs: vec![],
-            schema_location_refs: vec![],
             role_types: vec![],
             arcrole_types: vec![],
             concepts: vec![test_concept(
@@ -276,7 +271,6 @@ mod tests {
             imports: vec![],
             includes: vec![],
             linkbase_refs: vec![],
-            schema_location_refs: vec![],
             role_types: vec![],
             arcrole_types: vec![],
             concepts: vec![test_concept(
@@ -313,7 +307,6 @@ mod tests {
             imports: vec![],
             includes: vec![],
             linkbase_refs: vec![],
-            schema_location_refs: vec![],
             role_types: vec![],
             arcrole_types: vec![],
             concepts: vec![test_concept(
@@ -350,7 +343,6 @@ mod tests {
             imports: vec![],
             includes: vec![],
             linkbase_refs: vec![],
-            schema_location_refs: vec![],
             role_types: vec![RoleType {
                 id: "1invalid-id".to_string(),
                 role_uri: "http://example.com/role".to_string(),
@@ -381,7 +373,6 @@ mod tests {
             imports: vec![],
             includes: vec![],
             linkbase_refs: vec![],
-            schema_location_refs: vec![],
             role_types: vec![],
             arcrole_types: vec![],
             concepts: vec![test_concept(

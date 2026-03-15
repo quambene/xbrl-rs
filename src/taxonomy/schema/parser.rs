@@ -73,7 +73,9 @@ impl fmt::Display for CyclesAllowed {
     }
 }
 
-/// Represents an `xs:import` in the schema.
+/// Represents an `xs:import` in the schema. Used when a schema needs to import
+/// types from another namespace. The `namespace` field is required, but the
+/// `schema_location` is optional in XBRL taxonomies.
 #[derive(Debug, PartialEq, Eq)]
 pub struct SchemaImport {
     /// Namespace being imported.
@@ -82,7 +84,8 @@ pub struct SchemaImport {
     pub schema_location: Option<String>,
 }
 
-/// Represents an `xs:include` in the schema.
+/// Represents an `xs:include` in the schema. Used when a schema needs to include
+/// types from another schema in the same namespace.
 #[derive(Debug, PartialEq, Eq)]
 pub struct SchemaInclude {
     /// Location of the included schema file.

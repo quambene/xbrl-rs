@@ -170,9 +170,6 @@ pub fn resolve_schema(schema: RawSchema) -> TaxonomySchema {
         imports: schema.imports,
         includes: schema.includes,
         linkbase_refs: schema.linkbase_refs,
-        // TODO: parse actual schema location refs from `xsi:schemaLocation`
-        // and `xsi:noNamespaceSchemaLocation` attributes
-        schema_location_refs: Vec::new(),
         role_types: schema.role_types,
         arcrole_types: schema.arcrole_types,
         concepts,
