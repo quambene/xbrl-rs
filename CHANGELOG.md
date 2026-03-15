@@ -11,7 +11,6 @@
 - added
   - Add benchmarks in `/benches`
   - Check version compatibility of schemas
-  - Add `LinkbaseLocator`
   - Add `precision` to `Fact`
   - Validate `Context`
   - Parse and validate `FootnoteLink`
@@ -19,19 +18,19 @@
   - Add `type_bases` and `type_declared_accuracy` to `TaxonomySchema`
   - Add `Period::Forever`
   - Validate context, instance refs, and essence alias units
-  - Add `SchemaRefUrl`, `ConceptId`, `RoleUri`, `ContextId`, `NamespacePrefix`,
-    `UnitId`, `Decimals`, `Balance`, `CyclesAllowed`, `PeriodType`,
-    `DeclaredAccuracy`, `SchemaTag`, `ReferenceTag`, `PresentationTag`,
-    `LabelTag`, `DefinitionTag`, `CalculationTag`, `FactValue`
+  - Add `SchemaRefUrl`, `ConceptId`, `RoleUri`, `ContextId`, `NamespacePrefix`, `NamespaceUri`,
+    `UnitId`, `Decimals`, `Balance`, `CyclesAllowed`, `PeriodType`, `FactValue`, `ExpandedName`
   - Add `TaxonomySchema::from_xml_unchecked` and `TaxonomySchema::validate`
   - Add `DocumentView` and implement `InstanceDocument::view`
+  - Add `LinkbaseLocator`
   - Add `example/print_facts.rs`
-  - Implement `InstanceDocument::from_taxonomy`
-  - Parse and validate `TupleFact`s
+  - Implement `InstanceDocument::from_taxonomy` and `InstanceDocument::from_file`
+  - Parse and validate `TupleFact`
   - Parse and validate `TupleChildRef`
   - Add feature flag `taxonomy-test` and `conformance-test`
 - changed
-  - Rename `TaxonomySchema::parse` to `TaxonomySchema::from_xml`
+  - Refactor reader to `SchemaParser`, `LinkbaseParser`, and `InstanceParser`
+  - Rename `TaxonomySchema::parse` to `TaxonomySchema::from_reader`
   - Use `BufReader` for parsing schemas and linkbases
   - Put `TaxonomyLoader` behind feature flag `download`
   - Put `env::logger` behind feature flag `logger`
