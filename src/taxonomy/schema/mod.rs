@@ -65,10 +65,6 @@ pub struct TaxonomySchema {
     pub arcrole_types: Vec<ArcroleType>,
     /// `xs:element` definitions.
     pub concepts: Vec<Concept>,
-    /// Named simple/complex type derivations: type name -> base QName.
-    pub type_bases: HashMap<String, String>,
-    /// Named types with declared decimals/precision attributes (fixed/default) on restrictions.
-    pub type_declared_accuracy: HashMap<String, DeclaredAccuracy>,
 }
 
 impl TaxonomySchema {
@@ -212,8 +208,6 @@ mod tests {
                 None,
                 None,
             )],
-            type_bases: HashMap::new(),
-            type_declared_accuracy: HashMap::new(),
         };
 
         let res = schema.validate();
@@ -247,8 +241,6 @@ mod tests {
                 Some(PeriodType::Duration),
                 Some(Balance::Credit),
             )],
-            type_bases: HashMap::new(),
-            type_declared_accuracy: HashMap::new(),
         };
 
         let res = schema.validate();
@@ -282,8 +274,6 @@ mod tests {
                 Some(PeriodType::Duration),
                 None,
             )],
-            type_bases: HashMap::new(),
-            type_declared_accuracy: HashMap::new(),
         };
 
         let res = schema.validate();
@@ -317,8 +307,6 @@ mod tests {
                 None,
                 Some(Balance::Credit),
             )],
-            type_bases: HashMap::new(),
-            type_declared_accuracy: HashMap::new(),
         };
 
         let res = schema.validate();
@@ -345,8 +333,6 @@ mod tests {
             }],
             arcrole_types: vec![],
             concepts: vec![],
-            type_bases: HashMap::new(),
-            type_declared_accuracy: HashMap::new(),
         };
 
         let res = schema.validate();
@@ -388,8 +374,6 @@ mod tests {
                 balance: Some(Balance::Debit),
                 tuple_children: Vec::new(),
             }],
-            type_bases: HashMap::new(),
-            type_declared_accuracy: HashMap::new(),
         };
 
         assert!(schema.validate().is_ok());

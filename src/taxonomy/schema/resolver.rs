@@ -125,7 +125,7 @@ pub struct Concept {
     pub id: Option<String>,
     /// The element's qualified name.
     pub name: ExpandedName,
-    /// The resolved XSD type.
+    /// The base type resolved from simple or complex types.
     pub data_type: XbrlType,
     /// Substitution group (e.g., "xbrli:item", "xbrli:tuple").
     pub substitution_group: SubstitutionGroup,
@@ -173,8 +173,6 @@ pub fn resolve_schema(schema: RawSchema) -> TaxonomySchema {
         role_types: schema.role_types,
         arcrole_types: schema.arcrole_types,
         concepts,
-        type_bases: HashMap::new(),
-        type_declared_accuracy: HashMap::new(),
     }
 }
 

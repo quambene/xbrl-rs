@@ -165,7 +165,8 @@ pub struct AttributeUse {
 pub struct SimpleType {
     /// The name of the simple type.
     pub name: Option<String>,
-    /// The base type of the simple type.
+    /// The base type of the simple type in a restriction (`xs:restriction
+    /// base="..."`).
     pub base: Option<QName>,
     /// The enumerations of the simple type. Only relevant for simple types that
     /// are restrictions of an enumeration.
@@ -1615,6 +1616,36 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_simple_type_enumeration() {
+        let xml = r#"<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                                targetNamespace="http://example.com"
+                                xmlns="http://example.com">
+                                <xs:simpleType name="StatusType">
+                                    <xs:restriction base="xs:string">
+                                        <xs:enumeration value="Open" />
+                                        <xs:enumeration value="Closed" />
+                                    </xs:restriction>
+                                </xs:simpleType>
+                            </xs:schema>"#;
+        let mut parser = SchemaParser::from_reader(xml.as_bytes());
+        let schema = parser.parse_schema().unwrap();
+
+        assert_eq!(schema.simple_types.len(), 1);
+        let simple_type = &schema.simple_types[0];
+        assert_eq!(
+            *simple_type,
+            SimpleType {
+                name: Some("StatusType".to_string()),
+                base: Some(QName {
+                    prefix: Some(NamespacePrefix::from("xs")),
+                    local_name: "string".to_string()
+                }),
+                enumerations: vec!["Open".to_string(), "Closed".to_string()],
+            }
+        );
+    }
+
+    #[test]
     fn test_parse_complex_type_empty() {
         let xml = r#"<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
                             targetNamespace="http://example.com"
@@ -1672,36 +1703,6 @@ mod tests {
         let res = parser.parse_schema();
 
         assert_matches!(res, Err(XbrlError::InvalidSchemaDocument { .. }));
-    }
-
-    #[test]
-    fn test_parse_simple_type_enumeration() {
-        let xml = r#"<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
-                                targetNamespace="http://example.com"
-                                xmlns="http://example.com">
-                                <xs:simpleType name="StatusType">
-                                    <xs:restriction base="xs:string">
-                                        <xs:enumeration value="Open" />
-                                        <xs:enumeration value="Closed" />
-                                    </xs:restriction>
-                                </xs:simpleType>
-                            </xs:schema>"#;
-        let mut parser = SchemaParser::from_reader(xml.as_bytes());
-        let schema = parser.parse_schema().unwrap();
-
-        assert_eq!(schema.simple_types.len(), 1);
-        let simple_type = &schema.simple_types[0];
-        assert_eq!(
-            *simple_type,
-            SimpleType {
-                name: Some("StatusType".to_string()),
-                base: Some(QName {
-                    prefix: Some(NamespacePrefix::from("xs")),
-                    local_name: "string".to_string()
-                }),
-                enumerations: vec!["Open".to_string(), "Closed".to_string()],
-            }
-        );
     }
 
     #[test]
