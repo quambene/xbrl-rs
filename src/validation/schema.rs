@@ -4,7 +4,7 @@
 use super::{Severity, ValidationResult, value::PreparedFactValues};
 use crate::{
     DeclaredAccuracy, Fact, InstanceDocument, ItemFact, Period, TaxonomySet, TupleFact, Unit,
-    taxonomy::{Concept, MaxOccurs, PeriodType, TupleChild, XbrlType},
+    taxonomy::{Compositor, Concept, MaxOccurs, PeriodType, TupleChild, XbrlType},
 };
 use rust_decimal::Decimal;
 use std::{
@@ -469,7 +469,7 @@ fn validate_tuple_child(
         return;
     };
 
-    if tuple_allows_child(parent_tuple, child_element) {
+    if tuple_allows_child(parent_tuple, child_element, taxonomy) {
         return;
     }
 
@@ -485,11 +485,15 @@ fn validate_tuple_child(
     );
 }
 
-fn tuple_allows_child(parent_tuple: &Concept, child_element: &Concept) -> bool {
+fn tuple_allows_child(
+    parent_tuple: &Concept,
+    child_element: &Concept,
+    taxonomy: &TaxonomySet,
+) -> bool {
     parent_tuple
         .tuple_children
         .iter()
-        .any(|child_ref| tuple_child_ref_matches_element(child_ref, child_element))
+        .any(|child_ref| tuple_child_ref_matches_element(child_ref, child_element, taxonomy))
 }
 
 fn validate_required_tuple_children(
@@ -500,6 +504,13 @@ fn validate_required_tuple_children(
 ) {
     // A nil tuple has no content; content model constraints do not apply.
     if fact.is_nil() {
+        return;
+    }
+
+    // For xs:choice compositors, any one of the declared children satisfies
+    // the content model. Per-child minOccurs/maxOccurs checks don't apply
+    // in the same way as for xs:sequence.
+    if concept.compositor == Some(Compositor::Choice) {
         return;
     }
 
@@ -562,12 +573,38 @@ fn tuple_child_ref_matches_concept(
         return false;
     };
 
-    tuple_child_ref_matches_element(child_ref, child_element)
+    tuple_child_ref_matches_element(child_ref, child_element, taxonomy)
 }
 
-fn tuple_child_ref_matches_element(child_ref: &TupleChild, child_element: &Concept) -> bool {
+/// Check if a tuple child reference matches a given concept, considering direct
+/// matches and substitution group relationships.
+fn tuple_child_ref_matches_element(
+    child_ref: &TupleChild,
+    child_element: &Concept,
+    taxonomy: &TaxonomySet,
+) -> bool {
     let allowed_local = &child_ref.name.local_name;
-    &child_element.name.local_name == allowed_local
+
+    // Direct match
+    if &child_element.name.local_name == allowed_local {
+        return true;
+    }
+
+    // Walk substitution group chain: if the child substitutes for the declared
+    // child ref (directly or transitively), it is allowed.
+    let mut current = &child_element.substitution_group.original.local_name;
+    let mut seen = HashSet::new();
+    while seen.insert(current.as_str()) {
+        if current == allowed_local {
+            return true;
+        }
+        let Some(parent) = taxonomy.find_concept(current) else {
+            break;
+        };
+        current = &parent.substitution_group.original.local_name;
+    }
+
+    false
 }
 
 fn validate_item_fact(

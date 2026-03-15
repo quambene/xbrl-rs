@@ -1,4 +1,4 @@
-use super::parser::{ComplexType, Element, RawSchema, SimpleType};
+use super::parser::{ComplexType, Compositor, Element, RawSchema, SimpleType};
 use crate::{Balance, ExpandedName, PeriodType, TaxonomySchema, xml::QName};
 use std::collections::{HashMap, HashSet};
 
@@ -141,6 +141,9 @@ pub struct Concept {
     /// inside the tuple's inline `xs:complexType`. Empty for non-tuple
     /// elements.
     pub tuple_children: Vec<TupleChild>,
+    /// The compositor of the tuple's content model (`xs:sequence` or
+    /// `xs:choice`). `None` for non-tuple elements.
+    pub compositor: Option<Compositor>,
 }
 
 impl Concept {
@@ -240,6 +243,10 @@ pub fn resolve_concepts(raw: &RawSchema) -> Vec<Concept> {
                         },
                     })
                     .collect(),
+                compositor: element
+                    .complex_type
+                    .as_ref()
+                    .and_then(|complex_type| complex_type.compositor.clone()),
             }
         })
         .collect()

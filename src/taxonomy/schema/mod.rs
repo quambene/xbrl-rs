@@ -3,7 +3,9 @@ mod resolver;
 mod validation;
 
 use crate::{NamespacePrefix, NamespaceUri, XbrlError, instance::Decimals};
-pub use parser::{ArcroleType, LinkbaseRef, RoleType, SchemaImport, SchemaInclude, SchemaParser};
+pub use parser::{
+    ArcroleType, Compositor, LinkbaseRef, RoleType, SchemaImport, SchemaInclude, SchemaParser,
+};
 pub use resolver::{
     BaseSubstitutionGroup, Concept, MaxOccurs, SubstitutionGroup, TupleChild, XbrlType,
 };
@@ -181,6 +183,7 @@ mod tests {
             period_type,
             balance,
             tuple_children: Vec::new(),
+            compositor: None,
         }
     }
 
@@ -373,6 +376,7 @@ mod tests {
                 period_type: Some(PeriodType::Instant),
                 balance: Some(Balance::Debit),
                 tuple_children: Vec::new(),
+                compositor: None,
             }],
         };
 

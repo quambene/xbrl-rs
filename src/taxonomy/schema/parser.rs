@@ -23,7 +23,7 @@ pub enum DerivationKind {
 }
 
 /// The compositor type for a complex type's content model (sequence or choice).
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Compositor {
     Sequence,
     Choice,
