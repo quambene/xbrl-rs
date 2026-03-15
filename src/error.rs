@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{io, path::PathBuf};
 use thiserror::Error;
 
 /// The type of linkbase being parsed
@@ -27,8 +27,9 @@ impl std::fmt::Display for LinkbaseType {
 #[derive(Error, Debug)]
 pub enum XbrlError {
     /// Error parsing XML content
-    #[error("Error parsing XML at position {position}{}: {source}", element.as_ref().map(|err| format!(" in element <{}>", err)).unwrap_or_default())]
+    #[error("Error parsing XML at position {position}{}{}: {source}", path.as_ref().map(|path| format!(" in file {}", path.display())).unwrap_or_default(), element.as_ref().map(|err| format!(" in element <{}>", err)).unwrap_or_default())]
     XmlParse {
+        path: Option<PathBuf>,
         position: u64,
         element: Option<String>,
         #[source]
@@ -44,13 +45,22 @@ pub enum XbrlError {
         source: quick_xml::Error,
     },
 
+    /// Error opening file
+    #[error("Failed to open {context}: {}", path.display())]
+    FileOpen {
+        path: PathBuf,
+        context: String,
+        #[source]
+        source: io::Error,
+    },
+
     /// Error reading file
     #[error("Failed to read {context}: {}", path.display())]
     FileRead {
         path: PathBuf,
         context: String,
         #[source]
-        source: std::io::Error,
+        source: io::Error,
     },
 
     /// Error writing file
@@ -58,7 +68,7 @@ pub enum XbrlError {
     FileWrite {
         path: PathBuf,
         #[source]
-        source: std::io::Error,
+        source: io::Error,
     },
 
     /// Missing required XML attribute
@@ -89,9 +99,26 @@ pub enum XbrlError {
     #[error("Invalid XLink href '{href}': {reason}")]
     InvalidHref { href: String, reason: String },
 
-    /// Invalid schema document used where an XML Schema is required.
-    #[error("Invalid schema document '{}': {reason}", path.display())]
-    InvalidSchemaDocument { path: PathBuf, reason: String },
+    /// Invalid schema document
+    #[error("Invalid schema document '{}': {reason}", path.as_ref().map(|path| path.display().to_string()).unwrap_or_else(|| "unknown".to_string()))]
+    InvalidSchemaDocument {
+        path: Option<PathBuf>,
+        reason: String,
+    },
+
+    // Invalid instance document
+    #[error("Invalid instance document '{}': {reason}", path.as_ref().map(|path| path.display().to_string()).unwrap_or_else(|| "unknown".to_string()))]
+    InvalidInstanceDocument {
+        path: Option<PathBuf>,
+        reason: String,
+    },
+
+    /// Invalid linkbase document
+    #[error("Invalid linkbase document '{}': {reason}", path.as_ref().map(|path| path.display().to_string()).unwrap_or_else(|| "unknown".to_string()))]
+    InvalidLinkbaseDocument {
+        path: Option<PathBuf>,
+        reason: String,
+    },
 
     /// A string value could not be parsed as the expected XBRL type.
     #[error("invalid {expected} value '{value}'")]
@@ -102,7 +129,7 @@ pub enum XbrlError {
 
     /// IO error
     #[error(transparent)]
-    Io(#[from] std::io::Error),
+    Io(#[from] io::Error),
 
     /// XML error
     #[error(transparent)]

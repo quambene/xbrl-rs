@@ -1,10 +1,7 @@
 //! Document view built from the presentation linkbase.
 
 use super::fact::ItemFact;
-use crate::{
-    TaxonomySet,
-    taxonomy::{Label, PresentationArc},
-};
+use crate::{Label, TaxonomySet, taxonomy::PresentationArc};
 use std::{
     cmp::Ordering,
     collections::{HashMap, HashSet},
@@ -195,7 +192,7 @@ mod tests {
     use super::*;
     use crate::{
         ItemFact,
-        taxonomy::{Label, PresentationArc, TaxonomySet},
+        taxonomy::{PresentationArc, TaxonomySet},
     };
     use rust_decimal::Decimal;
 
@@ -230,6 +227,8 @@ mod tests {
                     from: "root".to_string(),
                     to: "child_a".to_string(),
                     order: Some(Decimal::new(1, 0)),
+                    preferred_label: None,
+                    arcrole: "http://www.xbrl.org/2003/arcrole/parent-child".to_string(),
                 },
             ),
             (
@@ -238,6 +237,8 @@ mod tests {
                     from: "root".to_string(),
                     to: "child_b".to_string(),
                     order: Some(Decimal::new(2, 0)),
+                    preferred_label: None,
+                    arcrole: "http://www.xbrl.org/2003/arcrole/parent-child".to_string(),
                 },
             ),
             (
@@ -246,6 +247,8 @@ mod tests {
                     from: "child_a".to_string(),
                     to: "grandchild".to_string(),
                     order: Some(Decimal::new(1, 0)),
+                    preferred_label: None,
+                    arcrole: "http://www.xbrl.org/2003/arcrole/parent-child".to_string(),
                 },
             ),
         ];
@@ -262,10 +265,14 @@ mod tests {
         // Use a QName without a prefix so concept_id() == "child_a" directly,
         // matching the element ID used in the presentation arcs above.
         let fact = ItemFact::new(
+            None,
             "child_a".to_string(), // no prefix → concept_id() == "child_a"
             "ctx1".to_string(),
             None,
             "42".to_string(),
+            false,
+            None,
+            None,
         );
         let facts = vec![&fact];
 
@@ -309,6 +316,8 @@ mod tests {
                     from: "a".to_string(),
                     to: "b".to_string(),
                     order: Some(Decimal::new(1, 0)),
+                    preferred_label: None,
+                    arcrole: "http://www.xbrl.org/2003/arcrole/parent-child".to_string(),
                 },
             ),
             (
@@ -317,6 +326,8 @@ mod tests {
                     from: "b".to_string(),
                     to: "a".to_string(),
                     order: Some(Decimal::new(1, 0)),
+                    preferred_label: None,
+                    arcrole: "http://www.xbrl.org/2003/arcrole/parent-child".to_string(),
                 },
             ),
         ];
@@ -336,6 +347,8 @@ mod tests {
                     from: "root".to_string(),
                     to: "b".to_string(),
                     order: Some(Decimal::new(2, 0)),
+                    preferred_label: None,
+                    arcrole: "http://www.xbrl.org/2003/arcrole/parent-child".to_string(),
                 },
             ),
             (
@@ -344,6 +357,8 @@ mod tests {
                     from: "root".to_string(),
                     to: "a".to_string(),
                     order: Some(Decimal::new(1, 0)),
+                    preferred_label: None,
+                    arcrole: "http://www.xbrl.org/2003/arcrole/parent-child".to_string(),
                 },
             ),
         ];

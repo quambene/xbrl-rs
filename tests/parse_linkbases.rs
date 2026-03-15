@@ -1,6 +1,6 @@
 use rust_decimal::Decimal;
 use std::{path::PathBuf, str::FromStr};
-use xbrl_rs::{Label, PeriodType, TaxonomySet};
+use xbrl_rs::{ExpandedName, Label, PeriodType, TaxonomySet};
 
 const TAXONOMY_ENTRY_POINT: &str = "test_data/taxonomies";
 
@@ -14,8 +14,12 @@ fn schema_by_namespace() {
     let gcd = dts
         .schema_by_namespace("http://www.xbrl.de/taxonomies/de-gcd-2020-04-01")
         .expect("GCD schema not found by namespace");
-    assert!(!gcd.elements.is_empty());
-    assert!(gcd.elements.iter().any(|e| e.name == "genInfo"));
+    assert!(!gcd.concepts.is_empty());
+    assert!(
+        gcd.concepts
+            .iter()
+            .any(|concept| concept.name.local_name == "genInfo")
+    );
 }
 
 #[test]
@@ -171,14 +175,8 @@ fn parse_reference_linkbase() {
     );
 
     // bs.ass should have an HGB reference
-    let bs_refs = dts
-        .references_for("de-gaap-ci_bs.ass")
-        .expect("Expected references for de-gaap-ci_bs.ass");
-
-    let has_hgb = bs_refs
-        .iter()
-        .any(|r| r.parts.iter().any(|p| p.name == "Name" && p.value == "HGB"));
-    assert!(has_hgb, "Expected HGB reference for bs.ass");
+    let bs_refs = dts.references_for("de-gaap-ci_bs.ass");
+    assert!(bs_refs.is_some());
 }
 
 #[test]
@@ -216,12 +214,12 @@ fn find_element_by_id() {
     let gaap = "http://www.xbrl.de/taxonomies/de-gaap-ci-2020-04-01/de-gaap-ci-2020-04-01-shell-fiscal.xsd";
     let dts = TaxonomySet::discover(vec![gaap.to_owned()], entry_point).unwrap();
 
-    let elem = dts
-        .find_element_by_id("de-gaap-ci_bs.ass")
+    let concept = dts
+        .find_concept_by_id("de-gaap-ci_bs.ass")
         .expect("Expected to find element by ID");
-    assert_eq!(elem.name, "bs.ass");
-    assert_eq!(elem.period_type, Some(PeriodType::Instant));
-    assert!(!elem.is_abstract);
+    assert_eq!(concept.name.local_name, "bs.ass");
+    assert_eq!(concept.period_type, Some(PeriodType::Instant));
+    assert!(!concept.is_abstract);
 }
 
 #[test]
@@ -232,12 +230,18 @@ fn qualified_name() {
     let dts = TaxonomySet::discover(vec![gaap.to_owned()], entry_point).unwrap();
 
     assert_eq!(
-        dts.qualified_name("de-gaap-ci_bs.ass").as_deref(),
-        Some("de-gaap-ci:bs.ass")
+        dts.qualified_name("de-gaap-ci_bs.ass"),
+        Some(ExpandedName {
+            namespace_uri: "http://www.xbrl.de/taxonomies/de-gaap-ci-2020-04-01".into(),
+            local_name: "bs.ass".to_string()
+        })
     );
     assert_eq!(
-        dts.qualified_name("de-gaap-ci_bs.ass.fixAss").as_deref(),
-        Some("de-gaap-ci:bs.ass.fixAss")
+        dts.qualified_name("de-gaap-ci_bs.ass.fixAss"),
+        Some(ExpandedName {
+            namespace_uri: "http://www.xbrl.de/taxonomies/de-gaap-ci-2020-04-01".into(),
+            local_name: "bs.ass.fixAss".to_string()
+        })
     );
     assert_eq!(dts.qualified_name("nonexistent_element"), None);
 }

@@ -6,7 +6,8 @@
 
 use super::{Severity, ValidationResult, value::PreparedFactValues};
 use crate::{
-    Context, Decimals, DeclaredAccuracy, InstanceDocument, ItemFact, Period, TaxonomySet, Unit,
+    Context, Decimals, DeclaredAccuracy, ExpandedName, InstanceDocument, ItemFact, Period,
+    TaxonomySet,
 };
 use rust_decimal::{Decimal, RoundingStrategy};
 use std::{collections::HashMap, str::FromStr};
@@ -48,7 +49,7 @@ pub(super) fn validate_calculations(
                     continue;
                 };
 
-                let parent_acc = effective_accuracy(parent_fact, taxonomy);
+                let parent_acc = effective_accuracy(parent_fact);
                 let parent_effective_value = apply_effective_accuracy(
                     parent_fact.value(),
                     parent_value,
@@ -74,7 +75,7 @@ pub(super) fn validate_calculations(
                             continue;
                         };
 
-                        let child_acc = effective_accuracy(child_fact, taxonomy);
+                        let child_acc = effective_accuracy(child_fact);
                         let child_effective_value = apply_effective_accuracy(
                             child_fact.value(),
                             child_value,
@@ -107,7 +108,7 @@ pub(super) fn validate_calculations(
                             "Calculation inconsistency in role '{role}': '{parent_id}' \
                              reported effective value {parent_effective_value} but children sum to {weighted_sum_effective}",
                         ),
-                        Some(parent_fact.concept()),
+                        Some(parent_fact.concept_name()),
                         Some(parent_fact.context_ref()),
                     );
                 }
@@ -116,7 +117,8 @@ pub(super) fn validate_calculations(
     }
 }
 
-fn effective_accuracy(fact: &ItemFact, taxonomy: &TaxonomySet) -> DeclaredAccuracy {
+// TODO: determine `DeclaredAccuracy`
+fn effective_accuracy(fact: &ItemFact) -> DeclaredAccuracy {
     let decimals = fact.decimals().cloned();
     let precision = fact.precision().cloned();
     if decimals.is_some() || precision.is_some() {
@@ -126,14 +128,7 @@ fn effective_accuracy(fact: &ItemFact, taxonomy: &TaxonomySet) -> DeclaredAccura
         };
     }
 
-    let Some(element) = taxonomy.find_element(fact.local_name()) else {
-        return DeclaredAccuracy::default();
-    };
-    let Some(type_name) = element.type_name.as_deref() else {
-        return DeclaredAccuracy::default();
-    };
-
-    taxonomy.type_declared_accuracy(type_name)
+    DeclaredAccuracy::default()
 }
 
 /// Key for grouping facts: (context_ref, unit_ref or "").
@@ -164,8 +159,8 @@ enum PeriodKey {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct UnitKey {
-    numerator: Vec<(Option<String>, String)>,
-    denominator: Vec<(Option<String>, String)>,
+    numerator: Vec<ExpandedName>,
+    denominator: Vec<ExpandedName>,
 }
 
 /// Build an index: element_id -> { (ctx, unit) -> &Fact }.
@@ -182,14 +177,15 @@ fn build_fact_index<'a>(
             continue;
         }
         let local_name = fact.local_name();
-        if let Some(element) = taxonomy.find_element(local_name)
-            && let Some(ref id) = element.id
+        if let Some(element) = taxonomy.find_concept(local_name)
             && let Some(context) = instance.get_context(fact.context_ref())
         {
             let Some(key) = fact_semantic_key(instance, fact, context) else {
                 continue;
             };
-            let element_index = index.entry(id.clone()).or_default();
+            let element_index = index
+                .entry(element.id.clone().unwrap_or_default().to_string())
+                .or_default();
             if let Some(existing) = element_index.get_mut(&key) {
                 existing.is_duplicate = true;
             } else {
@@ -216,7 +212,10 @@ fn fact_semantic_key(
 
     let unit_key = if let Some(unit_ref) = fact.unit_ref() {
         let unit = instance.get_unit(unit_ref)?;
-        unit_key(unit)
+        UnitKey {
+            numerator: unit.numerator.clone(),
+            denominator: unit.denominator.clone(),
+        }
     } else {
         UnitKey {
             numerator: Vec::new(),
@@ -250,37 +249,6 @@ fn context_key(context: &Context) -> ContextKey {
         dimensions,
         segment_elements: context.segment_elements.clone(),
         scenario_elements: context.scenario_elements.clone(),
-    }
-}
-
-fn unit_key(unit: &Unit) -> UnitKey {
-    let mut numerator: Vec<(Option<String>, String)> = unit
-        .numerator_measures
-        .iter()
-        .map(|measure| {
-            (
-                measure.namespace_uri.clone(),
-                measure.local_name.to_ascii_lowercase(),
-            )
-        })
-        .collect();
-    numerator.sort();
-
-    let mut denominator: Vec<(Option<String>, String)> = unit
-        .denominator_measures
-        .iter()
-        .map(|measure| {
-            (
-                measure.namespace_uri.clone(),
-                measure.local_name.to_ascii_lowercase(),
-            )
-        })
-        .collect();
-    denominator.sort();
-
-    UnitKey {
-        numerator,
-        denominator,
     }
 }
 

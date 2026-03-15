@@ -315,22 +315,10 @@ fn run_instance_variation(variation: &Variation, base_dir: &Path) -> Outcome {
     let instance_path = base_dir.join(&instance_file.path);
 
     // Parse the instance document.
-    let mut instance = match File::open(&instance_path) {
-        Ok(f) => {
-            let mut reader = Reader::from_reader(BufReader::new(f));
-            match InstanceDocument::from_xml(&mut reader) {
-                Ok(i) => i,
-                Err(_) => return Outcome::Invalid,
-            }
-        }
+    let instance = match InstanceDocument::from_file(&instance_path) {
+        Ok(instance) => instance,
         Err(_) => return Outcome::Invalid,
     };
-
-    let document_name = instance_path
-        .file_name()
-        .and_then(|name| name.to_str())
-        .map(str::to_string);
-    instance.set_document_name(document_name);
 
     // Collect companion XSD schema refs.
     let xsd_refs: Vec<String> = variation

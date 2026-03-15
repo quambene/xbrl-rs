@@ -1,6 +1,9 @@
 use criterion::{Criterion, criterion_group, criterion_main};
-use quick_xml::Reader;
-use std::{path::PathBuf, str::FromStr, time::Duration};
+use std::{
+    path::{Path, PathBuf},
+    str::FromStr,
+    time::Duration,
+};
 use xbrl_rs::{InstanceDocument, TaxonomySet};
 
 const TAXONOMY_ENTRY_POINT: &str = "test_data/taxonomies";
@@ -12,9 +15,9 @@ fn parse_instance(c: &mut Criterion) {
     group.warm_up_time(Duration::from_secs(5));
     group.bench_function("parse_instance", |b| {
         b.iter(|| {
-            let mut reader =
-                Reader::from_file("test_data/instances/balance_sheet_v64.xml").unwrap();
-            let _instance = InstanceDocument::from_xml(&mut reader).unwrap();
+            let _instance =
+                InstanceDocument::from_file(Path::new("test_data/instances/balance_sheet_v64.xml"))
+                    .unwrap();
         });
     });
 }
@@ -30,8 +33,9 @@ fn validate_instance(c: &mut Criterion) {
                 entry_point,
             )
             .unwrap();
-    let mut reader = Reader::from_file("test_data/instances/balance_sheet_v64.xml").unwrap();
-    let instance = InstanceDocument::from_xml(&mut reader).unwrap();
+    let instance =
+        InstanceDocument::from_file(Path::new("test_data/instances/balance_sheet_v64.xml"))
+            .unwrap();
 
     let mut group = c.benchmark_group("bench_xbrl");
     group.sample_size(10);
@@ -53,8 +57,9 @@ fn view_instance(c: &mut Criterion) {
                 entry_point,
             )
             .unwrap();
-    let mut reader = Reader::from_file("test_data/instances/balance_sheet_v64.xml").unwrap();
-    let instance = InstanceDocument::from_xml(&mut reader).unwrap();
+    let instance =
+        InstanceDocument::from_file(Path::new("test_data/instances/balance_sheet_v64.xml"))
+            .unwrap();
 
     let mut group = c.benchmark_group("bench_xbrl");
     group.sample_size(10);

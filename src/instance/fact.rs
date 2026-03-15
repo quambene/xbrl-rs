@@ -59,7 +59,7 @@ pub struct ItemFact {
     /// Optional XML id attribute
     id: Option<String>,
     /// The concept name (e.g. "de-gaap-ci:bs.ass.fixAss")
-    concept: String,
+    concept_name: String,
     /// Reference to the context ID
     context_ref: String,
     /// Optional reference to the unit ID
@@ -74,41 +74,32 @@ pub struct ItemFact {
     precision: Option<Decimals>,
 }
 
-/// Represents a tuple fact that can contain child facts.
-#[derive(Debug, Clone)]
-pub struct TupleFact {
-    /// Optional XML id attribute
-    id: Option<String>,
-    /// The concept name (e.g. "de-gcd:genInfo.company.id.shareholder")
-    concept: String,
-    /// Whether the tuple is nil (xsi:nil="true"). A nil tuple has no children
-    /// and its content model constraints (e.g. minOccurs) do not apply.
-    is_nil: bool,
-    /// Nested child facts (item and tuple facts)
-    children: Vec<Fact>,
-}
-
 impl ItemFact {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
-        concept: String,
+        id: Option<String>,
+        concept_name: String,
         context_ref: String,
         unit_ref: Option<String>,
         value: String,
+        is_nil: bool,
+        decimals: Option<Decimals>,
+        precision: Option<Decimals>,
     ) -> Self {
         Self {
-            id: None,
-            concept,
+            id,
+            concept_name,
             context_ref,
             unit_ref,
             value,
-            is_nil: false,
-            decimals: None,
-            precision: None,
+            is_nil,
+            decimals,
+            precision,
         }
     }
 
-    pub fn concept(&self) -> &str {
-        &self.concept
+    pub fn concept_name(&self) -> &str {
+        &self.concept_name
     }
 
     pub fn id(&self) -> Option<&str> {
@@ -161,12 +152,15 @@ impl ItemFact {
 
     /// Extract the namespace prefix from the concept
     pub fn namespace_prefix(&self) -> Option<&str> {
-        self.concept.split(':').next()
+        self.concept_name.split(':').next()
     }
 
     /// Extract the local name from the concept (without namespace prefix)
     pub fn local_name(&self) -> &str {
-        self.concept.split(':').nth(1).unwrap_or(&self.concept)
+        self.concept_name
+            .split(':')
+            .nth(1)
+            .unwrap_or(&self.concept_name)
     }
 
     /// Convert the concept QName to element ID format used in taxonomy linkbases.
@@ -175,22 +169,36 @@ impl ItemFact {
     /// `de-gaap-ci_bs.ass`. This matches the `id` attribute convention in XSD
     /// where colons are not valid in XML ID values.
     pub fn concept_id(&self) -> String {
-        self.concept.replacen(':', "_", 1)
+        self.concept_name.replacen(':', "_", 1)
     }
 }
 
+/// Represents a tuple fact that can contain child facts.
+#[derive(Debug, Clone)]
+pub struct TupleFact {
+    /// Optional XML id attribute
+    id: Option<String>,
+    /// The concept name (e.g. "de-gcd:genInfo.company.id.shareholder")
+    concept_name: String,
+    /// Whether the tuple is nil (xsi:nil="true"). A nil tuple has no children
+    /// and its content model constraints (e.g. minOccurs) do not apply.
+    is_nil: bool,
+    /// Nested child facts (item and tuple facts)
+    children: Vec<Fact>,
+}
+
 impl TupleFact {
-    pub fn new(concept: String) -> Self {
+    pub fn new(concept_name: String) -> Self {
         Self {
             id: None,
-            concept,
+            concept_name,
             is_nil: false,
             children: Vec::new(),
         }
     }
 
-    pub fn concept(&self) -> &str {
-        &self.concept
+    pub fn concept_name(&self) -> &str {
+        &self.concept_name
     }
 
     pub fn id(&self) -> Option<&str> {
@@ -229,17 +237,26 @@ impl Fact {
         unit_ref: Option<String>,
         value: String,
     ) -> Self {
-        Self::Item(ItemFact::new(concept, context_ref, unit_ref, value))
+        Self::Item(ItemFact::new(
+            None,
+            concept,
+            context_ref,
+            unit_ref,
+            value,
+            false,
+            None,
+            None,
+        ))
     }
 
     pub fn tuple(concept: String) -> Self {
         Self::Tuple(TupleFact::new(concept))
     }
 
-    pub fn concept(&self) -> &str {
+    pub fn concept_name(&self) -> &str {
         match self {
-            Self::Item(fact) => fact.concept(),
-            Self::Tuple(fact) => fact.concept(),
+            Self::Item(fact) => fact.concept_name(),
+            Self::Tuple(fact) => fact.concept_name(),
         }
     }
 

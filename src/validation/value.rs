@@ -1,5 +1,8 @@
 use super::ValidationResult;
-use crate::{ElementDefinition, InstanceDocument, ItemFact, TaxonomySet};
+use crate::{
+    InstanceDocument, ItemFact, TaxonomySet,
+    taxonomy::{Concept, XbrlType},
+};
 use chrono::{NaiveDate, NaiveDateTime};
 use rust_decimal::Decimal;
 use std::{collections::HashMap, str::FromStr};
@@ -88,13 +91,13 @@ pub(super) fn prepare_fact_values(
             continue;
         }
 
-        let Some(element) = taxonomy.find_element(fact.local_name()) else {
+        let Some(element) = taxonomy.find_concept(fact.local_name()) else {
             prepared.insert(fact, Some(FactValue::Text(fact.value().to_string())));
             continue;
         };
 
         let trimmed = fact.value().trim();
-        let parsed = match expected_value_kind(element, taxonomy) {
+        let parsed = match expected_value_kind(element) {
             ExpectedValueKind::Numeric => parse_numeric_compatible(trimmed)
                 .map(FactValue::Numeric)
                 .or_else(|| Some(FactValue::Text(fact.value().to_string()))),
@@ -128,65 +131,26 @@ fn parse_numeric_compatible(value: &str) -> Option<Decimal> {
     Decimal::from_scientific(value).ok()
 }
 
-fn expected_value_kind(element: &ElementDefinition, taxonomy: &TaxonomySet) -> ExpectedValueKind {
-    let Some(type_name) = element.type_name.as_deref() else {
-        return ExpectedValueKind::Other;
-    };
-
-    for base in [
-        "monetaryItemType",
-        "decimalItemType",
-        "floatItemType",
-        "doubleItemType",
-        "integerItemType",
-        "sharesItemType",
-        "pureItemType",
-        "fractionItemType",
-    ] {
-        if taxonomy.is_type_derived_from(type_name, base) {
-            return ExpectedValueKind::Numeric;
-        }
+fn expected_value_kind(element: &Concept) -> ExpectedValueKind {
+    match element.data_type {
+        XbrlType::Monetary
+        | XbrlType::Decimal
+        | XbrlType::Integer
+        | XbrlType::Float
+        | XbrlType::Double
+        | XbrlType::Shares
+        | XbrlType::Pure
+        | XbrlType::Fraction => ExpectedValueKind::Numeric,
+        XbrlType::Boolean => ExpectedValueKind::Boolean,
+        XbrlType::Date => ExpectedValueKind::Date,
+        XbrlType::DateTime => ExpectedValueKind::DateTime,
+        XbrlType::Percent
+        | XbrlType::PerShare
+        | XbrlType::String
+        | XbrlType::QName
+        | XbrlType::Simple(_)
+        | XbrlType::Complex(_) => ExpectedValueKind::Other,
     }
-
-    if taxonomy.is_type_derived_from(type_name, "booleanItemType") {
-        return ExpectedValueKind::Boolean;
-    }
-
-    if taxonomy.is_type_derived_from(type_name, "dateTimeItemType") {
-        return ExpectedValueKind::DateTime;
-    }
-
-    if taxonomy.is_type_derived_from(type_name, "dateItemType") {
-        return ExpectedValueKind::Date;
-    }
-
-    let lower = type_name.to_ascii_lowercase();
-    if lower.contains("monetary")
-        || lower.contains("decimal")
-        || lower.contains("float")
-        || lower.contains("double")
-        || lower.contains("integer")
-        || lower.contains("shares")
-        || lower.contains("pure")
-        || lower.contains("percent")
-        || lower.contains("pershare")
-    {
-        return ExpectedValueKind::Numeric;
-    }
-
-    if lower.contains("boolean") {
-        return ExpectedValueKind::Boolean;
-    }
-
-    if lower.contains("datetime") {
-        return ExpectedValueKind::DateTime;
-    }
-
-    if lower.contains("date") {
-        return ExpectedValueKind::Date;
-    }
-
-    ExpectedValueKind::Other
 }
 
 fn parse_boolean(value: &str) -> Option<bool> {

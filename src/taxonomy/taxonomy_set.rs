@@ -1,173 +1,24 @@
-use super::schema::{DeclaredAccuracy, ElementDefinition, RoleType, TaxonomySchema};
+use super::schema::TaxonomySchema;
 use crate::{
+    ConceptId, ExpandedName, Label, Reference, RoleUri, SchemaRefUrl,
     error::{Result, XbrlError},
-    taxonomy::linkbases::{
-        calculation::{self, CalculationArc},
-        definition::{self, DefinitionArc},
-        label::{self, Label},
-        presentation::{self, PresentationArc},
-        reference::{self, Reference},
+    taxonomy::{
+        RoleType,
+        linkbases::{
+            parser::{
+                CalculationArc, DefinitionArc, LinkbaseParser, PresentationArc, RawLinkbases,
+            },
+            resolver::{self, Linkbases},
+        },
+        schema::Concept,
     },
 };
-use indexmap::IndexMap;
-use quick_xml::Reader;
+use indexmap::{IndexMap, IndexSet};
 use std::{
-    borrow::Borrow,
     collections::{HashMap, HashSet, VecDeque},
-    fmt, fs,
-    io::{self, BufReader},
-    ops::Deref,
+    fs, io,
     path::{Path, PathBuf},
 };
-
-/// Strongly-typed key used by [`TaxonomySet`] maps previously keyed by
-/// plain strings.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct SchemaRefUrl(String);
-
-impl SchemaRefUrl {
-    /// Returns the key as a string slice.
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-}
-
-impl From<String> for SchemaRefUrl {
-    fn from(value: String) -> Self {
-        Self(value)
-    }
-}
-
-impl From<&str> for SchemaRefUrl {
-    fn from(value: &str) -> Self {
-        Self(value.to_owned())
-    }
-}
-
-impl Deref for SchemaRefUrl {
-    type Target = str;
-
-    fn deref(&self) -> &Self::Target {
-        self.as_str()
-    }
-}
-
-impl AsRef<str> for SchemaRefUrl {
-    fn as_ref(&self) -> &str {
-        self.as_str()
-    }
-}
-
-impl Borrow<str> for SchemaRefUrl {
-    fn borrow(&self) -> &str {
-        self.as_str()
-    }
-}
-
-impl fmt::Display for SchemaRefUrl {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.as_str())
-    }
-}
-
-/// Concept element identifier used in label/reference maps
-/// (e.g. `de-gaap-ci_bs.ass`).
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct ConceptId(String);
-
-impl ConceptId {
-    /// Returns the concept identifier as a string slice.
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-}
-
-impl From<String> for ConceptId {
-    fn from(value: String) -> Self {
-        Self(value)
-    }
-}
-
-impl From<&str> for ConceptId {
-    fn from(value: &str) -> Self {
-        Self(value.to_owned())
-    }
-}
-
-impl Deref for ConceptId {
-    type Target = str;
-
-    fn deref(&self) -> &Self::Target {
-        self.as_str()
-    }
-}
-
-impl AsRef<str> for ConceptId {
-    fn as_ref(&self) -> &str {
-        self.as_str()
-    }
-}
-
-impl Borrow<str> for ConceptId {
-    fn borrow(&self) -> &str {
-        self.as_str()
-    }
-}
-
-impl fmt::Display for ConceptId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.as_str())
-    }
-}
-
-/// Extended link role URI used in presentation/calculation/definition maps.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct RoleUri(String);
-
-impl RoleUri {
-    /// Returns the role URI as a string slice.
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-}
-
-impl From<String> for RoleUri {
-    fn from(value: String) -> Self {
-        Self(value)
-    }
-}
-
-impl From<&str> for RoleUri {
-    fn from(value: &str) -> Self {
-        Self(value.to_owned())
-    }
-}
-
-impl Deref for RoleUri {
-    type Target = str;
-
-    fn deref(&self) -> &Self::Target {
-        self.as_str()
-    }
-}
-
-impl AsRef<str> for RoleUri {
-    fn as_ref(&self) -> &str {
-        self.as_str()
-    }
-}
-
-impl Borrow<str> for RoleUri {
-    fn borrow(&self) -> &str {
-        self.as_str()
-    }
-}
-
-impl fmt::Display for RoleUri {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.as_str())
-    }
-}
 
 /// The complete Discoverable Taxonomy Set (DTS).
 ///
@@ -185,19 +36,8 @@ pub struct TaxonomySet {
     schemas: HashMap<PathBuf, TaxonomySchema>,
     /// All linkbase file paths discovered (canonical absolute paths).
     linkbase_paths: Vec<PathBuf>,
-    /// Concept labels parsed from label linkbase files.
-    /// Keyed by concept element ID (e.g., "de-gaap-ci_bs.ass").
-    labels: HashMap<ConceptId, Vec<Label>>,
-    /// Presentation arcs grouped by role URI, in the order roles were first
-    /// encountered during schema discovery.
-    presentations: IndexMap<RoleUri, Vec<PresentationArc>>,
-    /// Calculation arcs grouped by role URI.
-    calculations: HashMap<RoleUri, Vec<CalculationArc>>,
-    /// Definition arcs grouped by role URI.
-    definitions: HashMap<RoleUri, Vec<DefinitionArc>>,
-    /// Concept references parsed from reference linkbase files.
-    /// Keyed by concept element ID.
-    references: HashMap<ConceptId, Vec<Reference>>,
+    /// Resolved linkbase data merged from all linkbase files.
+    linkbases: Linkbases,
     /// Maps each role URI to the schema file that defines it (`link:roleType`).
     role_source_schema: HashMap<RoleUri, PathBuf>,
     /// Taxonomy version extracted from the schema ref URLs.
@@ -240,7 +80,7 @@ impl TaxonomySet {
         let mut queue: VecDeque<PathBuf> = VecDeque::new();
         let mut schemas: HashMap<PathBuf, TaxonomySchema> = HashMap::new();
         let mut schema_order: Vec<PathBuf> = Vec::new(); // BFS discovery order
-        let mut linkbase_set: HashSet<PathBuf> = HashSet::new();
+        let mut linkbase_set: IndexSet<PathBuf> = IndexSet::new();
 
         let canonical_entry_point =
             fs::canonicalize(&entry_point).map_err(|err| XbrlError::FileRead {
@@ -259,13 +99,7 @@ impl TaxonomySet {
         }
 
         while let Some(path) = queue.pop_front() {
-            let xml_file = fs::File::open(&path).map_err(|err| XbrlError::FileRead {
-                path: path.clone(),
-                context: "schema".to_string(),
-                source: err,
-            })?;
-            let mut reader = Reader::from_reader(BufReader::new(xml_file));
-            let schema = TaxonomySchema::from_xml(&path, &mut reader)?;
+            let schema = TaxonomySchema::from_file(&path)?;
             let schema_dir = path.parent().unwrap_or(Path::new("."));
 
             // Collect linkbase refs
@@ -282,7 +116,7 @@ impl TaxonomySet {
                         });
                     }
                     let canonical =
-                        std::fs::canonicalize(&resolved).map_err(|err| XbrlError::FileRead {
+                        fs::canonicalize(&resolved).map_err(|err| XbrlError::FileRead {
                             path: resolved.clone(),
                             context: "linkbase referenced from schema".to_string(),
                             source: err,
@@ -292,9 +126,9 @@ impl TaxonomySet {
             }
 
             // Follow xs:import schemaLocation
-            for imp in &schema.imports {
-                if let Some(ref loc) = imp.schema_location
-                    && let Some(resolved) = resolve_local_path(schema_dir, loc)
+            for import in &schema.imports {
+                if let Some(ref location) = import.schema_location
+                    && let Some(resolved) = resolve_local_path(schema_dir, location)
                     && resolved.exists()
                     && let Ok(canonical) = std::fs::canonicalize(&resolved)
                     && visited.insert(canonical.clone())
@@ -304,8 +138,8 @@ impl TaxonomySet {
             }
 
             // Follow xs:include schemaLocation
-            for inc in &schema.includes {
-                if let Some(resolved) = resolve_local_path(schema_dir, &inc.schema_location)
+            for include in &schema.includes {
+                if let Some(resolved) = resolve_local_path(schema_dir, &include.schema_location)
                     && resolved.exists()
                     && let Ok(canonical) = std::fs::canonicalize(&resolved)
                     && visited.insert(canonical.clone())
@@ -319,127 +153,14 @@ impl TaxonomySet {
         }
 
         let linkbase_paths: Vec<PathBuf> = linkbase_set.into_iter().collect();
+        let mut linkbases = RawLinkbases::default();
 
-        // Collect linkbase paths by type from LinkbaseRef entries, iterating schemas
-        // in BFS discovery order so that linkbases are parsed in entry-point order.
-        let mut label_paths: HashSet<PathBuf> = HashSet::new();
-        let mut presentation_paths: Vec<PathBuf> = Vec::new();
-        let mut presentation_paths_seen: HashSet<PathBuf> = HashSet::new();
-        let mut calculation_paths: HashSet<PathBuf> = HashSet::new();
-        let mut definition_paths: HashSet<PathBuf> = HashSet::new();
-        let mut reference_paths: HashSet<PathBuf> = HashSet::new();
-
-        for schema_path in &schema_order {
-            let schema = &schemas[schema_path];
-            let schema_dir = schema.file_path.parent().unwrap_or(Path::new("."));
-            for lbref in &schema.linkbase_refs {
-                let role = lbref.role.as_deref().unwrap_or("");
-                let Some(resolved) = resolve_local_path(schema_dir, &lbref.href) else {
-                    continue;
-                };
-                if !resolved.exists() {
-                    return Err(XbrlError::FileRead {
-                        path: resolved,
-                        context: "linkbase referenced from schema".to_string(),
-                        source: io::Error::new(
-                            io::ErrorKind::NotFound,
-                            "referenced linkbase file does not exist",
-                        ),
-                    });
-                }
-                let canonical =
-                    std::fs::canonicalize(&resolved).map_err(|err| XbrlError::FileRead {
-                        path: resolved.clone(),
-                        context: "linkbase referenced from schema".to_string(),
-                        source: err,
-                    })?;
-
-                if role.contains("presentationLinkbaseRef") {
-                    if presentation_paths_seen.insert(canonical.clone()) {
-                        presentation_paths.push(canonical);
-                    }
-                } else if role.contains("labelLinkbaseRef") {
-                    label_paths.insert(canonical);
-                } else if role.contains("calculationLinkbaseRef") {
-                    calculation_paths.insert(canonical);
-                } else if role.contains("definitionLinkbaseRef") {
-                    definition_paths.insert(canonical);
-                } else if role.contains("referenceLinkbaseRef") {
-                    reference_paths.insert(canonical);
-                }
-            }
+        for path in &linkbase_paths {
+            let mut parser = LinkbaseParser::from_file(path)?;
+            parser.parse_linkbase(&mut linkbases)?;
         }
 
-        // Parse label linkbases
-        let mut labels: HashMap<ConceptId, Vec<Label>> = HashMap::new();
-        for path in &label_paths {
-            let xml_file = fs::File::open(path).map_err(|err| XbrlError::FileRead {
-                path: path.clone(),
-                context: "label linkbase".to_string(),
-                source: err,
-            })?;
-            let mut reader = Reader::from_reader(BufReader::new(xml_file));
-            let parsed = label::parse_label_linkbase(&mut reader)?;
-            for (id, mut vals) in parsed {
-                labels.entry(id.into()).or_default().append(&mut vals);
-            }
-        }
-
-        // Parse presentation linkbases in BFS schema order (entry-point order preserved)
-        let mut presentations: IndexMap<RoleUri, Vec<PresentationArc>> = IndexMap::new();
-        for path in &presentation_paths {
-            let xml_file = fs::File::open(path).map_err(|err| XbrlError::FileRead {
-                path: path.clone(),
-                context: "presentation linkbase".to_string(),
-                source: err,
-            })?;
-            let mut reader = Reader::from_reader(BufReader::new(xml_file));
-            let parsed = presentation::parse_presentation_linkbase(&mut reader)?;
-            for (role, mut arcs) in parsed {
-                presentations
-                    .entry(role.into())
-                    .or_default()
-                    .append(&mut arcs);
-            }
-        }
-
-        // Parse calculation linkbases
-        let mut calculations: HashMap<RoleUri, Vec<CalculationArc>> = HashMap::new();
-        for path in &calculation_paths {
-            let xml_file = fs::File::open(path).map_err(|err| XbrlError::FileRead {
-                path: path.clone(),
-                context: "calculation linkbase".to_string(),
-                source: err,
-            })?;
-            let mut reader = Reader::from_reader(BufReader::new(xml_file));
-            let parsed = calculation::parse_calculation_linkbase(&mut reader)?;
-
-            for (role, mut arcs) in parsed {
-                calculations
-                    .entry(role.into())
-                    .or_default()
-                    .append(&mut arcs);
-            }
-        }
-
-        // Parse definition linkbases
-        let mut definitions: HashMap<RoleUri, Vec<DefinitionArc>> = HashMap::new();
-        for path in &definition_paths {
-            let xml_file = fs::File::open(path).map_err(|err| XbrlError::FileRead {
-                path: path.clone(),
-                context: "definition linkbase".to_string(),
-                source: err,
-            })?;
-            let mut reader = Reader::from_reader(BufReader::new(xml_file));
-            let parsed = definition::parse_definition_linkbase(&mut reader)?;
-
-            for (role, mut arcs) in parsed {
-                definitions
-                    .entry(role.into())
-                    .or_default()
-                    .append(&mut arcs);
-            }
-        }
+        let linkbases = resolver::resolve_linkbases(linkbases)?;
 
         // Build role → source schema map
         let mut role_source_schema: HashMap<RoleUri, PathBuf> = HashMap::new();
@@ -451,32 +172,12 @@ impl TaxonomySet {
             }
         }
 
-        // Parse reference linkbases
-        let mut references: HashMap<ConceptId, Vec<Reference>> = HashMap::new();
-        for path in &reference_paths {
-            let xml_file = fs::File::open(path).map_err(|err| XbrlError::FileRead {
-                path: path.clone(),
-                context: "reference linkbase".to_string(),
-                source: err,
-            })?;
-            let mut reader = Reader::from_reader(BufReader::new(xml_file));
-            let parsed = reference::parse_reference_linkbase(&mut reader)?;
-
-            for (id, mut vals) in parsed {
-                references.entry(id.into()).or_default().append(&mut vals);
-            }
-        }
-
         Ok(TaxonomySet {
             entry_point,
             schema_refs: schema_refs_map,
             schemas,
             linkbase_paths,
-            labels,
-            presentations,
-            calculations,
-            definitions,
-            references,
+            linkbases,
             role_source_schema,
             version,
         })
@@ -516,8 +217,8 @@ impl TaxonomySet {
     }
 
     /// Get all element definitions across all schemas in the DTS.
-    pub fn elements(&self) -> Vec<&ElementDefinition> {
-        self.schemas.values().flat_map(|s| &s.elements).collect()
+    pub fn elements(&self) -> Vec<&Concept> {
+        self.schemas.values().flat_map(|s| &s.concepts).collect()
     }
 
     /// Get all role type definitions across all schemas in the DTS.
@@ -526,19 +227,19 @@ impl TaxonomySet {
     }
 
     /// Find an element definition by name across all schemas.
-    pub fn find_element(&self, name: &str) -> Option<&ElementDefinition> {
+    pub fn find_concept(&self, name: &str) -> Option<&Concept> {
         self.schemas
             .values()
-            .flat_map(|s| &s.elements)
-            .find(|e| e.name == name)
+            .flat_map(|schema| &schema.concepts)
+            .find(|concept| concept.name.local_name == name)
     }
 
     /// Find an element definition by its ID attribute (e.g., `de-gaap-ci_bs.ass`).
-    pub fn find_element_by_id(&self, id: &str) -> Option<&ElementDefinition> {
+    pub fn find_concept_by_id(&self, id: &str) -> Option<&Concept> {
         self.schemas
             .values()
-            .flat_map(|s| &s.elements)
-            .find(|e| e.id.as_deref() == Some(id))
+            .flat_map(|schema| &schema.concepts)
+            .find(|concept| concept.id.as_deref() == Some(id))
     }
 
     /// Find the tuple element that directly contains the given concept, if any.
@@ -546,21 +247,19 @@ impl TaxonomySet {
     /// A concept belongs to a tuple when its `substitutionGroup` points to an abstract
     /// head element that is listed as an `xs:element[@ref]` inside the tuple's inline
     /// `xs:complexType`. Only one level of indirection is resolved (direct parent tuple).
-    pub fn find_parent_tuple(&self, concept_id: &str) -> Option<&ElementDefinition> {
-        let element = self.find_element_by_id(concept_id)?;
-        let parent_qname = element.substitution_group.as_deref()?;
-
-        // Skip standard XBRL substitution groups — those don't belong to a custom tuple
-        let local = parent_qname.rsplit(':').next().unwrap_or(parent_qname);
-        if local == "item" || local == "tuple" {
-            return None;
-        }
-
-        // Find a tuple whose xs:complexType references this abstract head QName
+    pub fn find_parent_tuple(&self, concept_id: &str) -> Option<&Concept> {
+        let element = self.find_concept_by_id(concept_id)?;
+        // Find a tuple whose xs:complexType references this child element QName
         self.schemas
             .values()
-            .flat_map(|s| &s.elements)
-            .find(|e| e.is_tuple() && e.tuple_children.iter().any(|c| c.qname == parent_qname))
+            .flat_map(|schema| &schema.concepts)
+            .find(|concept| {
+                concept.is_tuple()
+                    && concept
+                        .tuple_children
+                        .iter()
+                        .any(|tuple_child| tuple_child.name.local_name == element.name.local_name)
+            })
     }
 
     /// Find all tuple ancestor IDs from root tuple to direct parent tuple.
@@ -573,151 +272,91 @@ impl TaxonomySet {
             let Some(parent_tuple) = self.find_parent_tuple(&current) else {
                 break;
             };
-            let Some(parent_id) = parent_tuple.id.as_ref() else {
-                break;
-            };
 
-            ancestors.push(parent_id.clone());
-            current = parent_id.clone();
+            ancestors.push(parent_tuple.id.clone().unwrap_or_default().to_string());
+            current = parent_tuple.id.clone().unwrap_or_default().to_string();
         }
 
         ancestors.reverse();
         ancestors
     }
 
-    pub fn is_type_derived_from(&self, type_name: &str, target_base_local_name: &str) -> bool {
-        let mut current = type_name.to_string();
-        let mut seen = HashSet::new();
-
-        loop {
-            let current_local = current.rsplit(':').next().unwrap_or(current.as_str());
-            if current_local == target_base_local_name {
-                return true;
-            }
-
-            if !seen.insert(current.clone()) {
-                return false;
-            }
-
-            let Some(next) = self.find_type_base(current_local) else {
-                return false;
-            };
-            current = next;
-        }
-    }
-
-    fn find_type_base(&self, type_local_name: &str) -> Option<String> {
-        self.schemas
-            .values()
-            .find_map(|schema| schema.type_bases.get(type_local_name).cloned())
-    }
-
-    pub fn type_declared_accuracy(&self, type_name: &str) -> DeclaredAccuracy {
-        let mut current = type_name.to_string();
-        let mut seen = HashSet::new();
-
-        loop {
-            let current_local = current.rsplit(':').next().unwrap_or(current.as_str());
-
-            let declared = self
-                .schemas
-                .values()
-                .find_map(|schema| schema.type_declared_accuracy.get(current_local).cloned());
-
-            if let Some(acc) = declared
-                && (acc.decimals.is_some() || acc.precision.is_some())
-            {
-                return acc;
-            }
-
-            if !seen.insert(current.clone()) {
-                return DeclaredAccuracy::default();
-            }
-
-            let Some(next) = self.find_type_base(current_local) else {
-                return DeclaredAccuracy::default();
-            };
-            current = next;
-        }
-    }
-
-    pub fn type_has_fixed_accuracy(&self, type_name: &str) -> bool {
-        let acc = self.type_declared_accuracy(type_name);
-        acc.decimals.is_some() || acc.precision.is_some()
-    }
-
-    /// Map an element ID to the qualified concept name used in instance facts.
+    /// Map an element ID from a schema to the qualified concept name used in
+    /// instance facts.
     ///
-    /// For example, `de-gaap-ci_bs.ass` becomes `de-gaap-ci:bs.ass`.
-    /// Returns `None` if the element is not found or its schema has no
-    /// target namespace with a matching prefix.
-    pub fn qualified_name(&self, element_id: &str) -> Option<String> {
+    /// For example, `de-gaap-ci_bs.ass` becomes `de-gaap-ci:bs.ass`. Returns
+    /// `None` if the element is not found.
+    pub fn qualified_name(&self, element_id: &str) -> Option<ExpandedName> {
         for schema in self.schemas.values() {
-            if let Some(elem) = schema
-                .elements
+            if let Some(concept) = schema
+                .concepts
                 .iter()
-                .find(|e| e.id.as_deref() == Some(element_id))
+                .find(|concept| concept.id.as_deref() == Some(element_id))
             {
-                let target_ns = schema.target_namespace.as_deref()?;
-                let prefix = schema
-                    .namespaces
-                    .iter()
-                    .find(|(_, uri)| uri.as_str() == target_ns)
-                    .map(|(prefix, _)| prefix)?;
-                return Some(format!("{prefix}:{}", elem.name));
+                return Some(concept.name.clone());
             }
         }
+
         None
     }
 
     /// Get all concept labels.
     pub fn labels(&self) -> &HashMap<ConceptId, Vec<Label>> {
-        &self.labels
+        &self.linkbases.labels
     }
 
     /// Get labels for a specific concept by its element ID (e.g., "de-gaap-ci_bs.ass").
     pub fn labels_for(&self, concept_id: &str) -> Option<&[Label]> {
-        self.labels.get(concept_id).map(|v| v.as_slice())
+        self.linkbases
+            .labels
+            .get(concept_id)
+            .map(|labels| labels.as_slice())
     }
 
     /// Get all presentation arcs grouped by role URI, in entry-point discovery order.
     pub fn presentations(&self) -> &IndexMap<RoleUri, Vec<PresentationArc>> {
-        &self.presentations
+        &self.linkbases.presentations
     }
 
     /// Get presentation arcs for a specific role URI.
     pub fn presentation_arcs(&self, role: &str) -> Option<&[PresentationArc]> {
-        self.presentations.get(role).map(|v| v.as_slice())
+        self.linkbases
+            .presentations
+            .get(role)
+            .map(|arcs| arcs.as_slice())
     }
 
     /// Get all calculation arcs grouped by role URI.
     pub fn calculations(&self) -> &HashMap<RoleUri, Vec<CalculationArc>> {
-        &self.calculations
+        &self.linkbases.calculations
     }
 
     /// Get calculation arcs for a specific role URI.
     pub fn calculation_arcs(&self, role: &str) -> Option<&[CalculationArc]> {
-        self.calculations.get(role).map(|v| v.as_slice())
+        self.linkbases.calculations.get(role).map(|v| v.as_slice())
     }
 
     /// Get all definition arcs grouped by role URI.
     pub fn definitions(&self) -> &HashMap<RoleUri, Vec<DefinitionArc>> {
-        &self.definitions
+        &self.linkbases.definitions
     }
 
     /// Get definition arcs for a specific role URI.
     pub fn definition_arcs(&self, role: &str) -> Option<&[DefinitionArc]> {
-        self.definitions.get(role).map(|v| v.as_slice())
+        self.linkbases.definitions.get(role).map(|v| v.as_slice())
     }
 
     /// Get all concept references.
     pub fn references(&self) -> &HashMap<ConceptId, Vec<Reference>> {
-        &self.references
+        &self.linkbases.references
     }
 
     /// Get references for a specific concept by its element ID.
     pub fn references_for(&self, concept_id: &str) -> Option<&[Reference]> {
-        self.references.get(concept_id).map(|v| v.as_slice())
+        self.linkbases
+            .references
+            .get(concept_id)
+            .map(|references| references.as_slice())
     }
 
     /// Get a schema by its target namespace.
@@ -732,12 +371,17 @@ impl TaxonomySet {
 impl TaxonomySet {
     /// Insert a presentation arc for a role URI. Used in unit tests.
     pub fn add_presentation_arc(&mut self, role: String, arc: PresentationArc) {
-        self.presentations.entry(role.into()).or_default().push(arc);
+        self.linkbases
+            .presentations
+            .entry(role.into())
+            .or_default()
+            .push(arc);
     }
 
     /// Insert a label for a concept ID. Used in unit tests.
     pub fn add_label(&mut self, concept_id: String, label: Label) {
-        self.labels
+        self.linkbases
+            .labels
             .entry(concept_id.into())
             .or_default()
             .push(label);

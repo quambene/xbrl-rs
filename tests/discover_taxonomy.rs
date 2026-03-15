@@ -9,12 +9,12 @@ const TAXONOMY_ENTRY_POINT: &str = "test_data/taxonomies";
 fn assert_dts(dts: &TaxonomySet) {
     // GCD elements
     assert!(
-        dts.find_element("genInfo").is_some(),
+        dts.find_concept("genInfo").is_some(),
         "Expected genInfo from de-gcd"
     );
 
     // GAAP-CI elements
-    let bs_ass = dts.find_element("bs.ass").expect("bs.ass not found");
+    let bs_ass = dts.find_concept("bs.ass").expect("bs.ass not found");
     assert_eq!(bs_ass.period_type, Some(PeriodType::Instant));
     assert_eq!(bs_ass.balance, Some(Balance::Debit));
     assert!(bs_ass.nillable);

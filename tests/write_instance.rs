@@ -1,8 +1,8 @@
 use roxmltree::Document;
-use std::{path::PathBuf, str::FromStr};
+use std::{collections::HashMap, path::PathBuf, str::FromStr};
 use xbrl_rs::{
-    Context, ContextId, EntityIdentifier, InstanceDocument, Period, TaxonomySet, Unit, UnitId,
-    XmlReader, XmlWriter,
+    Context, ContextId, EntityIdentifier, ExpandedName, InstanceDocument, NamespacePrefix,
+    NamespaceUri, Period, TaxonomySet, Unit, UnitId, XmlWriter,
 };
 
 const TAXONOMY_ENTRY_POINT: &str = "test_data/taxonomies";
@@ -20,8 +20,18 @@ fn write_empty_instance() {
         entry_point,
     )
     .unwrap();
+    let namespaces = [
+        ("xbrli", "http://www.xbrl.org/2003/instance"),
+        ("link", "http://www.xbrl.org/2003/linkbase"),
+        ("xlink", "http://www.w3.org/1999/xlink"),
+        ("xsi", "http://www.w3.org/2001/XMLSchema-instance"),
+    ];
 
     let mut instance = InstanceDocument::default();
+
+    for namespace in namespaces {
+        instance.add_namespace(namespace.0.into(), namespace.1.into());
+    }
 
     for url in taxonomy.schema_refs().keys() {
         instance.add_schema_ref(url.to_string());
@@ -44,7 +54,7 @@ fn write_empty_instance() {
     // Parse the generated XML
     let doc = Document::parse(&xml);
 
-    assert!(doc.is_ok());
+    assert!(doc.is_ok(), "Failed to parse XML: {:?}", doc.err());
 }
 
 #[test]
@@ -57,6 +67,24 @@ fn generate_instance() {
         entry_point,
     )
     .unwrap();
+    let namespaces: HashMap<NamespacePrefix, NamespaceUri> = HashMap::from_iter([
+        ("xbrli".into(), "http://www.xbrl.org/2003/instance".into()),
+        ("link".into(), "http://www.xbrl.org/2003/linkbase".into()),
+        ("xlink".into(), "http://www.w3.org/1999/xlink".into()),
+        (
+            "xsi".into(),
+            "http://www.w3.org/2001/XMLSchema-instance".into(),
+        ),
+        ("iso4217".into(), "http://www.xbrl.org/2003/iso4217".into()),
+        (
+            "de-gcd".into(),
+            "http://www.xbrl.de/taxonomies/de-gcd-2020-04-01".into(),
+        ),
+        (
+            "de-gaap-ci".into(),
+            "http://www.xbrl.de/taxonomies/de-gaap-ci-2020-04-01".into(),
+        ),
+    ]);
 
     // 2. Define an instant context (balance-sheet date) and a duration context (fiscal year)
     let entity = EntityIdentifier {
@@ -80,12 +108,27 @@ fn generate_instance() {
     );
 
     // 3. Define units: monetary (EUR) and pure (for dimensionless numeric items)
-    let monetary_unit = Unit::new(UnitId::from("EUR"), "iso4217:EUR".to_owned());
-    let pure_unit = Unit::new(UnitId::from("pure"), "xbrli:pure".to_owned());
+    let monetary_unit = Unit::new(
+        UnitId::from("EUR"),
+        vec![ExpandedName {
+            namespace_uri: NamespaceUri::from("http://www.xbrl.org/2003/iso4217"),
+            local_name: "EUR".to_owned(),
+        }],
+        vec![],
+    );
+    let pure_unit = Unit::new(
+        UnitId::from("pure"),
+        vec![ExpandedName {
+            namespace_uri: NamespaceUri::from("http://www.xbrl.org/2003/instance"),
+            local_name: "pure".to_owned(),
+        }],
+        vec![],
+    );
 
     // 4. Build the instance from the taxonomy.
     let mut instance = InstanceDocument::from_taxonomy(
         &taxonomy,
+        namespaces,
         instant_ctx,
         duration_ctx,
         &[monetary_unit, pure_unit],
@@ -118,15 +161,11 @@ fn generate_instance() {
     instance.to_xml(&mut writer).unwrap();
     let xml = String::from_utf8(writer.into_inner()).unwrap();
 
-    let mut reader = XmlReader::from_str(&xml);
-    let instance_from_xml = InstanceDocument::from_xml(&mut reader).unwrap();
+    let instance_from_xml = InstanceDocument::from_reader(xml.as_bytes()).unwrap();
 
     assert_eq!(instance.schema_refs(), instance_from_xml.schema_refs());
     assert_eq!(instance.role_refs(), instance_from_xml.role_refs());
     assert_eq!(instance.arcrole_refs(), instance_from_xml.arcrole_refs());
-    assert_eq!(instance.namespaces(), instance_from_xml.namespaces());
-    assert_eq!(instance.root_xml_lang(), instance_from_xml.root_xml_lang());
-    assert_eq!(instance.document_name(), instance_from_xml.document_name());
     assert_eq!(
         instance.contexts().len(),
         instance_from_xml.contexts().len()
