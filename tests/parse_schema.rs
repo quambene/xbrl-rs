@@ -1,8 +1,7 @@
 //! Integration tests for parsing taxonomy schema files.
 
-use assert_matches::assert_matches;
 use std::path::Path;
-use xbrl_rs::{TaxonomySchema, XbrlError};
+use xbrl_rs::TaxonomySchema;
 
 const SCHEMA_BASE: &str = "test_data/schemas";
 
