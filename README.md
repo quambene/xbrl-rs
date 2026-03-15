@@ -40,9 +40,7 @@ To download XBRL taxonomies, feature `download` needs to be enabled.
 
 ```rust
 // Parse instance document from XML file
-let xml_file = File::open("/path/to/financial_report.xml").unwrap();
-let mut reader = XmlReader::from_reader(BufReader::new(xml_file));
-let instance = InstanceDocument::from_xml(&mut reader).unwrap();
+let instance = InstanceDocument::from_file("/path/to/financial_report.xml").unwrap();
 
 // Write instance document to XML file
 let mut xml_file = File::create("financial_report.xml")?;
