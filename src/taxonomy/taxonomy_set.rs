@@ -1,6 +1,6 @@
 use super::schema::TaxonomySchema;
 use crate::{
-    ConceptId, ExpandedName, Label, NamespaceUri, Reference, RoleUri, SchemaRefUrl,
+    ConceptId, ExpandedName, Label, Reference, RoleUri, SchemaRefUrl,
     error::{Result, XbrlError},
     taxonomy::{
         RoleType,
@@ -281,11 +281,11 @@ impl TaxonomySet {
         ancestors
     }
 
-    /// Map an element ID to the qualified concept name used in instance facts.
+    /// Map an element ID from a schema to the qualified concept name used in
+    /// instance facts.
     ///
-    /// For example, `de-gaap-ci_bs.ass` becomes `de-gaap-ci:bs.ass`.
-    /// Returns `None` if the element is not found or its schema has no
-    /// target namespace with a matching prefix.
+    /// For example, `de-gaap-ci_bs.ass` becomes `de-gaap-ci:bs.ass`. Returns
+    /// `None` if the element is not found.
     pub fn qualified_name(&self, element_id: &str) -> Option<ExpandedName> {
         for schema in self.schemas.values() {
             if let Some(concept) = schema
@@ -293,12 +293,7 @@ impl TaxonomySet {
                 .iter()
                 .find(|concept| concept.id.as_deref() == Some(element_id))
             {
-                let target_namespace = schema.target_namespace.as_deref()?;
-
-                return Some(ExpandedName {
-                    namespace_uri: NamespaceUri::from(target_namespace),
-                    local_name: concept.name.local_name.clone(),
-                });
+                return Some(concept.name.clone());
             }
         }
 
