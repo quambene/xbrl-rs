@@ -208,7 +208,7 @@ fn validate_footnotes(instance: &InstanceDocument, result: &mut ValidationResult
 
             if let (Some(label), Some(href)) = (loc.label.as_deref(), loc.href.as_deref()) {
                 loc_by_label.insert(label, href);
-                if let Some((file_part, target)) = href_target_id(href) {
+                if let Some((_file_part, target)) = href_target_id(href) {
                     if context_ids.contains(target) || unit_ids.contains(target) {
                         result.add(
                             Severity::Error,

@@ -15,13 +15,6 @@ use std::{
     str::FromStr,
 };
 
-/// Represents the `elementFormDefault` and `attributeFormDefault` values from
-/// an XBRL schema's root `xs:schema` element.
-pub enum FormDefault {
-    Qualified,
-    Unqualified,
-}
-
 /// The kind of derivation in a `simpleContent` extension or restriction.
 #[derive(Debug, PartialEq, Eq)]
 pub enum DerivationKind {
