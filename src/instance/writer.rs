@@ -23,25 +23,17 @@ pub(crate) fn write_xml<W: io::Write>(
         .iter()
         .map(|(prefix, uri)| (uri.clone(), prefix.clone()))
         .collect();
+    let mut namespaces: Vec<_> = prefix_to_uri.iter().collect();
+    namespaces.sort_by_key(|(prefix, _)| *prefix);
 
     // <xbrli:xbrl> root element with namespace declarations
     let mut root = BytesStart::new("xbrli:xbrl");
-    root.push_attribute(("xmlns:xbrli", "http://www.xbrl.org/2003/instance"));
-    root.push_attribute(("xmlns:link", "http://www.xbrl.org/2003/linkbase"));
-    root.push_attribute(("xmlns:xlink", "http://www.w3.org/1999/xlink"));
-    root.push_attribute(("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance"));
 
-    // Add user-defined namespace declarations
-    let mut ns_sorted: Vec<_> = instance.namespaces().iter().collect();
-    ns_sorted.sort_by_key(|(prefix, _)| *prefix);
-    for (prefix, uri) in &ns_sorted {
-        // Skip namespaces we already declared above
-        if matches!(prefix.as_str(), "xbrli" | "link" | "xlink" | "xsi") {
-            continue;
-        }
+    for (prefix, uri) in &namespaces {
         let attr_name = format!("xmlns:{prefix}");
         root.push_attribute((attr_name.as_str(), uri.as_str()));
     }
+
     writer.write_event(Event::Start(root))?;
 
     // <link:schemaRef> elements
@@ -193,8 +185,6 @@ fn write_unit<W: io::Write>(
         writer.write_event(Event::End(BytesEnd::new("xbrli:denominator")))?;
         writer.write_event(Event::End(BytesEnd::new("xbrli:divide")))?;
     } else {
-        writer.write_event(Event::Start(BytesStart::new("xbrli:measure")))?;
-
         for measure in &unit.numerator {
             let qname = QName {
                 prefix: uri_to_prefix.get(&measure.namespace_uri).cloned(),

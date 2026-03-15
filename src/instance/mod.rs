@@ -87,11 +87,16 @@ impl InstanceDocument {
     /// in-place via [`set_fact_value`] without rebuilding the view.
     pub fn from_taxonomy(
         taxonomy: &TaxonomySet,
+        namespaces: HashMap<NamespacePrefix, NamespaceUri>,
         instant_context: Context,
         duration_context: Context,
         units: &[Unit],
     ) -> Self {
         let mut instance = Self::default();
+
+        for namespace in namespaces {
+            instance.add_namespace(namespace.0.into(), namespace.1.into());
+        }
 
         for schema_url in taxonomy.schema_refs().keys() {
             instance.add_schema_ref(schema_url.to_string());
