@@ -62,7 +62,6 @@ pub fn validate(taxonomy: &TaxonomySchema) -> Result<(), XbrlError> {
                 });
             }
         }
-
     }
 
     for role_type in &taxonomy.role_types {

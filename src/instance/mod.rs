@@ -94,8 +94,8 @@ impl InstanceDocument {
     ) -> Self {
         let mut instance = Self::default();
 
-        for namespace in namespaces {
-            instance.add_namespace(namespace.0.into(), namespace.1.into());
+        for (prefix, uri) in namespaces {
+            instance.add_namespace(prefix, uri);
         }
 
         for schema_url in taxonomy.schema_refs().keys() {
