@@ -375,19 +375,26 @@ mod tests {
             linkbase_refs: vec![],
             role_types: vec![],
             arcrole_types: vec![],
-            concepts: vec![test_concept(
-                "Cash",
-                "monetaryItemType",
-                SubstitutionGroup {
+            concepts: vec![Concept {
+                id: None,
+                name: ExpandedName {
+                    namespace_uri: NamespaceUri::from(""),
+                    local_name: "Cash".to_string(),
+                },
+                data_type: XbrlType::Monetary,
+                substitution_group: SubstitutionGroup {
                     base: BaseSubstitutionGroup::Item,
                     original: QName {
                         prefix: None,
                         local_name: "item".to_string(),
                     },
                 },
-                Some(PeriodType::Instant),
-                Some(Balance::Debit),
-            )],
+                nillable: true,
+                is_abstract: false,
+                period_type: Some(PeriodType::Instant),
+                balance: Some(Balance::Debit),
+                tuple_children: Vec::new(),
+            }],
             tuple_defs: HashMap::new(),
             type_bases: HashMap::new(),
             type_declared_accuracy: HashMap::new(),
