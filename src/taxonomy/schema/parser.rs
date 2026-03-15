@@ -446,17 +446,20 @@ impl<R: BufRead> SchemaParser<R> {
             let local_name = attribute.key.local_name();
             let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
 
-            match local_name.as_ref() {
-                b"targetNamespace" => {
-                    schema.target_namespace = Some(value.to_string());
-                }
-                b"xmlns" => {
+            match attribute.key.prefix() {
+                Some(prefix) if prefix.as_ref() == b"xmlns" => {
                     schema.namespaces.insert(
                         NamespacePrefix::from(str::from_utf8(local_name.as_ref())?),
                         NamespaceUri::from(value.to_string()),
                     );
                 }
-                // Not relevant for XBRL taxonomies.
+                _ => {}
+            }
+
+            match local_name.as_ref() {
+                b"targetNamespace" => {
+                    schema.target_namespace = Some(value.to_string());
+                }
                 b"elementFormDefault" => {
                     schema.element_form_default = match value.as_ref() {
                         "qualified" => FormDefault::Qualified,
