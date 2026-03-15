@@ -173,9 +173,6 @@ pub fn resolve_schema(schema: RawSchema) -> TaxonomySchema {
         role_types: schema.role_types,
         arcrole_types: schema.arcrole_types,
         concepts,
-        // TODO: move tuple definitions from `Concept::tuple_children` to this
-        // top-level map during concept resolution
-        tuple_defs: HashMap::new(),
         type_bases: HashMap::new(),
         type_declared_accuracy: HashMap::new(),
     }

@@ -65,8 +65,6 @@ pub struct TaxonomySchema {
     pub arcrole_types: Vec<ArcroleType>,
     /// `xs:element` definitions.
     pub concepts: Vec<Concept>,
-    /// Tuple definitions: tuple element ID -> child element references.
-    pub tuple_defs: HashMap<String, TupleChild>,
     /// Named simple/complex type derivations: type name -> base QName.
     pub type_bases: HashMap<String, String>,
     /// Named types with declared decimals/precision attributes (fixed/default) on restrictions.
@@ -214,7 +212,6 @@ mod tests {
                 None,
                 None,
             )],
-            tuple_defs: HashMap::new(),
             type_bases: HashMap::new(),
             type_declared_accuracy: HashMap::new(),
         };
@@ -250,7 +247,6 @@ mod tests {
                 Some(PeriodType::Duration),
                 Some(Balance::Credit),
             )],
-            tuple_defs: HashMap::new(),
             type_bases: HashMap::new(),
             type_declared_accuracy: HashMap::new(),
         };
@@ -286,7 +282,6 @@ mod tests {
                 Some(PeriodType::Duration),
                 None,
             )],
-            tuple_defs: HashMap::new(),
             type_bases: HashMap::new(),
             type_declared_accuracy: HashMap::new(),
         };
@@ -322,7 +317,6 @@ mod tests {
                 None,
                 Some(Balance::Credit),
             )],
-            tuple_defs: HashMap::new(),
             type_bases: HashMap::new(),
             type_declared_accuracy: HashMap::new(),
         };
@@ -351,7 +345,6 @@ mod tests {
             }],
             arcrole_types: vec![],
             concepts: vec![],
-            tuple_defs: HashMap::new(),
             type_bases: HashMap::new(),
             type_declared_accuracy: HashMap::new(),
         };
@@ -395,7 +388,6 @@ mod tests {
                 balance: Some(Balance::Debit),
                 tuple_children: Vec::new(),
             }],
-            tuple_defs: HashMap::new(),
             type_bases: HashMap::new(),
             type_declared_accuracy: HashMap::new(),
         };
