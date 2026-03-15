@@ -3,7 +3,6 @@ mod linkbases;
 mod loader;
 mod schema;
 mod taxonomy_set;
-mod types;
 
 pub use linkbases::{
     locator::LinkbaseLocator,
@@ -17,4 +16,3 @@ pub use schema::{
     RoleType, SchemaParser, SubstitutionGroup, TaxonomySchema, TupleChild, XbrlType,
 };
 pub use taxonomy_set::TaxonomySet;
-pub use types::{ConceptId, RoleUri, SchemaRefUrl};
