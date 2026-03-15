@@ -308,7 +308,7 @@ impl<R: BufRead> SchemaParser<R> {
 
         loop {
             match self.reader.read_event_into(&mut buf) {
-                Ok(Event::Start(ref event)) | Ok(Event::Empty(ref event)) => {
+                Ok(Event::Start(ref event)) => {
                     let event_name = event.name();
                     let local_name = event_name.local_name();
                     let attributes = event.attributes();
@@ -333,7 +333,7 @@ impl<R: BufRead> SchemaParser<R> {
                             schema.arcrole_types.push(arcrole_type);
                         }
                         b"element" => {
-                            let element = self.parse_element(event)?;
+                            let element = self.parse_element(event, true)?;
                             schema.elements.push(element);
                         }
                         b"simpleType" => {
@@ -352,6 +352,38 @@ impl<R: BufRead> SchemaParser<R> {
                                     .to_string(),
                             });
                         }
+                        other => {
+                            return Err(XbrlError::InvalidSchemaDocument {
+                                path: self.path.clone(),
+                                reason: format!(
+                                    "{} is not allowed in taxonomy schemas",
+                                    String::from_utf8_lossy(other)
+                                ),
+                            });
+                        }
+                    }
+                }
+                Ok(Event::Empty(ref event)) => {
+                    let event_name = event.name();
+                    let local_name = event_name.local_name();
+                    let attributes = event.attributes();
+
+                    match local_name.as_ref() {
+                        b"import" => self.parse_import(&mut schema, attributes)?,
+                        b"include" => self.parse_include(&mut schema, attributes)?,
+                        b"linkbaseRef" => {
+                            let linkbase_ref = self.parse_linkbase_ref(attributes)?;
+                            schema.linkbase_refs.push(linkbase_ref);
+                        }
+                        b"element" => {
+                            let element = self.parse_element(event, false)?;
+                            schema.elements.push(element);
+                        }
+                        b"complexType" => {
+                            let complex_type = self.parse_complex_type(event)?;
+                            schema.complex_types.push(complex_type);
+                        }
+                        b"annotation" => self.parse_annotation(&mut schema)?,
                         other => {
                             return Err(XbrlError::InvalidSchemaDocument {
                                 path: self.path.clone(),
@@ -751,14 +783,17 @@ impl<R: BufRead> SchemaParser<R> {
     }
 
     /// Parses an `xs:element` element, which can be either an item or a tuple
-    /// depending on the `substitutionGroup` attribute.
-    fn parse_element(&mut self, start: &BytesStart) -> Result<Element, XbrlError> {
+    /// depending on the `substitutionGroup` attribute. If `has_children` is
+    /// true, also looks for an inline `xs:complexType` child.
+    fn parse_element(
+        &mut self,
+        start: &BytesStart,
+        has_children: bool,
+    ) -> Result<Element, XbrlError> {
         let mut element = self.parse_item_element(start)?;
 
-        if let Some(substitution_group) = &element.substitution_group
-            && substitution_group.local_name == "tuple"
-        {
-            self.parse_tuple_element(start, &mut element)?;
+        if has_children {
+            self.parse_element_children(start, &mut element)?;
         }
 
         Ok(element)
@@ -829,20 +864,21 @@ impl<R: BufRead> SchemaParser<R> {
         Ok(element)
     }
 
-    /// Parses an `xs:element` element with `substitutionGroup="xbrli:tuple"`.
-    fn parse_tuple_element(
+    /// Parses child elements of an `xs:element`, looking for an inline
+    /// `xs:complexType`. Complex types are allowed in both tuple and item
+    /// elements.
+    fn parse_element_children(
         &mut self,
         start: &BytesStart,
         element: &mut Element,
     ) -> Result<(), XbrlError> {
         let mut buf = Vec::new();
-        let mut complex_type: Option<ComplexType> = None;
 
         loop {
             match self.reader.read_event_into(&mut buf)? {
                 Event::Start(ref event) => {
                     if event.local_name().as_ref() == b"complexType" {
-                        complex_type = Some(self.parse_complex_type(event)?);
+                        element.complex_type = Some(self.parse_complex_type(event)?);
                     }
                 }
                 Event::End(ref event) if event.name().as_ref() == start.name().as_ref() => {
@@ -853,8 +889,6 @@ impl<R: BufRead> SchemaParser<R> {
             }
             buf.clear();
         }
-
-        element.complex_type = complex_type;
 
         Ok(())
     }
@@ -978,6 +1012,9 @@ impl<R: BufRead> SchemaParser<R> {
                         b"simpleContent" => {
                             self.parse_simple_content(&mut complex_type)?;
                         }
+                        b"complexContent" => {
+                            self.parse_complex_content(&mut complex_type)?;
+                        }
                         b"sequence" => {
                             let tuple_children = self.parse_sequence()?;
                             complex_type.children.extend(tuple_children);
@@ -988,20 +1025,25 @@ impl<R: BufRead> SchemaParser<R> {
                             complex_type.children.extend(tuple_children);
                             complex_type.compositor = Some(Compositor::Choice);
                         }
+                        b"attribute" => {
+                            let attribute = self.parse_attribute(event)?;
+                            complex_type.attributes.push(attribute);
+                        }
                         b"restriction" => {
                             return Err(XbrlError::InvalidSchemaDocument {
                                 path: self.path.clone(),
-                                reason: "restriction is only allowed inside simpleContent"
+                                reason: "restriction is only allowed inside simpleContent or complexContent"
                                     .to_string(),
                             });
                         }
                         b"extension" => {
                             return Err(XbrlError::InvalidSchemaDocument {
                                 path: self.path.clone(),
-                                reason: "extension is only allowed inside simpleContent"
+                                reason: "extension is only allowed inside simpleContent or complexContent"
                                     .to_string(),
                             });
                         }
+
                         _ => {
                             // ignore unknown tags inside complexType
                         }
@@ -1114,8 +1156,40 @@ impl<R: BufRead> SchemaParser<R> {
         Ok(())
     }
 
+    /// Parses an `xs:complexContent` element.
+    fn parse_complex_content(&mut self, complex_type: &mut ComplexType) -> Result<(), XbrlError> {
+        let mut buf = Vec::new();
+
+        loop {
+            match self.reader.read_event_into(&mut buf)? {
+                Event::Start(ref event) => match event.local_name().as_ref() {
+                    b"extension" => {
+                        self.parse_derivation(event, complex_type)?;
+                        complex_type.derivation = Some(DerivationKind::Extension);
+                    }
+                    b"restriction" => {
+                        self.parse_derivation(event, complex_type)?;
+                        complex_type.derivation = Some(DerivationKind::Restriction);
+                    }
+                    _ => {}
+                },
+
+                Event::End(ref event) if event.local_name().as_ref() == b"complexContent" => {
+                    break;
+                }
+
+                Event::Eof => break,
+                _ => {}
+            }
+
+            buf.clear();
+        }
+
+        Ok(())
+    }
+
     /// Parses an `xs:extension` or `xs:restriction` element inside
-    /// `xs:simpleContent`.
+    /// `xs:simpleContent` or `xs:complexContent`.
     fn parse_derivation(
         &mut self,
         start: &BytesStart,
@@ -1140,11 +1214,24 @@ impl<R: BufRead> SchemaParser<R> {
 
         loop {
             match self.reader.read_event_into(&mut buf)? {
-                Event::Start(ref event) | Event::Empty(ref event)
-                    if event.local_name().as_ref() == b"attribute" =>
-                {
-                    let attribute = self.parse_attribute(event)?;
-                    complex_type.attributes.push(attribute);
+                Event::Start(ref event) | Event::Empty(ref event) => {
+                    match event.local_name().as_ref() {
+                        b"attribute" => {
+                            let attribute = self.parse_attribute(event)?;
+                            complex_type.attributes.push(attribute);
+                        }
+                        b"sequence" => {
+                            let children = self.parse_sequence()?;
+                            complex_type.children.extend(children);
+                            complex_type.compositor = Some(Compositor::Sequence);
+                        }
+                        b"choice" => {
+                            let children = self.parse_sequence()?;
+                            complex_type.children.extend(children);
+                            complex_type.compositor = Some(Compositor::Choice);
+                        }
+                        _ => {}
+                    }
                 }
 
                 Event::End(ref event) if event.name().as_ref() == start.name().as_ref() => {
@@ -1784,6 +1871,166 @@ mod tests {
                     required: true,
                 },],
                 children: vec![],
+            }
+        );
+    }
+
+    #[test]
+    fn test_parse_complex_type_with_complex_content_and_extension() {
+        let xml = r#"<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                            targetNamespace="http://example.com"
+                            xmlns="http://example.com">
+                            <!-- Base complex type -->
+                            <xs:complexType name="baseAccountType">
+                                <xs:sequence>
+                                    <xs:element ref="xs:name" />
+                                </xs:sequence>
+                            </xs:complexType>
+                            <!-- Derived type extending the base -->
+                            <xs:complexType name="extendedAccountType">
+                                <xs:complexContent>
+                                    <xs:extension base="baseAccountType">
+                                        <xs:sequence>
+                                            <xs:element ref="xs:balance" />
+                                        </xs:sequence>
+                                        <xs:attribute ref="currency" />
+                                    </xs:extension>
+                                </xs:complexContent>
+                            </xs:complexType>
+                        </xs:schema>"#;
+        let mut parser = SchemaParser::from_reader(xml.as_bytes());
+        let schema = parser.parse_schema().unwrap();
+
+        assert_eq!(schema.complex_types.len(), 2);
+        let base_type = &schema.complex_types[0];
+        assert_eq!(
+            base_type,
+            &ComplexType {
+                name: Some("baseAccountType".to_string()),
+                base: None,
+                derivation: None,
+                compositor: Some(Compositor::Sequence),
+                attributes: vec![],
+                children: vec![RawTupleChild {
+                    name: QName {
+                        prefix: Some(NamespacePrefix::from("xs")),
+                        local_name: "name".to_string(),
+                    },
+                    min_occurs: 1,
+                    max_occurs: Some(1),
+                }],
+            }
+        );
+        let extended_type = &schema.complex_types[1];
+        assert_eq!(
+            extended_type,
+            &ComplexType {
+                name: Some("extendedAccountType".to_string()),
+                base: Some(QName {
+                    prefix: None,
+                    local_name: "baseAccountType".to_string(),
+                }),
+                derivation: Some(DerivationKind::Extension),
+                compositor: Some(Compositor::Sequence),
+                attributes: vec![AttributeUse {
+                    ref_name: "currency".to_string(),
+                    required: false,
+                }],
+                children: vec![RawTupleChild {
+                    name: QName {
+                        prefix: Some(NamespacePrefix::from("xs")),
+                        local_name: "balance".to_string(),
+                    },
+                    min_occurs: 1,
+                    max_occurs: Some(1),
+                }],
+            }
+        );
+    }
+
+    #[test]
+    fn test_parse_complex_type_with_complex_content_and_restriction() {
+        let xml = r#"<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                            targetNamespace="http://example.com"
+                            xmlns="http://example.com">
+                            <!-- Base complex type -->
+                            <xs:complexType name="baseAccountType">
+                                <xs:sequence>
+                                    <xs:element ref="xs:name" />
+                                    <xs:element ref="xs:balance" />
+                                </xs:sequence>
+                                <xs:attribute ref="currency" />
+                            </xs:complexType>
+                            <!-- Restricted type -->
+                            <xs:complexType name="restrictedAccountType">
+                                <xs:complexContent>
+                                    <xs:restriction base="baseAccountType">
+                                        <xs:sequence>
+                                            <xs:element ref="xs:name" />
+                                        </xs:sequence>
+                                        <xs:attribute ref="currency" use="required" />
+                                    </xs:restriction>
+                                </xs:complexContent>
+                            </xs:complexType>
+                        </xs:schema>"#;
+        let mut parser = SchemaParser::from_reader(xml.as_bytes());
+        let schema = parser.parse_schema().unwrap();
+
+        let base_type = &schema.complex_types[0];
+        assert_eq!(
+            base_type,
+            &ComplexType {
+                name: Some("baseAccountType".to_string()),
+                base: None,
+                derivation: None,
+                compositor: Some(Compositor::Sequence),
+                attributes: vec![AttributeUse {
+                    ref_name: "currency".to_string(),
+                    required: false,
+                }],
+                children: vec![
+                    RawTupleChild {
+                        name: QName {
+                            prefix: Some(NamespacePrefix::from("xs")),
+                            local_name: "name".to_string(),
+                        },
+                        min_occurs: 1,
+                        max_occurs: Some(1),
+                    },
+                    RawTupleChild {
+                        name: QName {
+                            prefix: Some(NamespacePrefix::from("xs")),
+                            local_name: "balance".to_string(),
+                        },
+                        min_occurs: 1,
+                        max_occurs: Some(1),
+                    },
+                ],
+            }
+        );
+        let restricted_type = &schema.complex_types[1];
+        assert_eq!(
+            restricted_type,
+            &ComplexType {
+                name: Some("restrictedAccountType".to_string()),
+                base: Some(QName {
+                    prefix: None,
+                    local_name: "baseAccountType".to_string(),
+                }),
+                derivation: Some(DerivationKind::Restriction),
+                compositor: Some(Compositor::Sequence),
+                attributes: vec![AttributeUse {
+                    ref_name: "currency".to_string(),
+                    required: true,
+                }],
+                children: vec![RawTupleChild {
+                    name: QName {
+                        prefix: Some(NamespacePrefix::from("xs")),
+                        local_name: "name".to_string(),
+                    },
+                    min_occurs: 1,
+                    max_occurs: Some(1),
+                }],
             }
         );
     }
