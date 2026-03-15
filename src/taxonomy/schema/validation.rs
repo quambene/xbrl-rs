@@ -63,16 +63,6 @@ pub fn validate(taxonomy: &TaxonomySchema) -> Result<(), XbrlError> {
             }
         }
 
-        if element.substitution_group.is_item() && matches!(element.data_type, XbrlType::Complex(_))
-        {
-            return Err(XbrlError::InvalidSchemaDocument {
-                path: taxonomy.file_path.clone(),
-                reason: format!(
-                    "item '{}' has unsupported complex content type",
-                    element.name.local_name
-                ),
-            });
-        }
     }
 
     for role_type in &taxonomy.role_types {
