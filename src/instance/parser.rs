@@ -1,4 +1,7 @@
-use crate::{QName, XbrlError, xml};
+use crate::{
+    NamespacePrefix, NamespaceUri, QName, XbrlError,
+    xml::{self, parse_qname},
+};
 use quick_xml::{
     Reader,
     events::{BytesStart, Event, attributes::Attributes},
@@ -79,8 +82,8 @@ pub enum RawFact {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct RawItemFact {
-    /// QName of the concept
-    pub name: String,
+    /// QName of the corresponding concept
+    pub name: QName,
     /// Raw text value
     pub value: String,
     /// contextRef attribute
@@ -99,8 +102,8 @@ pub struct RawItemFact {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct RawTupleFact {
-    /// QName of the concept
-    pub name: String,
+    /// QName of the corresponding concept
+    pub name: QName,
     /// id attribute
     pub id: Option<String>,
     /// xsi:nil attribute
@@ -142,7 +145,7 @@ pub struct FootnoteResource {
 #[derive(Debug, PartialEq, Eq, Default)]
 pub struct RawInstance {
     /// Namespace declarations (prefix -> URI)
-    pub namespaces: HashMap<String, String>,
+    pub namespaces: HashMap<NamespacePrefix, NamespaceUri>,
     /// Schema references
     pub schema_refs: Vec<SchemaRef>,
     /// Role references
@@ -168,7 +171,7 @@ pub struct RawInstance {
 impl RawInstance {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        namespaces: HashMap<String, String>,
+        namespaces: HashMap<NamespacePrefix, NamespaceUri>,
         schema_refs: Vec<SchemaRef>,
         role_refs: Vec<RoleRef>,
         arcrole_refs: Vec<ArcroleRef>,
@@ -329,9 +332,10 @@ impl<R: BufRead> InstanceParser<R> {
                 let local = key.local_name();
                 let namespace_prefix = str::from_utf8(local.as_ref())?;
                 let uri = attribute.decode_and_unescape_value(self.reader.decoder())?;
-                instance
-                    .namespaces
-                    .insert(namespace_prefix.to_string(), uri.into_owned());
+                instance.namespaces.insert(
+                    NamespacePrefix::from(namespace_prefix),
+                    NamespaceUri::from(uri.into_owned()),
+                );
             }
         }
 
@@ -852,7 +856,7 @@ impl<R: BufRead> InstanceParser<R> {
     /// self-closing elements without `contextRef` that have no children
     /// (empty tuples are still returned).
     fn parse_fact_recursive(&mut self, event: &BytesStart) -> Result<Option<RawFact>, XbrlError> {
-        let name = std::str::from_utf8(event.name().as_ref())?.to_string();
+        let name = parse_qname(std::str::from_utf8(event.name().as_ref())?);
 
         let mut context_ref = None;
         let mut unit_ref = None;
@@ -865,7 +869,7 @@ impl<R: BufRead> InstanceParser<R> {
             let attribute = attribute.map_err(|err| XbrlError::XmlParse {
                 path: self.path.clone(),
                 position: self.reader.buffer_position(),
-                element: Some(name.clone()),
+                element: Some(name.to_string()),
                 source: err.into(),
             })?;
             let local_name = attribute.key.local_name();
@@ -947,7 +951,7 @@ impl<R: BufRead> InstanceParser<R> {
 
     /// Parse a self-closing (empty) fact element.
     fn parse_empty_fact(&mut self, event: &BytesStart) -> Result<RawFact, XbrlError> {
-        let name = std::str::from_utf8(event.name().as_ref())?.to_string();
+        let name = parse_qname(std::str::from_utf8(event.name().as_ref())?);
 
         let mut context_ref = None;
         let mut unit_ref = None;
@@ -960,7 +964,7 @@ impl<R: BufRead> InstanceParser<R> {
             let attribute = attribute.map_err(|err| XbrlError::XmlParse {
                 path: self.path.clone(),
                 position: self.reader.buffer_position(),
-                element: Some(name.clone()),
+                element: Some(name.to_string()),
                 source: err.into(),
             })?;
             let local_name = attribute.key.local_name();
@@ -1169,12 +1173,18 @@ mod tests {
 
         assert_eq!(instance.namespaces.len(), 2);
         assert_eq!(
-            instance.namespaces.get("xbrli").unwrap(),
-            "http://www.xbrl.org/2003/instance"
+            instance
+                .namespaces
+                .get(&NamespacePrefix::from("xbrli"))
+                .unwrap(),
+            &NamespaceUri::from("http://www.xbrl.org/2003/instance")
         );
         assert_eq!(
-            instance.namespaces.get("ifrs").unwrap(),
-            "http://xbrl.ifrs.org/taxonomy/2023"
+            instance
+                .namespaces
+                .get(&NamespacePrefix::from("ifrs"))
+                .unwrap(),
+            &NamespaceUri::from("http://xbrl.ifrs.org/taxonomy/2023")
         );
     }
 
@@ -1313,7 +1323,7 @@ mod tests {
         assert_eq!(instance.facts.len(), 1);
         let fact = &instance.facts[0];
         assert_matches!(fact, RawFact::Item(fact) => {
-            assert_eq!(fact.name, "ifrs:Revenue");
+            assert_eq!(fact.name.to_string(), "ifrs:Revenue");
             assert_eq!(fact.value, "1200000");
             assert_eq!(fact.context_ref, "c1");
             assert_eq!(fact.unit_ref.as_deref(), Some("u1"));
@@ -1337,17 +1347,17 @@ mod tests {
         assert_eq!(instance.facts.len(), 1);
         let fact = &instance.facts[0];
         assert_matches!(fact, RawFact::Tuple(tuple) => {
-            assert_eq!(tuple.name, "t:Address");
+            assert_eq!(tuple.name.to_string(), "t:Address");
             assert!(!tuple.is_nil);
             assert_eq!(tuple.children.len(), 2);
 
             assert_matches!(&tuple.children[0], RawFact::Item(item) => {
-                assert_eq!(item.name, "t:Street");
+                assert_eq!(item.name.to_string(), "t:Street");
                 assert_eq!(item.value, "Main Street");
                 assert_eq!(item.context_ref, "c1");
             });
             assert_matches!(&tuple.children[1], RawFact::Item(item) => {
-                assert_eq!(item.name, "t:City");
+                assert_eq!(item.name.to_string(), "t:City");
                 assert_eq!(item.value, "Berlin");
                 assert_eq!(item.context_ref, "c1");
             });
@@ -1370,17 +1380,17 @@ mod tests {
         assert_eq!(instance.facts.len(), 1);
         let fact = &instance.facts[0];
         assert_matches!(fact, RawFact::Tuple(outer) => {
-            assert_eq!(outer.name, "t:Outer");
+            assert_eq!(outer.name.to_string(), "t:Outer");
             assert!(!outer.is_nil);
             assert_eq!(outer.children.len(), 1);
 
             assert_matches!(&outer.children[0], RawFact::Tuple(inner) => {
-                assert_eq!(inner.name, "t:Inner");
+                assert_eq!(inner.name.to_string(), "t:Inner");
                 assert!(!inner.is_nil);
                 assert_eq!(inner.children.len(), 1);
 
                 assert_matches!(&inner.children[0], RawFact::Item(item) => {
-                    assert_eq!(item.name, "t:Value");
+                    assert_eq!(item.name.to_string(), "t:Value");
                     assert_eq!(item.value, "42");
                     assert_eq!(item.context_ref, "c1");
                 });
@@ -1401,7 +1411,7 @@ mod tests {
         assert_eq!(instance.facts.len(), 1);
         match &instance.facts[0] {
             RawFact::Item(fact) => {
-                assert_eq!(fact.name, "ifrs:Revenue");
+                assert_eq!(fact.name.to_string(), "ifrs:Revenue");
                 assert!(fact.is_nil);
                 assert_eq!(fact.value, "");
                 assert_eq!(fact.context_ref, "c1");
@@ -1423,7 +1433,7 @@ mod tests {
         assert_eq!(instance.facts.len(), 1);
         match &instance.facts[0] {
             RawFact::Tuple(tuple) => {
-                assert_eq!(tuple.name, "t:Address");
+                assert_eq!(tuple.name.to_string(), "t:Address");
                 assert!(tuple.is_nil);
                 assert!(tuple.children.is_empty());
             }
@@ -1501,14 +1511,8 @@ mod tests {
             RawInstance {
                 namespaces: {
                     let mut namespaces = HashMap::new();
-                    namespaces.insert(
-                        "xbrli".to_string(),
-                        "http://www.xbrl.org/2003/instance".to_string(),
-                    );
-                    namespaces.insert(
-                        "ifrs".to_string(),
-                        "http://xbrl.ifrs.org/taxonomy/2023".to_string(),
-                    );
+                    namespaces.insert("xbrli".into(), "http://www.xbrl.org/2003/instance".into());
+                    namespaces.insert("ifrs".into(), "http://xbrl.ifrs.org/taxonomy/2023".into());
                     namespaces
                 },
                 schema_refs: vec![SchemaRef {
@@ -1531,7 +1535,7 @@ mod tests {
                     denominator: vec![],
                 }],
                 facts: vec![RawFact::Item(RawItemFact {
-                    name: "ifrs:Revenue".to_string(),
+                    name: QName::from_str("ifrs:Revenue").unwrap(),
                     value: "1200000".to_string(),
                     context_ref: "c1".to_string(),
                     unit_ref: Some("u1".to_string()),

@@ -77,7 +77,7 @@ pub(crate) fn write_xml<W: io::Write>(
     }
 
     for fact in instance.facts() {
-        write_fact(writer, fact)?;
+        write_fact(writer, fact, &uri_to_prefix)?;
     }
 
     // </xbrli:xbrl>
@@ -87,9 +87,9 @@ pub(crate) fn write_xml<W: io::Write>(
 }
 
 fn write_context<W: std::io::Write>(writer: &mut Writer<W>, context: &Context) -> Result<()> {
-    let mut elem = BytesStart::new("xbrli:context");
-    elem.push_attribute(("id", context.id.as_str()));
-    writer.write_event(Event::Start(elem))?;
+    let mut element = BytesStart::new("xbrli:context");
+    element.push_attribute(("id", context.id.as_str()));
+    writer.write_event(Event::Start(element))?;
 
     // Entity
     writer.write_event(Event::Start(BytesStart::new("xbrli:entity")))?;
@@ -201,62 +201,95 @@ fn write_unit<W: io::Write>(
     Ok(())
 }
 
-fn write_fact<W: io::Write>(writer: &mut Writer<W>, fact: &Fact) -> Result<()> {
+fn write_fact<W: io::Write>(
+    writer: &mut Writer<W>,
+    fact: &Fact,
+    namespaces: &HashMap<NamespaceUri, NamespacePrefix>,
+) -> Result<()> {
     match fact {
-        Fact::Item(item) => write_item_fact(writer, item),
-        Fact::Tuple(tuple) => write_tuple_fact(writer, tuple),
+        Fact::Item(item) => write_item_fact(writer, item, namespaces),
+        Fact::Tuple(tuple) => write_tuple_fact(writer, tuple, namespaces),
     }
 }
 
-fn write_tuple_fact<W: io::Write>(writer: &mut Writer<W>, fact: &TupleFact) -> Result<()> {
+fn write_tuple_fact<W: io::Write>(
+    writer: &mut Writer<W>,
+    fact: &TupleFact,
+    namespaces: &HashMap<NamespaceUri, NamespacePrefix>,
+) -> Result<()> {
     let concept_name = fact.concept_name();
-    let mut elem = BytesStart::new(concept_name);
+    let prefix = namespaces.get(&concept_name.namespace_uri);
+    let local_name = &concept_name.local_name;
+    let concept_name = QName {
+        prefix: prefix.cloned(),
+        local_name: local_name.clone(),
+    }
+    .to_string();
+    let mut element = BytesStart::new(&concept_name);
+
     if let Some(id) = fact.id() {
-        elem.push_attribute(("id", id));
+        element.push_attribute(("id", id));
     }
 
     if fact.is_nil() {
-        elem.push_attribute(("xsi:nil", "true"));
-        writer.write_event(Event::Empty(elem))?;
+        element.push_attribute(("xsi:nil", "true"));
+        writer.write_event(Event::Empty(element))?;
         return Ok(());
     }
 
     if fact.children().is_empty() {
-        writer.write_event(Event::Empty(elem))?;
+        writer.write_event(Event::Empty(element))?;
         return Ok(());
     }
 
-    writer.write_event(Event::Start(elem))?;
+    writer.write_event(Event::Start(element))?;
     for child in fact.children() {
-        write_fact(writer, child)?;
+        write_fact(writer, child, namespaces)?;
     }
     writer.write_event(Event::End(BytesEnd::new(concept_name)))?;
     Ok(())
 }
 
-fn write_item_fact<W: std::io::Write>(writer: &mut Writer<W>, fact: &ItemFact) -> Result<()> {
+fn write_item_fact<W: std::io::Write>(
+    writer: &mut Writer<W>,
+    fact: &ItemFact,
+    namespaces: &HashMap<NamespaceUri, NamespacePrefix>,
+) -> Result<()> {
     let concept_name = fact.concept_name();
-    let mut elem = BytesStart::new(concept_name);
+    let prefix = namespaces.get(&concept_name.namespace_uri);
+    let local_name = &concept_name.local_name;
+    let concept_name = QName {
+        prefix: prefix.cloned(),
+        local_name: local_name.clone(),
+    }
+    .to_string();
+    let mut element = BytesStart::new(&concept_name);
+
     if let Some(id) = fact.id() {
-        elem.push_attribute(("id", id));
+        element.push_attribute(("id", id));
     }
-    elem.push_attribute(("contextRef", fact.context_ref()));
+
+    element.push_attribute(("contextRef", fact.context_ref()));
+
     if let Some(unit_ref) = fact.unit_ref() {
-        elem.push_attribute(("unitRef", unit_ref));
+        element.push_attribute(("unitRef", unit_ref));
     }
+
     if let Some(decimals) = fact.decimals() {
-        elem.push_attribute(("decimals", decimals.to_string().as_str()));
+        element.push_attribute(("decimals", decimals.to_string().as_str()));
     }
+
     if let Some(precision) = fact.precision() {
-        elem.push_attribute(("precision", precision.to_string().as_str()));
+        element.push_attribute(("precision", precision.to_string().as_str()));
     }
+
     if fact.is_nil() {
-        elem.push_attribute(("xsi:nil", "true"));
-        writer.write_event(Event::Empty(elem))?;
+        element.push_attribute(("xsi:nil", "true"));
+        writer.write_event(Event::Empty(element))?;
     } else {
-        writer.write_event(Event::Start(elem))?;
+        writer.write_event(Event::Start(element))?;
         writer.write_event(Event::Text(BytesText::new(fact.value())))?;
-        writer.write_event(Event::End(BytesEnd::new(fact.concept_name())))?;
+        writer.write_event(Event::End(BytesEnd::new(&concept_name)))?;
     }
 
     Ok(())

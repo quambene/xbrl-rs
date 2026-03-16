@@ -1,7 +1,7 @@
 //! Document view built from the presentation linkbase.
 
 use super::fact::ItemFact;
-use crate::{Label, TaxonomySet, taxonomy::PresentationArc};
+use crate::{ExpandedName, Label, PresentationArc, TaxonomySet};
 use std::{
     cmp::Ordering,
     collections::{HashMap, HashSet},
@@ -55,6 +55,7 @@ pub struct TreeNode<'a> {
     pub children: Vec<TreeNode<'a>>,
 }
 
+// TODO: use concept id instead of concept name
 /// Build a [`DocumentView`] by walking the presentation linkbase and
 /// attaching instance facts and taxonomy labels to each node.
 ///
@@ -63,9 +64,13 @@ pub struct TreeNode<'a> {
 /// `taxonomy`.
 pub fn build_view<'a>(facts: &[&ItemFact], taxonomy: &'a TaxonomySet) -> DocumentView<'a> {
     // Index facts by their element ID → position in the facts slice.
-    let mut fact_index: HashMap<String, Vec<usize>> = HashMap::new();
+    let mut fact_index: HashMap<ExpandedName, Vec<usize>> = HashMap::new();
+
     for (i, fact) in facts.iter().enumerate() {
-        fact_index.entry(fact.concept_id()).or_default().push(i);
+        fact_index
+            .entry(fact.concept_name().clone())
+            .or_default()
+            .push(i);
     }
 
     let roles = taxonomy
@@ -77,9 +82,9 @@ pub fn build_view<'a>(facts: &[&ItemFact], taxonomy: &'a TaxonomySet) -> Documen
     let mut sections = Vec::with_capacity(roles.len());
 
     for (role, arcs) in roles {
-        let mut arc_index: HashMap<&'a str, Vec<&'a PresentationArc>> = HashMap::new();
+        let mut arc_index: HashMap<&'a ExpandedName, Vec<&'a PresentationArc>> = HashMap::new();
         for arc in arcs {
-            arc_index.entry(arc.from.as_str()).or_default().push(arc);
+            arc_index.entry(&arc.from).or_default().push(arc);
         }
         // Sort children by `order` up front so `build_nodes` never needs to
         // re-sort.
@@ -93,7 +98,7 @@ pub fn build_view<'a>(facts: &[&ItemFact], taxonomy: &'a TaxonomySet) -> Documen
         }
 
         let roots = find_roots(arcs, &arc_index);
-        let mut visited: HashSet<&'a str> = HashSet::new();
+        let mut visited: HashSet<&'a ExpandedName> = HashSet::new();
         let nodes = roots
             .iter()
             .flat_map(|root_id| {
@@ -110,14 +115,15 @@ pub fn build_view<'a>(facts: &[&ItemFact], taxonomy: &'a TaxonomySet) -> Documen
 /// Find root concept IDs: those that appear as `from` but never as `to`.
 pub(super) fn find_roots<'a>(
     arcs: &'a [PresentationArc],
-    arc_index: &HashMap<&'a str, Vec<&'a PresentationArc>>,
-) -> Vec<&'a str> {
-    let to_set: HashSet<&str> = arcs.iter().map(|a| a.to.as_str()).collect();
-    let mut seen: HashSet<&str> = HashSet::new();
-    let mut roots: Vec<&'a str> = Vec::new();
+    arc_index: &HashMap<&'a ExpandedName, Vec<&'a PresentationArc>>,
+) -> Vec<&'a ExpandedName> {
+    let to_set: HashSet<&ExpandedName> = arcs.iter().map(|a| &a.to).collect();
+    let mut seen: HashSet<&ExpandedName> = HashSet::new();
+    let mut roots: Vec<&'a ExpandedName> = Vec::new();
 
     for arc in arcs {
-        let from = arc.from.as_str();
+        let from = &arc.from;
+
         if !to_set.contains(from) && seen.insert(from) {
             roots.push(from);
         }
@@ -125,7 +131,7 @@ pub(super) fn find_roots<'a>(
 
     // Order roots by their minimum outgoing arc order using the pre-built index.
     roots.sort_by(|a, b| {
-        let min_order = |id: &&str| {
+        let min_order = |id: &&ExpandedName| {
             arc_index
                 .get(*id)
                 .and_then(|arcs| arcs.iter().filter_map(|a| a.order).min())
@@ -143,12 +149,12 @@ pub(super) fn find_roots<'a>(
 
 /// Recursively build tree nodes for all children of `parent_id`.
 fn build_nodes<'a>(
-    arc_index: &HashMap<&'a str, Vec<&'a PresentationArc>>,
-    parent_id: &'a str,
+    arc_index: &HashMap<&'a ExpandedName, Vec<&'a PresentationArc>>,
+    parent_id: &'a ExpandedName,
     depth: usize,
     taxonomy: &'a TaxonomySet,
-    fact_index: &HashMap<String, Vec<usize>>,
-    visited: &mut HashSet<&'a str>,
+    fact_index: &HashMap<ExpandedName, Vec<usize>>,
+    visited: &mut HashSet<&'a ExpandedName>,
 ) -> Vec<TreeNode<'a>> {
     if !visited.insert(parent_id) {
         // Cycle detected — skip this branch.
@@ -161,8 +167,8 @@ fn build_nodes<'a>(
     let mut nodes = Vec::with_capacity(children_arcs.len());
 
     for arc in children_arcs {
-        let child_id = arc.to.as_str();
-        let labels = taxonomy.labels_for(child_id).unwrap_or(&[]);
+        let child_id = &arc.to;
+        let labels = taxonomy.labels_for_concept(child_id).unwrap_or(&[]);
         let fact_indices = fact_index.get(child_id).cloned().unwrap_or_default();
         let children = build_nodes(
             arc_index,
@@ -174,7 +180,7 @@ fn build_nodes<'a>(
         );
 
         nodes.push(TreeNode {
-            concept_id: child_id,
+            concept_id: &child_id.local_name,
             labels,
             depth,
             fact_indices,
@@ -190,10 +196,7 @@ fn build_nodes<'a>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        ItemFact,
-        taxonomy::{PresentationArc, TaxonomySet},
-    };
+    use crate::{ItemFact, taxonomy::TaxonomySet};
     use rust_decimal::Decimal;
 
     fn create_taxonomy(
@@ -224,31 +227,37 @@ mod tests {
             (
                 role.clone(),
                 PresentationArc {
-                    from: "root".to_string(),
-                    to: "child_a".to_string(),
+                    from: ExpandedName::new("http://example.com/namespace".into(), "root".into()),
+                    to: ExpandedName::new("http://example.com/namespace".into(), "child_a".into()),
                     order: Some(Decimal::new(1, 0)),
                     preferred_label: None,
-                    arcrole: "http://www.xbrl.org/2003/arcrole/parent-child".to_string(),
+                    arcrole: "http://www.xbrl.org/2003/arcrole/parent-child".into(),
                 },
             ),
             (
                 role.clone(),
                 PresentationArc {
-                    from: "root".to_string(),
-                    to: "child_b".to_string(),
+                    from: ExpandedName::new("http://example.com/namespace".into(), "root".into()),
+                    to: ExpandedName::new("http://example.com/namespace".into(), "child_b".into()),
                     order: Some(Decimal::new(2, 0)),
                     preferred_label: None,
-                    arcrole: "http://www.xbrl.org/2003/arcrole/parent-child".to_string(),
+                    arcrole: "http://www.xbrl.org/2003/arcrole/parent-child".into(),
                 },
             ),
             (
                 role.clone(),
                 PresentationArc {
-                    from: "child_a".to_string(),
-                    to: "grandchild".to_string(),
+                    from: ExpandedName::new(
+                        "http://example.com/namespace".into(),
+                        "child_a".into(),
+                    ),
+                    to: ExpandedName::new(
+                        "http://example.com/namespace".into(),
+                        "grandchild".into(),
+                    ),
                     order: Some(Decimal::new(1, 0)),
                     preferred_label: None,
-                    arcrole: "http://www.xbrl.org/2003/arcrole/parent-child".to_string(),
+                    arcrole: "http://www.xbrl.org/2003/arcrole/parent-child".into(),
                 },
             ),
         ];
@@ -266,7 +275,7 @@ mod tests {
         // matching the element ID used in the presentation arcs above.
         let fact = ItemFact::new(
             None,
-            "child_a".to_string(), // no prefix → concept_id() == "child_a"
+            ExpandedName::new("http://example.com/namespace".into(), "child_a".into()),
             "ctx1".to_string(),
             None,
             "42".to_string(),
@@ -313,21 +322,21 @@ mod tests {
             (
                 role.clone(),
                 PresentationArc {
-                    from: "a".to_string(),
-                    to: "b".to_string(),
+                    from: ExpandedName::new("http://example.com/namespace".into(), "a".into()),
+                    to: ExpandedName::new("http://example.com/namespace".into(), "b".into()),
                     order: Some(Decimal::new(1, 0)),
                     preferred_label: None,
-                    arcrole: "http://www.xbrl.org/2003/arcrole/parent-child".to_string(),
+                    arcrole: "http://www.xbrl.org/2003/arcrole/parent-child".into(),
                 },
             ),
             (
                 role.clone(),
                 PresentationArc {
-                    from: "b".to_string(),
-                    to: "a".to_string(),
+                    from: ExpandedName::new("http://example.com/namespace".into(), "b".into()),
+                    to: ExpandedName::new("http://example.com/namespace".into(), "a".into()),
                     order: Some(Decimal::new(1, 0)),
                     preferred_label: None,
-                    arcrole: "http://www.xbrl.org/2003/arcrole/parent-child".to_string(),
+                    arcrole: "http://www.xbrl.org/2003/arcrole/parent-child".into(),
                 },
             ),
         ];
@@ -344,21 +353,21 @@ mod tests {
             (
                 role.clone(),
                 PresentationArc {
-                    from: "root".to_string(),
-                    to: "b".to_string(),
+                    from: ExpandedName::new("http://example.com/namespace".into(), "root".into()),
+                    to: ExpandedName::new("http://example.com/namespace".into(), "b".into()),
                     order: Some(Decimal::new(2, 0)),
                     preferred_label: None,
-                    arcrole: "http://www.xbrl.org/2003/arcrole/parent-child".to_string(),
+                    arcrole: "http://www.xbrl.org/2003/arcrole/parent-child".into(),
                 },
             ),
             (
                 role.clone(),
                 PresentationArc {
-                    from: "root".to_string(),
-                    to: "a".to_string(),
+                    from: ExpandedName::new("http://example.com/namespace".into(), "root".into()),
+                    to: ExpandedName::new("http://example.com/namespace".into(), "a".into()),
                     order: Some(Decimal::new(1, 0)),
                     preferred_label: None,
-                    arcrole: "http://www.xbrl.org/2003/arcrole/parent-child".to_string(),
+                    arcrole: "http://www.xbrl.org/2003/arcrole/parent-child".into(),
                 },
             ),
         ];

@@ -17,11 +17,11 @@ use std::collections::HashMap;
 
 /// Resolve a [`RawInstance`] into an [`InstanceDocument`].
 pub(crate) fn resolve_instance(raw: RawInstance) -> Result<InstanceDocument, XbrlError> {
-    let namespaces = resolve_namespaces(&raw.namespaces);
+    let namespaces = &raw.namespaces;
     let schema_refs = raw.schema_refs.into_iter().map(|s| s.href).collect();
     let contexts = resolve_contexts(raw.contexts);
-    let units = resolve_units(raw.units, &namespaces)?;
-    let facts = resolve_facts(raw.facts)?;
+    let units = resolve_units(raw.units, namespaces)?;
+    let facts = resolve_facts(raw.facts, namespaces)?;
     let footnote_links = resolve_footnote_links(raw.footnote_links);
 
     let mut instance = InstanceDocument::new(
@@ -29,7 +29,7 @@ pub(crate) fn resolve_instance(raw: RawInstance) -> Result<InstanceDocument, Xbr
         contexts,
         units,
         facts,
-        namespaces,
+        namespaces.clone(),
         footnote_links,
     );
 
@@ -41,17 +41,6 @@ pub(crate) fn resolve_instance(raw: RawInstance) -> Result<InstanceDocument, Xbr
     }
 
     Ok(instance)
-}
-
-fn resolve_namespaces(raw: &HashMap<String, String>) -> HashMap<NamespacePrefix, NamespaceUri> {
-    raw.iter()
-        .map(|(prefix, uri)| {
-            (
-                NamespacePrefix::from(prefix.as_str()),
-                NamespaceUri::from(uri.as_str()),
-            )
-        })
-        .collect()
 }
 
 fn resolve_contexts(raw: Vec<RawContext>) -> HashMap<ContextId, Context> {
@@ -137,21 +126,33 @@ fn resolve_measure(
     })
 }
 
-fn resolve_facts(raw: Vec<RawFact>) -> Result<Vec<Fact>, XbrlError> {
-    raw.into_iter().map(resolve_fact).collect()
+fn resolve_facts(
+    raw: Vec<RawFact>,
+    namespaces: &HashMap<NamespacePrefix, NamespaceUri>,
+) -> Result<Vec<Fact>, XbrlError> {
+    raw.into_iter()
+        .map(|raw_fact| resolve_fact(raw_fact, namespaces))
+        .collect()
 }
 
-fn resolve_fact(raw: RawFact) -> Result<Fact, XbrlError> {
+fn resolve_fact(
+    raw: RawFact,
+    namespaces: &HashMap<NamespacePrefix, NamespaceUri>,
+) -> Result<Fact, XbrlError> {
     match raw {
-        RawFact::Item(item) => resolve_item_fact(item).map(Fact::Item),
-        RawFact::Tuple(tuple) => resolve_tuple_fact(tuple).map(Fact::Tuple),
+        RawFact::Item(item) => resolve_item_fact(item, namespaces).map(Fact::Item),
+        RawFact::Tuple(tuple) => resolve_tuple_fact(tuple, namespaces).map(Fact::Tuple),
     }
 }
 
-fn resolve_item_fact(raw: RawItemFact) -> Result<ItemFact, XbrlError> {
+fn resolve_item_fact(
+    raw: RawItemFact,
+    namespaces: &HashMap<NamespacePrefix, NamespaceUri>,
+) -> Result<ItemFact, XbrlError> {
+    let concept_name = resolve_measure(&raw.name, namespaces)?;
     let mut fact = ItemFact::new(
         None,
-        raw.name,
+        concept_name,
         raw.context_ref,
         raw.unit_ref,
         raw.value,
@@ -176,8 +177,12 @@ fn resolve_item_fact(raw: RawItemFact) -> Result<ItemFact, XbrlError> {
     Ok(fact)
 }
 
-fn resolve_tuple_fact(raw: RawTupleFact) -> Result<TupleFact, XbrlError> {
-    let mut tuple = TupleFact::new(raw.name);
+fn resolve_tuple_fact(
+    raw: RawTupleFact,
+    namespaces: &HashMap<NamespacePrefix, NamespaceUri>,
+) -> Result<TupleFact, XbrlError> {
+    let concept_name = resolve_measure(&raw.name, namespaces)?;
+    let mut tuple = TupleFact::new(concept_name);
 
     if let Some(id) = raw.id {
         tuple.set_id(id);
@@ -186,7 +191,7 @@ fn resolve_tuple_fact(raw: RawTupleFact) -> Result<TupleFact, XbrlError> {
     tuple.set_nil(raw.is_nil);
 
     for child in raw.children {
-        tuple.add_child(resolve_fact(child)?);
+        tuple.add_child(resolve_fact(child, namespaces)?);
     }
 
     Ok(tuple)
@@ -290,10 +295,8 @@ mod tests {
     #[test]
     fn resolve_namespaces() {
         let mut raw = RawInstance::default();
-        raw.namespaces.insert(
-            "xbrli".to_string(),
-            "http://www.xbrl.org/2003/instance".to_string(),
-        );
+        raw.namespaces
+            .insert("xbrli".into(), "http://www.xbrl.org/2003/instance".into());
 
         let doc = resolve_instance(raw).unwrap();
 
@@ -391,10 +394,8 @@ mod tests {
     #[test]
     fn resolve_unit_simple_measure() {
         let mut raw = RawInstance::default();
-        raw.namespaces.insert(
-            "iso4217".to_string(),
-            "http://www.xbrl.org/2003/iso4217".to_string(),
-        );
+        raw.namespaces
+            .insert("iso4217".into(), "http://www.xbrl.org/2003/iso4217".into());
         raw.units.push(RawUnit {
             id: "u1".to_string(),
             numerator: vec![QName::from_str("iso4217:EUR").unwrap()],
@@ -420,14 +421,10 @@ mod tests {
     #[test]
     fn resolve_unit_divide() {
         let mut raw = RawInstance::default();
-        raw.namespaces.insert(
-            "iso4217".to_string(),
-            "http://www.xbrl.org/2003/iso4217".to_string(),
-        );
-        raw.namespaces.insert(
-            "xbrli".to_string(),
-            "http://www.xbrl.org/2003/instance".to_string(),
-        );
+        raw.namespaces
+            .insert("iso4217".into(), "http://www.xbrl.org/2003/iso4217".into());
+        raw.namespaces
+            .insert("xbrli".into(), "http://www.xbrl.org/2003/instance".into());
         raw.units.push(RawUnit {
             id: "u2".to_string(),
             numerator: vec![QName::from_str("iso4217:EUR").unwrap()],
@@ -457,7 +454,7 @@ mod tests {
     fn resolve_item_fact_with_decimals() {
         let mut raw = RawInstance::default();
         raw.facts.push(RawFact::Item(RawItemFact {
-            name: "ifrs:Revenue".to_string(),
+            name: QName::from_str("ifrs:Revenue").unwrap(),
             value: "1200000".to_string(),
             context_ref: "c1".to_string(),
             unit_ref: Some("u1".to_string()),
@@ -471,7 +468,7 @@ mod tests {
         let fact = doc.facts()[0].as_item().unwrap();
 
         assert_eq!(fact.id(), Some("f1"));
-        assert_eq!(fact.concept_name(), "ifrs:Revenue");
+        assert_eq!(fact.concept_name().to_string(), "ifrs:Revenue");
         assert_eq!(fact.context_ref(), "c1");
         assert_eq!(fact.unit_ref(), Some("u1"));
         assert_eq!(fact.value(), "1200000");
@@ -484,12 +481,12 @@ mod tests {
     fn resolve_tuple_fact_with_children() {
         let mut raw = RawInstance::default();
         raw.facts.push(RawFact::Tuple(RawTupleFact {
-            name: "t:Address".to_string(),
+            name: QName::from_str("t:Address").unwrap(),
             id: None,
             is_nil: false,
             children: vec![
                 RawFact::Item(RawItemFact {
-                    name: "t:Street".to_string(),
+                    name: QName::from_str("t:Street").unwrap(),
                     value: "Main St".to_string(),
                     context_ref: "c1".to_string(),
                     unit_ref: None,
@@ -499,7 +496,7 @@ mod tests {
                     is_nil: false,
                 }),
                 RawFact::Item(RawItemFact {
-                    name: "t:City".to_string(),
+                    name: QName::from_str("t:City").unwrap(),
                     value: "Berlin".to_string(),
                     context_ref: "c1".to_string(),
                     unit_ref: None,
@@ -515,10 +512,10 @@ mod tests {
         let tuple = doc.facts()[0].as_tuple().unwrap();
 
         assert_eq!(tuple.id(), None);
-        assert_eq!(tuple.concept_name(), "t:Address");
+        assert_eq!(tuple.concept_name().to_string(), "t:Address");
         assert_eq!(tuple.children().len(), 2);
         assert_matches!(&tuple.children()[0], Fact::Item(item) => {
-            assert_eq!(item.concept_name(), "t:Street");
+            assert_eq!(item.concept_name().to_string(), "t:Street");
             assert_eq!(item.value(), "Main St");
             assert_eq!(item.context_ref(), "c1");
             assert_eq!(item.unit_ref(), None);
@@ -527,7 +524,7 @@ mod tests {
             assert!(!item.is_nil());
         } );
         assert_matches!(&tuple.children()[1], Fact::Item(item) => {
-            assert_eq!(item.concept_name(), "t:City");
+            assert_eq!(item.concept_name().to_string(), "t:City");
             assert_eq!(item.value(), "Berlin");
             assert_eq!(item.context_ref(), "c1");
             assert_eq!(item.unit_ref(), None);
@@ -541,7 +538,7 @@ mod tests {
     fn resolve_nil_fact() {
         let mut raw = RawInstance::default();
         raw.facts.push(RawFact::Item(RawItemFact {
-            name: "ifrs:Revenue".to_string(),
+            name: QName::from_str("ifrs:Revenue").unwrap(),
             value: String::new(),
             context_ref: "c1".to_string(),
             unit_ref: None,

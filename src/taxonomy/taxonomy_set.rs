@@ -1,13 +1,12 @@
 use super::schema::TaxonomySchema;
 use crate::{
-    ConceptId, ExpandedName, Label, Reference, RoleUri, SchemaRefUrl,
+    CalculationArc, ConceptId, DefinitionArc, ExpandedName, Label, PresentationArc, Reference,
+    RoleUri, SchemaRefUrl,
     error::{Result, XbrlError},
     taxonomy::{
         RoleType,
         linkbases::{
-            parser::{
-                CalculationArc, DefinitionArc, LinkbaseParser, PresentationArc, RawLinkbases,
-            },
+            parser::{LinkbaseParser, RawLinkbases},
             resolver::{self, Linkbases},
         },
         schema::Concept,
@@ -160,7 +159,18 @@ impl TaxonomySet {
             parser.parse_linkbase(&mut linkbases)?;
         }
 
-        let linkbases = resolver::resolve_linkbases(linkbases)?;
+        let concepts_by_id = schemas
+            .values()
+            .flat_map(|schema| &schema.concepts)
+            .filter_map(|concept| {
+                concept
+                    .id
+                    .clone()
+                    .map(|id| (ConceptId::from(id), concept.clone()))
+            })
+            .collect::<HashMap<_, _>>();
+
+        let linkbases = resolver::resolve_linkbases(linkbases, &concepts_by_id)?;
 
         // Build role → source schema map
         let mut role_source_schema: HashMap<RoleUri, PathBuf> = HashMap::new();
@@ -172,7 +182,7 @@ impl TaxonomySet {
             }
         }
 
-        Ok(TaxonomySet {
+        let taxonomy = TaxonomySet {
             entry_point,
             schema_refs: schema_refs_map,
             schemas,
@@ -180,7 +190,9 @@ impl TaxonomySet {
             linkbases,
             role_source_schema,
             version,
-        })
+        };
+
+        Ok(taxonomy)
     }
 
     /// Get the entry point directory of taxonomy files.
@@ -227,11 +239,11 @@ impl TaxonomySet {
     }
 
     /// Find an element definition by name across all schemas.
-    pub fn find_concept(&self, name: &str) -> Option<&Concept> {
+    pub fn find_concept(&self, name: &ExpandedName) -> Option<&Concept> {
         self.schemas
             .values()
             .flat_map(|schema| &schema.concepts)
-            .find(|concept| concept.name.local_name == name)
+            .find(|concept| &concept.name == name)
     }
 
     /// Find an element definition by its ID attribute (e.g., `de-gaap-ci_bs.ass`).
@@ -302,14 +314,21 @@ impl TaxonomySet {
 
     /// Get all concept labels.
     pub fn labels(&self) -> &HashMap<ConceptId, Vec<Label>> {
-        &self.linkbases.labels
+        &self.linkbases.labels_by_id
     }
 
     /// Get labels for a specific concept by its element ID (e.g., "de-gaap-ci_bs.ass").
     pub fn labels_for(&self, concept_id: &str) -> Option<&[Label]> {
         self.linkbases
-            .labels
+            .labels_by_id
             .get(concept_id)
+            .map(|labels| labels.as_slice())
+    }
+
+    pub fn labels_for_concept(&self, concept_name: &ExpandedName) -> Option<&[Label]> {
+        self.linkbases
+            .labels_by_name
+            .get(concept_name)
             .map(|labels| labels.as_slice())
     }
 
@@ -333,7 +352,10 @@ impl TaxonomySet {
 
     /// Get calculation arcs for a specific role URI.
     pub fn calculation_arcs(&self, role: &str) -> Option<&[CalculationArc]> {
-        self.linkbases.calculations.get(role).map(|v| v.as_slice())
+        self.linkbases
+            .calculations
+            .get(role)
+            .map(|arcs| arcs.as_slice())
     }
 
     /// Get all definition arcs grouped by role URI.
@@ -343,7 +365,10 @@ impl TaxonomySet {
 
     /// Get definition arcs for a specific role URI.
     pub fn definition_arcs(&self, role: &str) -> Option<&[DefinitionArc]> {
-        self.linkbases.definitions.get(role).map(|v| v.as_slice())
+        self.linkbases
+            .definitions
+            .get(role)
+            .map(|arcs| arcs.as_slice())
     }
 
     /// Get all concept references.
@@ -381,7 +406,7 @@ impl TaxonomySet {
     /// Insert a label for a concept ID. Used in unit tests.
     pub fn add_label(&mut self, concept_id: String, label: Label) {
         self.linkbases
-            .labels
+            .labels_by_id
             .entry(concept_id.into())
             .or_default()
             .push(label);

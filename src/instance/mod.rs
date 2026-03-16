@@ -10,7 +10,7 @@ mod view;
 mod writer;
 
 use crate::{
-    NamespacePrefix, NamespaceUri, PresentationArc, TaxonomySet,
+    ExpandedName, NamespacePrefix, NamespaceUri, PresentationArc, TaxonomySet,
     error::Result,
     taxonomy::{Concept, PeriodType, TupleChild},
     validation::{self, ValidationResult},
@@ -117,14 +117,17 @@ impl InstanceDocument {
         // Walk the presentation tree in section order, depth-first within each section.
         // The tree structure gives both the fact order and the tuple nesting directly,
         // without needing to consult schema substitution groups.
-        let mut recursion_path: HashSet<String> = HashSet::new();
-        let mut emitted_items: HashSet<String> = HashSet::new();
-        let mut emitted_tuples: HashSet<String> = HashSet::new();
+        let mut recursion_path: HashSet<ExpandedName> = HashSet::new();
+        let mut emitted_items: HashSet<ExpandedName> = HashSet::new();
+        let mut emitted_tuples: HashSet<ExpandedName> = HashSet::new();
+
         for arcs in taxonomy.presentations().values() {
-            let mut arc_index: HashMap<&str, Vec<&PresentationArc>> = HashMap::new();
+            let mut arc_index: HashMap<&ExpandedName, Vec<&PresentationArc>> = HashMap::new();
+
             for arc in arcs {
-                arc_index.entry(arc.from.as_str()).or_default().push(arc);
+                arc_index.entry(&arc.from).or_default().push(arc);
             }
+
             for children in arc_index.values_mut() {
                 children.sort_by(|a, b| match (a.order, b.order) {
                     (Some(x), Some(y)) => x.cmp(&y),
@@ -135,7 +138,8 @@ impl InstanceDocument {
             }
 
             let roots = view::find_roots(arcs, &arc_index);
-            let mut seeded_nodes: HashSet<&str> = HashSet::new();
+            let mut seeded_nodes: HashSet<&ExpandedName> = HashSet::new();
+
             for root_id in roots {
                 seeded_nodes.insert(root_id);
                 let mut hoisted: Vec<Fact> = Vec::new();
@@ -156,19 +160,19 @@ impl InstanceDocument {
                 instance.facts.extend(hoisted);
             }
 
-            let mut remaining_nodes: Vec<&str> = arcs
+            let mut remaining_nodes = arcs
                 .iter()
-                .flat_map(|arc| [arc.from.as_str(), arc.to.as_str()])
-                .filter(|concept_id| !seeded_nodes.contains(*concept_id))
-                .collect();
+                .flat_map(|arc| [&arc.from, &arc.to])
+                .filter(|concept_name| !seeded_nodes.contains(concept_name))
+                .collect::<Vec<_>>();
             remaining_nodes.sort_unstable();
             remaining_nodes.dedup();
 
-            for concept_id in remaining_nodes {
+            for concept_name in remaining_nodes {
                 let mut hoisted: Vec<Fact> = Vec::new();
                 Self::populate_from_tree(
                     &arc_index,
-                    concept_id,
+                    &concept_name,
                     taxonomy,
                     &instant_context_ref,
                     &duration_context_ref,
@@ -396,40 +400,43 @@ impl InstanceDocument {
     /// - Abstract / grouping → recurse into children at the same level.
     #[allow(clippy::too_many_arguments)]
     fn populate_from_tree(
-        arc_index: &HashMap<&str, Vec<&PresentationArc>>,
-        concept_id: &str,
+        arc_index: &HashMap<&ExpandedName, Vec<&PresentationArc>>,
+        concept_name: &ExpandedName,
         taxonomy: &TaxonomySet,
         instant_ctx: &ContextId,
         duration_ctx: &ContextId,
         units: &[Unit],
         facts: &mut Vec<Fact>,
-        emitted_items: &mut HashSet<String>,
-        emitted_tuples: &mut HashSet<String>,
-        recursion_path: &mut HashSet<String>,
+        emitted_items: &mut HashSet<ExpandedName>,
+        emitted_tuples: &mut HashSet<ExpandedName>,
+        recursion_path: &mut HashSet<ExpandedName>,
         parent_tuple_element: Option<&Concept>,
         hoisted: &mut Vec<Fact>,
     ) {
-        if !recursion_path.insert(concept_id.to_string()) {
+        if !recursion_path.insert(concept_name.clone()) {
             return; // cycle guard within current recursion branch
         }
 
         // Children are already sorted by `order`.
-        let children = arc_index.get(concept_id).map(Vec::as_slice).unwrap_or(&[]);
+        let children = arc_index
+            .get(concept_name)
+            .map(Vec::as_slice)
+            .unwrap_or(&[]);
 
-        if let Some(concept) = taxonomy.find_concept_by_id(concept_id) {
+        if let Some(concept) = taxonomy.find_concept(concept_name) {
             if concept.is_tuple() && !concept.is_abstract {
-                if emitted_tuples.insert(concept_id.to_string()) {
-                    let concept_name = concept_id.replacen('_', ":", 1);
-                    facts.push(Fact::Tuple(TupleFact::new(concept_name)));
+                if emitted_tuples.insert(concept_name.clone()) {
+                    facts.push(Fact::Tuple(TupleFact::new(concept.name.clone())));
+
                     let tuple_children = match facts.last_mut() {
-                        Some(Fact::Tuple(t)) => t.children_mut(),
+                        Some(Fact::Tuple(tuple)) => tuple.children_mut(),
                         _ => unreachable!(),
                     };
 
                     for arc in children {
                         Self::populate_from_tree(
                             arc_index,
-                            arc.to.as_str(),
+                            &arc.to,
                             taxonomy,
                             instant_ctx,
                             duration_ctx,
@@ -443,7 +450,7 @@ impl InstanceDocument {
                         );
                     }
                 }
-                recursion_path.remove(concept_id);
+                recursion_path.remove(concept_name);
                 return;
             }
 
@@ -454,12 +461,11 @@ impl InstanceDocument {
                     PeriodType::Duration => duration_ctx,
                     PeriodType::Instant => instant_ctx,
                 };
-                let concept_name = concept_id.replacen('_', ":", 1);
 
-                if emitted_items.insert(concept_id.to_string()) {
+                if emitted_items.insert(concept_name.clone()) {
                     let mut fact = ItemFact::new(
                         None,
-                        concept_name,
+                        concept.name.clone(),
                         context_ref.to_string(),
                         unit_ref_for_concept(concept, units),
                         String::new(),
@@ -486,7 +492,7 @@ impl InstanceDocument {
         for arc in children {
             Self::populate_from_tree(
                 arc_index,
-                arc.to.as_str(),
+                &arc.to,
                 taxonomy,
                 instant_ctx,
                 duration_ctx,
@@ -500,7 +506,7 @@ impl InstanceDocument {
             );
         }
 
-        recursion_path.remove(concept_id);
+        recursion_path.remove(concept_name);
     }
 
     fn set_item_value_by_index(

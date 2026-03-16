@@ -1,11 +1,13 @@
 use crate::{
-    ConceptId, RoleUri, XbrlError,
-    taxonomy::linkbases::parser::{
-        CalculationArc, DefinitionArc, LabelResource, PresentationArc, RawLinkbases,
-        ReferenceResource,
+    ConceptId, ExpandedName, RoleUri, XbrlError,
+    taxonomy::{
+        Concept,
+        linkbases::parser::{LabelResource, RawLinkbases, ReferenceResource},
     },
+    xml::ArcroleUri,
 };
 use indexmap::IndexMap;
+use rust_decimal::Decimal;
 use std::collections::HashMap;
 
 /// A regulatory/legal reference for a taxonomy concept.
@@ -35,12 +37,58 @@ pub struct Label {
     pub text: String,
 }
 
+/// A resolved presentation arc between two concepts.
+#[derive(Debug, Clone, PartialEq)]
+pub struct PresentationArc {
+    /// Parent concept of the relationship.
+    pub from: ExpandedName,
+    /// Child concept of the relationship.
+    pub to: ExpandedName,
+    /// Display order among siblings.
+    pub order: Option<Decimal>,
+    /// Preferred label role URI if present.
+    pub preferred_label: Option<RoleUri>,
+    /// Arcrole URI (normally parent-child for presentation).
+    pub arcrole: ArcroleUri,
+}
+
+/// A resolved calculation arc between two concepts.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CalculationArc {
+    /// Source concept of the relationship.
+    pub from: ExpandedName,
+    /// Target concept of the relationship.
+    pub to: ExpandedName,
+    /// Display order among siblings.
+    pub order: Option<Decimal>,
+    /// Weight of the relationship (e.g., 1 or -1).
+    pub weight: Decimal,
+    /// Arcrole URI (normally summation-item for calculation).
+    pub arcrole: ArcroleUri,
+}
+
+/// A resolved definition arc between two concepts.
+#[derive(Debug, Clone, PartialEq)]
+pub struct DefinitionArc {
+    /// Source concept of the relationship.
+    pub from: ExpandedName,
+    /// Target concept of the relationship.
+    pub to: ExpandedName,
+    /// Display order among siblings.
+    pub order: Option<Decimal>,
+    /// Arcrole URI (normally parent-child for definition).
+    pub arcrole: ArcroleUri,
+}
+
 /// Resolved linkbase data suitable for use in `TaxonomySet`.
 #[derive(Debug, Default)]
 pub struct Linkbases {
     /// Concept labels parsed from label linkbase files.
     /// Keyed by concept element ID (e.g., "de-gaap-ci_bs.ass").
-    pub labels: HashMap<ConceptId, Vec<Label>>,
+    pub labels_by_id: HashMap<ConceptId, Vec<Label>>,
+    /// Concept labels indexed by resolved concept name (ExpandedName) for quick
+    /// lookup during validation.
+    pub labels_by_name: HashMap<ExpandedName, Vec<Label>>,
     /// Presentation arcs grouped by role URI, in the order roles were first
     /// encountered during schema discovery.
     pub presentations: IndexMap<RoleUri, Vec<PresentationArc>>,
@@ -53,10 +101,22 @@ pub struct Linkbases {
     pub references: HashMap<ConceptId, Vec<Reference>>,
 }
 
+// TODO: use concepts_by_name if concepts_by_id lookup fails (e.g. if locators
+// reference xs:element/@name instead of @id).
 /// Resolve locator references from a linkbase and merge them into the provided
-/// accumulator maps.
-pub fn resolve_linkbases(linkbases: RawLinkbases) -> Result<Linkbases, XbrlError> {
-    let mut labels: HashMap<ConceptId, Vec<Label>> = HashMap::new();
+/// accumulator maps. Linkbases are resolved as follows:
+///     RawPresentationArc.from ("de-gaap-ci_bs.ass.fixAss")
+///         ↓ lookup in locators (xlink:label → xlink:href)
+///         ↓ extract fragment (#de-gaap-ci_bs.ass.fixAss)
+///         ↓ find schema element (xs:element/@id or @name)
+///         ↓ Concept.name (ExpandedName)
+///     ResolvedPresentationArc.from = ExpandedName
+pub fn resolve_linkbases(
+    linkbases: RawLinkbases,
+    concepts_by_id: &HashMap<ConceptId, &Concept>,
+) -> Result<Linkbases, XbrlError> {
+    let mut labels_by_id: HashMap<ConceptId, Vec<Label>> = HashMap::new();
+    let mut labels_by_name: HashMap<ExpandedName, Vec<Label>> = HashMap::new();
     let mut presentations: IndexMap<RoleUri, Vec<PresentationArc>> = IndexMap::new();
     let mut calculations: HashMap<RoleUri, Vec<CalculationArc>> = HashMap::new();
     let mut definitions: HashMap<RoleUri, Vec<DefinitionArc>> = HashMap::new();
@@ -81,16 +141,32 @@ pub fn resolve_linkbases(linkbases: RawLinkbases) -> Result<Linkbases, XbrlError
                 locator_map.get(arc.from.as_str()),
                 resource_map.get(arc.to.as_str()),
             ) {
-                labels.entry(concept_id.into()).or_default().push(Label {
-                    role: resource.role.clone().unwrap_or_default(),
-                    lang: resource.lang.clone(),
-                    text: resource.text.clone(),
-                });
+                labels_by_id
+                    .entry(concept_id.into())
+                    .or_default()
+                    .push(Label {
+                        role: resource.role.clone().unwrap_or_default(),
+                        lang: resource.lang.clone(),
+                        text: resource.text.clone(),
+                    });
+
+                if let Some(concept) = concepts_by_id.get(&ConceptId::from(concept_id.to_string()))
+                {
+                    labels_by_name
+                        .entry(concept.name.clone())
+                        .or_default()
+                        .push(Label {
+                            role: resource.role.clone().unwrap_or_default(),
+                            lang: resource.lang.clone(),
+                            text: resource.text.clone(),
+                        });
+                }
             }
         }
     }
 
     for link in linkbases.presentation_links {
+        // locator label -> href fragment (concept ID)
         let locator_map: HashMap<&str, &str> = link
             .locators
             .iter()
@@ -102,9 +178,14 @@ pub fn resolve_linkbases(linkbases: RawLinkbases) -> Result<Linkbases, XbrlError
             .arcs
             .iter()
             .filter_map(|arc| {
+                let from_fragment = locator_map.get(arc.from.as_str())?;
+                let from_concept = concepts_by_id.get(&ConceptId::from(*from_fragment))?;
+                let to_fragment = locator_map.get(arc.to.as_str())?;
+                let to_concept = concepts_by_id.get(&ConceptId::from(*to_fragment))?;
+
                 Some(PresentationArc {
-                    from: locator_map.get(arc.from.as_str())?.to_string(),
-                    to: locator_map.get(arc.to.as_str())?.to_string(),
+                    from: from_concept.name.clone(),
+                    to: to_concept.name.clone(),
                     order: arc.order,
                     preferred_label: arc.preferred_label.clone(),
                     arcrole: arc.arcrole.clone(),
@@ -121,6 +202,7 @@ pub fn resolve_linkbases(linkbases: RawLinkbases) -> Result<Linkbases, XbrlError
     }
 
     for link in linkbases.calculation_links {
+        // locator label -> href fragment (concept ID)
         let locator_map: HashMap<&str, &str> = link
             .locators
             .iter()
@@ -132,9 +214,14 @@ pub fn resolve_linkbases(linkbases: RawLinkbases) -> Result<Linkbases, XbrlError
             .arcs
             .iter()
             .filter_map(|arc| {
+                let from_fragment = locator_map.get(arc.from.as_str())?;
+                let from_concept = concepts_by_id.get(&ConceptId::from(*from_fragment))?;
+                let to_fragment = locator_map.get(arc.to.as_str())?;
+                let to_concept = concepts_by_id.get(&ConceptId::from(*to_fragment))?;
+
                 Some(CalculationArc {
-                    from: locator_map.get(arc.from.as_str())?.to_string(),
-                    to: locator_map.get(arc.to.as_str())?.to_string(),
+                    from: from_concept.name.clone(),
+                    to: to_concept.name.clone(),
                     order: arc.order,
                     weight: arc.weight,
                     arcrole: arc.arcrole.clone(),
@@ -151,6 +238,7 @@ pub fn resolve_linkbases(linkbases: RawLinkbases) -> Result<Linkbases, XbrlError
     }
 
     for link in linkbases.definition_links {
+        // locator label -> href fragment (concept ID)
         let locator_map: HashMap<&str, &str> = link
             .locators
             .iter()
@@ -162,9 +250,14 @@ pub fn resolve_linkbases(linkbases: RawLinkbases) -> Result<Linkbases, XbrlError
             .arcs
             .iter()
             .filter_map(|arc| {
+                let from_fragment = locator_map.get(arc.from.as_str())?;
+                let from_concept = concepts_by_id.get(&ConceptId::from(*from_fragment))?;
+                let to_fragment = locator_map.get(arc.to.as_str())?;
+                let to_concept = concepts_by_id.get(&ConceptId::from(*to_fragment))?;
+
                 Some(DefinitionArc {
-                    from: locator_map.get(arc.from.as_str())?.to_string(),
-                    to: locator_map.get(arc.to.as_str())?.to_string(),
+                    from: from_concept.name.clone(),
+                    to: to_concept.name.clone(),
                     order: arc.order,
                     arcrole: arc.arcrole.clone(),
                 })
@@ -209,7 +302,8 @@ pub fn resolve_linkbases(linkbases: RawLinkbases) -> Result<Linkbases, XbrlError
     }
 
     Ok(Linkbases {
-        labels,
+        labels_by_id,
+        labels_by_name,
         presentations,
         calculations,
         definitions,
@@ -220,4 +314,34 @@ pub fn resolve_linkbases(linkbases: RawLinkbases) -> Result<Linkbases, XbrlError
 /// Extract the fragment (after `#`) from an xlink:href.
 fn href_fragment(href: &str) -> Option<&str> {
     href.split_once('#').map(|(_, frag)| frag)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_resolve_presentation_arc() {
+        todo!()
+    }
+
+    #[test]
+    fn test_resolve_calculation_arc() {
+        todo!()
+    }
+
+    #[test]
+    fn test_resolve_definition_arc() {
+        todo!()
+    }
+
+    #[test]
+    fn test_resolve_labels() {
+        todo!()
+    }
+
+    #[test]
+    fn test_resolve_references() {
+        todo!()
+    }
 }

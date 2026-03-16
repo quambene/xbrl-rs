@@ -2,7 +2,7 @@
 //!
 //! Facts are the actual data values in an XBRL instance document.
 
-use crate::XbrlError;
+use crate::{ExpandedName, XbrlError};
 use std::{fmt, str::FromStr};
 
 /// The numeric accuracy attribute value for a fact (`decimals` or `precision`).
@@ -56,10 +56,10 @@ pub enum Fact {
 /// Represents a single item fact (data point) in an XBRL instance.
 #[derive(Debug, Clone)]
 pub struct ItemFact {
+    /// The the resolved concept name (e.g. "de-gaap-ci:bs.ass.fixAss").
+    concept_name: ExpandedName,
     /// Optional XML id attribute
     id: Option<String>,
-    /// The concept name (e.g. "de-gaap-ci:bs.ass.fixAss")
-    concept_name: String,
     /// Reference to the context ID
     context_ref: String,
     /// Optional reference to the unit ID
@@ -78,7 +78,7 @@ impl ItemFact {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         id: Option<String>,
-        concept_name: String,
+        concept_name: ExpandedName,
         context_ref: String,
         unit_ref: Option<String>,
         value: String,
@@ -98,7 +98,7 @@ impl ItemFact {
         }
     }
 
-    pub fn concept_name(&self) -> &str {
+    pub fn concept_name(&self) -> &ExpandedName {
         &self.concept_name
     }
 
@@ -149,28 +149,6 @@ impl ItemFact {
     pub fn set_precision(&mut self, precision: Decimals) {
         self.precision = Some(precision);
     }
-
-    /// Extract the namespace prefix from the concept
-    pub fn namespace_prefix(&self) -> Option<&str> {
-        self.concept_name.split(':').next()
-    }
-
-    /// Extract the local name from the concept (without namespace prefix)
-    pub fn local_name(&self) -> &str {
-        self.concept_name
-            .split(':')
-            .nth(1)
-            .unwrap_or(&self.concept_name)
-    }
-
-    /// Convert the concept QName to element ID format used in taxonomy linkbases.
-    ///
-    /// Replaces the first `:` with `_`, e.g. `de-gaap-ci:bs.ass` →
-    /// `de-gaap-ci_bs.ass`. This matches the `id` attribute convention in XSD
-    /// where colons are not valid in XML ID values.
-    pub fn concept_id(&self) -> String {
-        self.concept_name.replacen(':', "_", 1)
-    }
 }
 
 /// Represents a tuple fact that can contain child facts.
@@ -178,8 +156,9 @@ impl ItemFact {
 pub struct TupleFact {
     /// Optional XML id attribute
     id: Option<String>,
-    /// The concept name (e.g. "de-gcd:genInfo.company.id.shareholder")
-    concept_name: String,
+    /// The resolved concept name (e.g.
+    /// "de-gcd:genInfo.company.id.shareholder").
+    concept_name: ExpandedName,
     /// Whether the tuple is nil (xsi:nil="true"). A nil tuple has no children
     /// and its content model constraints (e.g. minOccurs) do not apply.
     is_nil: bool,
@@ -188,7 +167,7 @@ pub struct TupleFact {
 }
 
 impl TupleFact {
-    pub fn new(concept_name: String) -> Self {
+    pub fn new(concept_name: ExpandedName) -> Self {
         Self {
             id: None,
             concept_name,
@@ -197,7 +176,7 @@ impl TupleFact {
         }
     }
 
-    pub fn concept_name(&self) -> &str {
+    pub fn concept_name(&self) -> &ExpandedName {
         &self.concept_name
     }
 
@@ -232,7 +211,7 @@ impl TupleFact {
 
 impl Fact {
     pub fn item(
-        concept: String,
+        concept: ExpandedName,
         context_ref: String,
         unit_ref: Option<String>,
         value: String,
@@ -249,11 +228,11 @@ impl Fact {
         ))
     }
 
-    pub fn tuple(concept: String) -> Self {
-        Self::Tuple(TupleFact::new(concept))
+    pub fn tuple(concept_name: ExpandedName) -> Self {
+        Self::Tuple(TupleFact::new(concept_name))
     }
 
-    pub fn concept_name(&self) -> &str {
+    pub fn concept_name(&self) -> &ExpandedName {
         match self {
             Self::Item(fact) => fact.concept_name(),
             Self::Tuple(fact) => fact.concept_name(),
