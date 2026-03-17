@@ -91,7 +91,7 @@ pub(super) fn prepare_fact_values(
             continue;
         }
 
-        let Some(element) = taxonomy.find_concept(fact.local_name()) else {
+        let Some(element) = taxonomy.find_concept(fact.concept_name()) else {
             prepared.insert(fact, Some(FactValue::Text(fact.value().to_string())));
             continue;
         };
