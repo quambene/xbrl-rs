@@ -318,6 +318,10 @@ mod tests {
     #[test]
     fn resolve_context_instant() {
         let mut raw = RawInstance::default();
+        raw.namespaces.insert(
+            NamespacePrefix::from("dim"),
+            NamespaceUri::from("http://www.example.com"),
+        );
         raw.contexts.push(RawContext {
             id: "c1".to_string(),
             entity: RawEntity {
@@ -467,6 +471,10 @@ mod tests {
     #[test]
     fn resolve_item_fact_with_decimals() {
         let mut raw = RawInstance::default();
+        raw.namespaces.insert(
+            NamespacePrefix::from("ifrs"),
+            NamespaceUri::from("http://example.com"),
+        );
         raw.facts.push(RawFact::Item(RawItemFact {
             name: QName::from_str("ifrs:Revenue").unwrap(),
             value: "1200000".to_string(),
@@ -482,7 +490,10 @@ mod tests {
         let fact = doc.facts()[0].as_item().unwrap();
 
         assert_eq!(fact.id(), Some("f1"));
-        assert_eq!(fact.concept_name().to_string(), "ifrs:Revenue");
+        assert_eq!(
+            fact.concept_name().to_string(),
+            "{http://example.com}Revenue"
+        );
         assert_eq!(fact.context_ref(), "c1");
         assert_eq!(fact.unit_ref(), Some("u1"));
         assert_eq!(fact.value(), "1200000");
@@ -494,6 +505,10 @@ mod tests {
     #[test]
     fn resolve_tuple_fact_with_children() {
         let mut raw = RawInstance::default();
+        raw.namespaces.insert(
+            NamespacePrefix::from("t"),
+            NamespaceUri::from("http://example.com"),
+        );
         raw.facts.push(RawFact::Tuple(RawTupleFact {
             name: QName::from_str("t:Address").unwrap(),
             id: None,
@@ -526,10 +541,10 @@ mod tests {
         let tuple = doc.facts()[0].as_tuple().unwrap();
 
         assert_eq!(tuple.id(), None);
-        assert_eq!(tuple.concept_name().to_string(), "t:Address");
+        assert_eq!(tuple.concept_name().to_string(), "{http://example.com}Address");
         assert_eq!(tuple.children().len(), 2);
         assert_matches!(&tuple.children()[0], Fact::Item(item) => {
-            assert_eq!(item.concept_name().to_string(), "t:Street");
+            assert_eq!(item.concept_name().to_string(), "{http://example.com}Street");
             assert_eq!(item.value(), "Main St");
             assert_eq!(item.context_ref(), "c1");
             assert_eq!(item.unit_ref(), None);
@@ -538,7 +553,7 @@ mod tests {
             assert!(!item.is_nil());
         } );
         assert_matches!(&tuple.children()[1], Fact::Item(item) => {
-            assert_eq!(item.concept_name().to_string(), "t:City");
+            assert_eq!(item.concept_name().to_string(), "{http://example.com}City");
             assert_eq!(item.value(), "Berlin");
             assert_eq!(item.context_ref(), "c1");
             assert_eq!(item.unit_ref(), None);
@@ -551,6 +566,10 @@ mod tests {
     #[test]
     fn resolve_nil_fact() {
         let mut raw = RawInstance::default();
+        raw.namespaces.insert(
+            NamespacePrefix::from("ifrs"),
+            NamespaceUri::from("http://example.com"),
+        );
         raw.facts.push(RawFact::Item(RawItemFact {
             name: QName::from_str("ifrs:Revenue").unwrap(),
             value: String::new(),
@@ -567,6 +586,10 @@ mod tests {
 
         assert!(fact.is_nil());
         assert_eq!(fact.value(), "");
+        assert_eq!(
+            fact.concept_name().to_string(),
+            "{http://example.com}Revenue"
+        );
     }
 
     #[test]
