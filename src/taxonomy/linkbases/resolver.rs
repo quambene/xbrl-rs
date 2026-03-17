@@ -80,15 +80,22 @@ pub struct DefinitionArc {
     pub arcrole: ArcroleUri,
 }
 
+// TODO: key labels and reference by concept name
 /// Resolved linkbase data suitable for use in `TaxonomySet`.
+///
+/// Labels and references are keyed by concept ID to provide metadata for
+/// concepts during validation. Presentation, calculation, and definition arcs
+/// are keyed by role URI to preserve the grouping from the linkbase files.
+///
+/// Linkbases are resolved as follows (e.g., for presentation arcs):
+///    1. RawPresentationArc::from ("de-gaap-ci_bs.ass.fixAss")
+///    2. Lookup in locators (xlink:label → xlink:href)
+///    3. Extract fragment (#de-gaap-ci_bs.ass.fixAss)
+///    4. Find schema element (xs:element/@id or @name), i.e. the resolved
+///       Concept::name
+///    5. PresentationArc::from ("{http://www.xbrl.org/2003/role/label}bs.ass.fixAss")
 #[derive(Debug, Default)]
 pub struct Linkbases {
-    /// Concept labels parsed from label linkbase files.
-    /// Keyed by concept element ID (e.g., "de-gaap-ci_bs.ass").
-    pub labels_by_id: HashMap<ConceptId, Vec<Label>>,
-    /// Concept labels indexed by resolved concept name (ExpandedName) for quick
-    /// lookup during validation.
-    pub labels_by_name: HashMap<ExpandedName, Vec<Label>>,
     /// Presentation arcs grouped by role URI, in the order roles were first
     /// encountered during schema discovery.
     pub presentations: IndexMap<RoleUri, Vec<PresentationArc>>,
@@ -96,77 +103,28 @@ pub struct Linkbases {
     pub calculations: HashMap<RoleUri, Vec<CalculationArc>>,
     /// Definition arcs grouped by role URI.
     pub definitions: HashMap<RoleUri, Vec<DefinitionArc>>,
+    /// Concept labels parsed from label linkbase files.
+    /// Keyed by concept ID (e.g., "de-gaap-ci_bs.ass").
+    pub labels: HashMap<ConceptId, Vec<Label>>,
     /// Concept references parsed from reference linkbase files.
     /// Keyed by concept element ID.
     pub references: HashMap<ConceptId, Vec<Reference>>,
 }
 
-// TODO: use concepts_by_name if concepts_by_id lookup fails (e.g. if locators
-// reference xs:element/@name instead of @id).
 /// Resolve locator references from a linkbase and merge them into the provided
-/// accumulator maps. Linkbases are resolved as follows:
-///     RawPresentationArc.from ("de-gaap-ci_bs.ass.fixAss")
-///         ↓ lookup in locators (xlink:label → xlink:href)
-///         ↓ extract fragment (#de-gaap-ci_bs.ass.fixAss)
-///         ↓ find schema element (xs:element/@id or @name)
-///         ↓ Concept.name (ExpandedName)
-///     ResolvedPresentationArc.from = ExpandedName
+/// accumulator maps.
 pub fn resolve_linkbases(
     linkbases: RawLinkbases,
     concepts_by_id: &HashMap<ConceptId, &Concept>,
 ) -> Result<Linkbases, XbrlError> {
-    let mut labels_by_id: HashMap<ConceptId, Vec<Label>> = HashMap::new();
-    let mut labels_by_name: HashMap<ExpandedName, Vec<Label>> = HashMap::new();
+    let mut labels: HashMap<ConceptId, Vec<Label>> = HashMap::new();
     let mut presentations: IndexMap<RoleUri, Vec<PresentationArc>> = IndexMap::new();
     let mut calculations: HashMap<RoleUri, Vec<CalculationArc>> = HashMap::new();
     let mut definitions: HashMap<RoleUri, Vec<DefinitionArc>> = HashMap::new();
     let mut references: HashMap<ConceptId, Vec<Reference>> = HashMap::new();
 
-    for link in linkbases.label_links {
-        let locator_map: HashMap<&str, &str> = link
-            .locators
-            .iter()
-            .filter_map(|locator| {
-                href_fragment(&locator.href).map(|fragment| (locator.label.as_str(), fragment))
-            })
-            .collect();
-        let resource_map: HashMap<&str, &LabelResource> = link
-            .labels
-            .iter()
-            .map(|resource| (resource.label.as_str(), resource))
-            .collect();
-
-        for arc in &link.arcs {
-            if let (Some(&concept_id), Some(&resource)) = (
-                locator_map.get(arc.from.as_str()),
-                resource_map.get(arc.to.as_str()),
-            ) {
-                labels_by_id
-                    .entry(concept_id.into())
-                    .or_default()
-                    .push(Label {
-                        role: resource.role.clone().unwrap_or_default(),
-                        lang: resource.lang.clone(),
-                        text: resource.text.clone(),
-                    });
-
-                if let Some(concept) = concepts_by_id.get(&ConceptId::from(concept_id.to_string()))
-                {
-                    labels_by_name
-                        .entry(concept.name.clone())
-                        .or_default()
-                        .push(Label {
-                            role: resource.role.clone().unwrap_or_default(),
-                            lang: resource.lang.clone(),
-                            text: resource.text.clone(),
-                        });
-                }
-            }
-        }
-    }
-
     for link in linkbases.presentation_links {
-        // locator label -> href fragment (concept ID)
+        // Map from locator label to href fragment (concept ID)
         let locator_map: HashMap<&str, &str> = link
             .locators
             .iter()
@@ -202,7 +160,7 @@ pub fn resolve_linkbases(
     }
 
     for link in linkbases.calculation_links {
-        // locator label -> href fragment (concept ID)
+        // Map from locator label to href fragment (concept ID)
         let locator_map: HashMap<&str, &str> = link
             .locators
             .iter()
@@ -238,7 +196,7 @@ pub fn resolve_linkbases(
     }
 
     for link in linkbases.definition_links {
-        // locator label -> href fragment (concept ID)
+        // Map from locator label to href fragment (concept ID)
         let locator_map: HashMap<&str, &str> = link
             .locators
             .iter()
@@ -272,7 +230,36 @@ pub fn resolve_linkbases(
         }
     }
 
+    for link in linkbases.label_links {
+        let locator_map: HashMap<&str, &str> = link
+            .locators
+            .iter()
+            .filter_map(|locator| {
+                href_fragment(&locator.href).map(|fragment| (locator.label.as_str(), fragment))
+            })
+            .collect();
+        let resource_map: HashMap<&str, &LabelResource> = link
+            .labels
+            .iter()
+            .map(|resource| (resource.label.as_str(), resource))
+            .collect();
+
+        for arc in &link.arcs {
+            if let (Some(&concept_id), Some(&resource)) = (
+                locator_map.get(arc.from.as_str()),
+                resource_map.get(arc.to.as_str()),
+            ) {
+                labels.entry(concept_id.into()).or_default().push(Label {
+                    role: resource.role.clone().unwrap_or_default(),
+                    lang: resource.lang.clone(),
+                    text: resource.text.clone(),
+                });
+            }
+        }
+    }
+
     for link in linkbases.reference_links {
+        // Map from locator label to href fragment (concept ID)
         let locator_map: HashMap<&str, &str> = link
             .locators
             .iter()
@@ -302,11 +289,10 @@ pub fn resolve_linkbases(
     }
 
     Ok(Linkbases {
-        labels_by_id,
-        labels_by_name,
         presentations,
         calculations,
         definitions,
+        labels,
         references,
     })
 }
