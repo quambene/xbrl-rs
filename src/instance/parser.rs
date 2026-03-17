@@ -1,4 +1,7 @@
-use crate::{QName, XbrlError, xml};
+use crate::{
+    NamespacePrefix, NamespaceUri, QName, XbrlError,
+    xml::{self, ArcroleRef, RoleRef, SchemaRef, parse_qname},
+};
 use quick_xml::{
     Reader,
     events::{BytesStart, Event, attributes::Attributes},
@@ -10,37 +13,33 @@ use std::{
     path::{Path, PathBuf},
 };
 
-#[derive(Debug, PartialEq, Eq)]
-pub struct SchemaRef {
-    pub href: String,
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub struct RoleRef {
-    pub role_uri: String,
-    pub href: String,
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub struct ArcroleRef {
-    pub arcrole_uri: String,
-    pub href: String,
-}
-
+/// An `xbrli:context` element as parsed from the instance document.
 #[derive(Debug, PartialEq, Eq)]
 pub struct RawContext {
+    /// Id attribute of the context.
     pub id: String,
+    /// Entity definition for the context.
     pub entity: RawEntity,
+    /// Period definition for the context.
     pub period: RawPeriod,
-    pub dimensions: Vec<RawDimension>,
+    /// Scenario dimensions for the context.
+    pub scenario_dimensions: Vec<RawDimension>,
 }
 
+/// An `xbrli:entity` element as parsed from the instance document.
 #[derive(Debug, PartialEq, Eq)]
 pub struct RawEntity {
+    /// Identifier for the entity, typically a legal entity identifier (LEI).
     pub identifier: String,
+    /// Scheme for the entity identifier, typically a URI that defines the
+    /// syntax and semantics of the identifier (e.g.
+    /// "http://standards.iso.org/iso/17442" for LEIs).
     pub scheme: String,
+    /// Segment dimensions for the entity.
+    pub segment_dimensions: Vec<RawDimension>,
 }
 
+/// An `xbrli:period` element as parsed from the instance document.
 #[derive(Debug, PartialEq, Eq)]
 pub enum RawPeriod {
     Instant(String),
@@ -51,12 +50,13 @@ pub enum RawPeriod {
     Forever,
 }
 
+/// A dimension defined in a `scenario` or `segment` element.
 #[derive(Debug, PartialEq, Eq)]
 pub struct RawDimension {
     /// QName of the dimension
-    pub dimension: String,
+    pub dimension: QName,
     /// QName of the member
-    pub member: String,
+    pub member: QName,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -71,6 +71,7 @@ pub struct RawUnit {
     pub denominator: Vec<QName>,
 }
 
+/// A fact in the instance document, which can be either an item or a tuple.
 #[derive(Debug, PartialEq, Eq)]
 pub enum RawFact {
     Item(RawItemFact),
@@ -79,8 +80,8 @@ pub enum RawFact {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct RawItemFact {
-    /// QName of the concept
-    pub name: String,
+    /// QName of the corresponding concept
+    pub name: QName,
     /// Raw text value
     pub value: String,
     /// contextRef attribute
@@ -99,8 +100,8 @@ pub struct RawItemFact {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct RawTupleFact {
-    /// QName of the concept
-    pub name: String,
+    /// QName of the corresponding concept
+    pub name: QName,
     /// id attribute
     pub id: Option<String>,
     /// xsi:nil attribute
@@ -142,7 +143,7 @@ pub struct FootnoteResource {
 #[derive(Debug, PartialEq, Eq, Default)]
 pub struct RawInstance {
     /// Namespace declarations (prefix -> URI)
-    pub namespaces: HashMap<String, String>,
+    pub namespaces: HashMap<NamespacePrefix, NamespaceUri>,
     /// Schema references
     pub schema_refs: Vec<SchemaRef>,
     /// Role references
@@ -168,7 +169,7 @@ pub struct RawInstance {
 impl RawInstance {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        namespaces: HashMap<String, String>,
+        namespaces: HashMap<NamespacePrefix, NamespaceUri>,
         schema_refs: Vec<SchemaRef>,
         role_refs: Vec<RoleRef>,
         arcrole_refs: Vec<ArcroleRef>,
@@ -329,9 +330,10 @@ impl<R: BufRead> InstanceParser<R> {
                 let local = key.local_name();
                 let namespace_prefix = str::from_utf8(local.as_ref())?;
                 let uri = attribute.decode_and_unescape_value(self.reader.decoder())?;
-                instance
-                    .namespaces
-                    .insert(namespace_prefix.to_string(), uri.into_owned());
+                instance.namespaces.insert(
+                    NamespacePrefix::from(namespace_prefix),
+                    NamespaceUri::from(uri.into_owned()),
+                );
             }
         }
 
@@ -448,6 +450,10 @@ impl<R: BufRead> InstanceParser<R> {
     }
 
     /// Parse the `xbrli:context` element to extract the context definition.
+    ///
+    /// `xbrli:segment` and `xbrli:scenario` elements are parsed as dimensional
+    /// containers. `xbrli:segment` is always a child of `xbrli:entity`, while
+    /// `xbrli:scenario` is a direct child of `xbrli:context`.
     fn parse_context(
         &mut self,
         instance: &mut RawInstance,
@@ -476,7 +482,7 @@ impl<R: BufRead> InstanceParser<R> {
 
         let mut entity = None;
         let mut period = None;
-        let mut dimensions = Vec::new();
+        let mut scenario_dimensions = Vec::new();
         let mut buf = Vec::new();
 
         loop {
@@ -489,7 +495,7 @@ impl<R: BufRead> InstanceParser<R> {
                         period = Some(self.parse_period()?);
                     }
                     b"scenario" => {
-                        self.parse_dimensional_container(&mut dimensions)?;
+                        self.parse_dimensional_container(&mut scenario_dimensions)?;
                     }
                     _ => {}
                 },
@@ -510,7 +516,7 @@ impl<R: BufRead> InstanceParser<R> {
                 path: self.path.clone(),
                 reason: "missing period in xbrli:context".to_string(),
             })?,
-            dimensions,
+            scenario_dimensions,
         });
 
         Ok(())
@@ -521,34 +527,33 @@ impl<R: BufRead> InstanceParser<R> {
     fn parse_entity(&mut self) -> Result<RawEntity, XbrlError> {
         let mut identifier = None;
         let mut scheme = None;
+        let mut segment_dimensions = Vec::new();
         let mut buf = Vec::new();
 
         loop {
             match self.reader.read_event_into(&mut buf)? {
-                Event::Start(ref event) => {
-                    match event.local_name().as_ref() {
-                        b"identifier" => {
-                            for attribute in event.attributes() {
-                                let attribute = attribute.map_err(|err| XbrlError::XmlParse {
-                                    path: self.path.clone(),
-                                    position: self.reader.buffer_position(),
-                                    element: Some("identifier".to_string()),
-                                    source: err.into(),
-                                })?;
+                Event::Start(ref event) => match event.local_name().as_ref() {
+                    b"identifier" => {
+                        for attribute in event.attributes() {
+                            let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                                path: self.path.clone(),
+                                position: self.reader.buffer_position(),
+                                element: Some("identifier".to_string()),
+                                source: err.into(),
+                            })?;
 
-                                if attribute.key.local_name().as_ref() == b"scheme" {
-                                    let value = attribute
-                                        .decode_and_unescape_value(self.reader.decoder())?;
-                                    scheme = Some(value.into_owned());
-                                }
+                            if attribute.key.local_name().as_ref() == b"scheme" {
+                                let value =
+                                    attribute.decode_and_unescape_value(self.reader.decoder())?;
+                                scheme = Some(value.into_owned());
                             }
                         }
-                        b"segment" => {
-                            // TODO: dimensions can appear in entity/segment
-                        }
-                        _ => {}
                     }
-                }
+                    b"segment" => {
+                        self.parse_dimensional_container(&mut segment_dimensions)?;
+                    }
+                    _ => {}
+                },
                 Event::Text(ref text) => {
                     if identifier.is_none() {
                         let value = text.xml_content().map_err(quick_xml::Error::from)?;
@@ -571,6 +576,7 @@ impl<R: BufRead> InstanceParser<R> {
                 path: self.path.clone(),
                 reason: "missing scheme in xbrli:identifier".to_string(),
             })?,
+            segment_dimensions,
         })
     }
 
@@ -657,7 +663,7 @@ impl<R: BufRead> InstanceParser<R> {
                             if attribute.key.local_name().as_ref() == b"dimension" {
                                 let value =
                                     attribute.decode_and_unescape_value(self.reader.decoder())?;
-                                dimension = Some(value.into_owned());
+                                dimension = Some(parse_qname(&value));
                             }
                         }
 
@@ -671,6 +677,7 @@ impl<R: BufRead> InstanceParser<R> {
                                     .xml_content()
                                     .map_err(quick_xml::Error::from)?
                                     .into_owned();
+                                let member = parse_qname(&member);
                                 dimensions.push(RawDimension { dimension, member });
                             }
                         }
@@ -852,7 +859,7 @@ impl<R: BufRead> InstanceParser<R> {
     /// self-closing elements without `contextRef` that have no children
     /// (empty tuples are still returned).
     fn parse_fact_recursive(&mut self, event: &BytesStart) -> Result<Option<RawFact>, XbrlError> {
-        let name = std::str::from_utf8(event.name().as_ref())?.to_string();
+        let name = parse_qname(std::str::from_utf8(event.name().as_ref())?);
 
         let mut context_ref = None;
         let mut unit_ref = None;
@@ -865,7 +872,7 @@ impl<R: BufRead> InstanceParser<R> {
             let attribute = attribute.map_err(|err| XbrlError::XmlParse {
                 path: self.path.clone(),
                 position: self.reader.buffer_position(),
-                element: Some(name.clone()),
+                element: Some(name.to_string()),
                 source: err.into(),
             })?;
             let local_name = attribute.key.local_name();
@@ -947,7 +954,7 @@ impl<R: BufRead> InstanceParser<R> {
 
     /// Parse a self-closing (empty) fact element.
     fn parse_empty_fact(&mut self, event: &BytesStart) -> Result<RawFact, XbrlError> {
-        let name = std::str::from_utf8(event.name().as_ref())?.to_string();
+        let name = parse_qname(std::str::from_utf8(event.name().as_ref())?);
 
         let mut context_ref = None;
         let mut unit_ref = None;
@@ -960,7 +967,7 @@ impl<R: BufRead> InstanceParser<R> {
             let attribute = attribute.map_err(|err| XbrlError::XmlParse {
                 path: self.path.clone(),
                 position: self.reader.buffer_position(),
-                element: Some(name.clone()),
+                element: Some(name.to_string()),
                 source: err.into(),
             })?;
             let local_name = attribute.key.local_name();
@@ -1169,12 +1176,18 @@ mod tests {
 
         assert_eq!(instance.namespaces.len(), 2);
         assert_eq!(
-            instance.namespaces.get("xbrli").unwrap(),
-            "http://www.xbrl.org/2003/instance"
+            instance
+                .namespaces
+                .get(&NamespacePrefix::from("xbrli"))
+                .unwrap(),
+            &NamespaceUri::from("http://www.xbrl.org/2003/instance")
         );
         assert_eq!(
-            instance.namespaces.get("ifrs").unwrap(),
-            "http://xbrl.ifrs.org/taxonomy/2023"
+            instance
+                .namespaces
+                .get(&NamespacePrefix::from("ifrs"))
+                .unwrap(),
+            &NamespaceUri::from("http://xbrl.ifrs.org/taxonomy/2023")
         );
     }
 
@@ -1224,26 +1237,53 @@ mod tests {
 
     #[test]
     fn test_parse_context() {
-        let xml = r#"<xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance"
-                            xmlns:ifrs="http://xbrl.ifrs.org/taxonomy/2023">
-                            <context id="c1">
-                                <entity>
-                                    <identifier scheme="http://example.com">ABC</identifier>
-                                </entity>
-                                <period>
-                                    <instant>2024-12-31</instant>
-                                </period>
-                            </context>
-                        </xbrli:xbrl>"#;
+        let xml = r#"<xbrli:xbrl
+                                xmlns:xbrli="http://www.xbrl.org/2003/instance"
+                                xmlns:xbrldi="http://xbrl.org/2006/xbrldi"
+                                xmlns:ifrs="http://xbrl.ifrs.org/taxonomy/2023">
+                                <context id="c1">
+                                    <entity>
+                                        <identifier scheme="http://example.com">ABC</identifier>
+                                        <segment>
+                                            <xbrldi:explicitMember dimension="ifrs:OperatingSegmentsAxis">
+                                                ifrs:EuropeSegmentMember
+                                            </xbrldi:explicitMember>
+                                        </segment>
+                                    </entity>
+                                    <period>
+                                        <instant>2024-12-31</instant>
+                                    </period>
+                                    <scenario>
+                                        <xbrldi:explicitMember dimension="ifrs:ProductsAndServicesAxis">
+                                            ifrs:SoftwareMember
+                                        </xbrldi:explicitMember>
+                                    </scenario>
+                                </context>
+                            </xbrli:xbrl>"#;
         let mut parser = InstanceParser::from_reader(xml.as_bytes());
         let instance = parser.parse_instance().unwrap();
 
         assert_eq!(instance.contexts.len(), 1);
         let context = &instance.contexts[0];
-        assert_eq!(context.id, "c1");
-        assert_eq!(context.entity.identifier, "ABC");
-        assert_eq!(context.entity.scheme, "http://example.com");
-        assert_eq!(context.period, RawPeriod::Instant("2024-12-31".to_string()));
+        assert_eq!(
+            context,
+            &RawContext {
+                id: "c1".to_string(),
+                entity: RawEntity {
+                    identifier: "ABC".to_string(),
+                    scheme: "http://example.com".to_string(),
+                    segment_dimensions: vec![RawDimension {
+                        dimension: QName::from_str("ifrs:OperatingSegmentsAxis").unwrap(),
+                        member: QName::from_str("ifrs:EuropeSegmentMember").unwrap(),
+                    }],
+                },
+                period: RawPeriod::Instant("2024-12-31".to_string()),
+                scenario_dimensions: vec![RawDimension {
+                    dimension: QName::from_str("ifrs:ProductsAndServicesAxis").unwrap(),
+                    member: QName::from_str("ifrs:SoftwareMember").unwrap(),
+                }],
+            }
+        );
     }
 
     #[test]
@@ -1313,7 +1353,7 @@ mod tests {
         assert_eq!(instance.facts.len(), 1);
         let fact = &instance.facts[0];
         assert_matches!(fact, RawFact::Item(fact) => {
-            assert_eq!(fact.name, "ifrs:Revenue");
+            assert_eq!(fact.name.to_string(), "ifrs:Revenue");
             assert_eq!(fact.value, "1200000");
             assert_eq!(fact.context_ref, "c1");
             assert_eq!(fact.unit_ref.as_deref(), Some("u1"));
@@ -1337,17 +1377,17 @@ mod tests {
         assert_eq!(instance.facts.len(), 1);
         let fact = &instance.facts[0];
         assert_matches!(fact, RawFact::Tuple(tuple) => {
-            assert_eq!(tuple.name, "t:Address");
+            assert_eq!(tuple.name.to_string(), "t:Address");
             assert!(!tuple.is_nil);
             assert_eq!(tuple.children.len(), 2);
 
             assert_matches!(&tuple.children[0], RawFact::Item(item) => {
-                assert_eq!(item.name, "t:Street");
+                assert_eq!(item.name.to_string(), "t:Street");
                 assert_eq!(item.value, "Main Street");
                 assert_eq!(item.context_ref, "c1");
             });
             assert_matches!(&tuple.children[1], RawFact::Item(item) => {
-                assert_eq!(item.name, "t:City");
+                assert_eq!(item.name.to_string(), "t:City");
                 assert_eq!(item.value, "Berlin");
                 assert_eq!(item.context_ref, "c1");
             });
@@ -1370,17 +1410,17 @@ mod tests {
         assert_eq!(instance.facts.len(), 1);
         let fact = &instance.facts[0];
         assert_matches!(fact, RawFact::Tuple(outer) => {
-            assert_eq!(outer.name, "t:Outer");
+            assert_eq!(outer.name.to_string(), "t:Outer");
             assert!(!outer.is_nil);
             assert_eq!(outer.children.len(), 1);
 
             assert_matches!(&outer.children[0], RawFact::Tuple(inner) => {
-                assert_eq!(inner.name, "t:Inner");
+                assert_eq!(inner.name.to_string(), "t:Inner");
                 assert!(!inner.is_nil);
                 assert_eq!(inner.children.len(), 1);
 
                 assert_matches!(&inner.children[0], RawFact::Item(item) => {
-                    assert_eq!(item.name, "t:Value");
+                    assert_eq!(item.name.to_string(), "t:Value");
                     assert_eq!(item.value, "42");
                     assert_eq!(item.context_ref, "c1");
                 });
@@ -1401,7 +1441,7 @@ mod tests {
         assert_eq!(instance.facts.len(), 1);
         match &instance.facts[0] {
             RawFact::Item(fact) => {
-                assert_eq!(fact.name, "ifrs:Revenue");
+                assert_eq!(fact.name.to_string(), "ifrs:Revenue");
                 assert!(fact.is_nil);
                 assert_eq!(fact.value, "");
                 assert_eq!(fact.context_ref, "c1");
@@ -1423,7 +1463,7 @@ mod tests {
         assert_eq!(instance.facts.len(), 1);
         match &instance.facts[0] {
             RawFact::Tuple(tuple) => {
-                assert_eq!(tuple.name, "t:Address");
+                assert_eq!(tuple.name.to_string(), "t:Address");
                 assert!(tuple.is_nil);
                 assert!(tuple.children.is_empty());
             }
@@ -1501,14 +1541,8 @@ mod tests {
             RawInstance {
                 namespaces: {
                     let mut namespaces = HashMap::new();
-                    namespaces.insert(
-                        "xbrli".to_string(),
-                        "http://www.xbrl.org/2003/instance".to_string(),
-                    );
-                    namespaces.insert(
-                        "ifrs".to_string(),
-                        "http://xbrl.ifrs.org/taxonomy/2023".to_string(),
-                    );
+                    namespaces.insert("xbrli".into(), "http://www.xbrl.org/2003/instance".into());
+                    namespaces.insert("ifrs".into(), "http://xbrl.ifrs.org/taxonomy/2023".into());
                     namespaces
                 },
                 schema_refs: vec![SchemaRef {
@@ -1521,9 +1555,10 @@ mod tests {
                     entity: RawEntity {
                         identifier: "ABC".to_string(),
                         scheme: "http://example.com".to_string(),
+                        segment_dimensions: vec![],
                     },
                     period: RawPeriod::Instant("2024-12-31".to_string()),
-                    dimensions: vec![],
+                    scenario_dimensions: vec![],
                 }],
                 units: vec![RawUnit {
                     id: "u1".to_string(),
@@ -1531,7 +1566,7 @@ mod tests {
                     denominator: vec![],
                 }],
                 facts: vec![RawFact::Item(RawItemFact {
-                    name: "ifrs:Revenue".to_string(),
+                    name: QName::from_str("ifrs:Revenue").unwrap(),
                     value: "1200000".to_string(),
                     context_ref: "c1".to_string(),
                     unit_ref: Some("u1".to_string()),

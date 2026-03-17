@@ -3,7 +3,8 @@
 
 use super::{Severity, ValidationResult, value::PreparedFactValues};
 use crate::{
-    DeclaredAccuracy, Fact, InstanceDocument, ItemFact, Period, TaxonomySet, TupleFact, Unit,
+    DeclaredAccuracy, ExpandedName, Fact, InstanceDocument, ItemFact, Period, TaxonomySet,
+    TupleFact, Unit,
     taxonomy::{Compositor, Concept, MaxOccurs, PeriodType, TupleChild, XbrlType},
 };
 use rust_decimal::Decimal;
@@ -83,11 +84,12 @@ fn validate_essence_alias_units(
         return;
     }
 
-    let mut facts_by_element_id: HashMap<String, Vec<&ItemFact>> = HashMap::new();
+    let mut facts_by_concept_name: HashMap<ExpandedName, Vec<&ItemFact>> = HashMap::new();
+
     for fact in instance.item_facts() {
-        if let Some(element) = taxonomy.find_concept(fact.local_name()) {
-            facts_by_element_id
-                .entry(element.id.clone().unwrap_or_default())
+        if let Some(concept) = taxonomy.find_concept(fact.concept_name()) {
+            facts_by_concept_name
+                .entry(concept.name.clone())
                 .or_default()
                 .push(fact);
         }
@@ -95,14 +97,14 @@ fn validate_essence_alias_units(
 
     for arcs in taxonomy.definitions().values() {
         for arc in arcs {
-            if arc.arcrole != ARCROLE_ESSENCE_ALIAS {
+            if arc.arcrole.as_str() != ARCROLE_ESSENCE_ALIAS {
                 continue;
             }
 
-            let Some(essence_facts) = facts_by_element_id.get(&arc.from) else {
+            let Some(essence_facts) = facts_by_concept_name.get(&arc.from) else {
                 continue;
             };
-            let Some(alias_facts) = facts_by_element_id.get(&arc.to) else {
+            let Some(alias_facts) = facts_by_concept_name.get(&arc.to) else {
                 continue;
             };
 
@@ -140,8 +142,8 @@ fn validate_essence_alias_units(
                                 alias_fact.concept_name(),
                                 essence_fact.context_ref()
                             ),
-                            Some(essence_fact.concept_name()),
-                            Some(essence_fact.context_ref()),
+                            Some(essence_fact.concept_name().to_string()),
+                            Some(essence_fact.context_ref().to_string()),
                         );
                     }
                 }
@@ -370,6 +372,8 @@ fn href_target_id(href: &str) -> Option<(Option<&str>, &str)> {
     Some((Some(file_part), fragment))
 }
 
+/// Validate a fact against its concept definition recursively, checking content
+/// model constraints for tuples and concept-level restrictions for items.
 fn validate_fact(
     fact: &Fact,
     parent_tuple: Option<&Concept>,
@@ -379,14 +383,12 @@ fn validate_fact(
 ) {
     match fact {
         Fact::Item(item_fact) => {
-            if let Some(parent) = parent_tuple {
-                validate_tuple_child(
-                    item_fact.concept_name(),
-                    item_fact.local_name(),
-                    parent,
-                    taxonomy,
-                    result,
-                );
+            let concept_name = item_fact.concept_name();
+
+            if let Some(parent_tuple) = parent_tuple
+                && let Some(child_concept) = taxonomy.find_concept(concept_name)
+            {
+                validate_tuple_child(child_concept, parent_tuple, taxonomy, result);
             }
             validate_item_fact(item_fact, instance, taxonomy, result);
         }
@@ -406,34 +408,37 @@ fn validate_tuple_fact<'a>(
     taxonomy: &'a TaxonomySet,
     result: &mut ValidationResult,
 ) -> Option<&'a Concept> {
-    let local_name = fact
-        .concept_name()
-        .split(':')
-        .nth(1)
-        .unwrap_or(fact.concept_name());
     let concept_name = fact.concept_name();
 
-    let Some(concept) = taxonomy.find_concept(local_name) else {
+    let Some(concept) = taxonomy.find_concept(concept_name) else {
         result.add(
             Severity::Error,
             "schema.concept_not_found",
-            format!("Fact concept '{local_name}' not found in taxonomy"),
-            Some(concept_name),
+            format!(
+                "Fact '{}' concept not found in taxonomy",
+                concept_name.local_name
+            ),
+            Some(concept_name.to_string()),
             None,
         );
         return None;
     };
 
-    if let Some(parent) = parent_tuple {
-        validate_tuple_child(concept_name, local_name, parent, taxonomy, result);
+    if let Some(parent_tuple) = parent_tuple
+        && let Some(child_concept) = taxonomy.find_concept(concept_name)
+    {
+        validate_tuple_child(child_concept, parent_tuple, taxonomy, result);
     }
 
     if !concept.is_tuple() {
         result.add(
             Severity::Error,
             "schema.tuple_requires_tuple_concept",
-            format!("Tuple fact reports non-tuple concept '{local_name}'"),
-            Some(concept_name),
+            format!(
+                "Tuple fact reports non-tuple concept '{}'",
+                concept_name.local_name
+            ),
+            Some(concept_name.to_string()),
             None,
         );
         return None;
@@ -443,8 +448,11 @@ fn validate_tuple_fact<'a>(
         result.add(
             Severity::Error,
             "schema.abstract_concept",
-            format!("Fact reports abstract concept '{local_name}'"),
-            Some(concept_name),
+            format!(
+                "Fact reports abstract concept '{}'",
+                concept_name.local_name
+            ),
+            Some(concept_name.to_string()),
             None,
         );
     }
@@ -455,8 +463,7 @@ fn validate_tuple_fact<'a>(
 }
 
 fn validate_tuple_child(
-    child_concept: &str,
-    child_local_name: &str,
+    child_concept: &Concept,
     parent_tuple: &Concept,
     taxonomy: &TaxonomySet,
     result: &mut ValidationResult,
@@ -465,11 +472,7 @@ fn validate_tuple_child(
         return;
     }
 
-    let Some(child_element) = taxonomy.find_concept(child_local_name) else {
-        return;
-    };
-
-    if tuple_allows_child(parent_tuple, child_element, taxonomy) {
+    if tuple_allows_child(parent_tuple, &child_concept.name, taxonomy) {
         return;
     }
 
@@ -478,22 +481,22 @@ fn validate_tuple_child(
         "schema.tuple_child_not_allowed",
         format!(
             "Fact '{}' is not allowed as child of tuple '{}'",
-            child_concept, parent_tuple.name.local_name
+            child_concept.name.local_name, parent_tuple.name.local_name
         ),
-        Some(child_concept),
+        Some(child_concept.name.to_string()),
         None,
     );
 }
 
 fn tuple_allows_child(
     parent_tuple: &Concept,
-    child_element: &Concept,
+    child_concept_name: &ExpandedName,
     taxonomy: &TaxonomySet,
 ) -> bool {
     parent_tuple
         .tuple_children
         .iter()
-        .any(|child_ref| tuple_child_ref_matches_element(child_ref, child_element, taxonomy))
+        .any(|child_ref| tuple_child_ref_matches_concept(child_ref, child_concept_name, taxonomy))
 }
 
 fn validate_required_tuple_children(
@@ -534,7 +537,7 @@ fn validate_required_tuple_children(
                     child_ref.name.local_name,
                     count
                 ),
-                Some(fact.concept_name()),
+                Some(fact.concept_name().to_string()),
                 None,
             );
         }
@@ -556,52 +559,44 @@ fn validate_required_tuple_children(
                     child_ref.name.local_name,
                     count
                 ),
-                Some(fact.concept_name()),
+                Some(fact.concept_name().to_string()),
                 None,
             );
         }
     }
 }
 
+/// Check if a tuple child reference matches a given concept, considering direct
+/// matches and substitution group relationships.
 fn tuple_child_ref_matches_concept(
     child_ref: &TupleChild,
-    child_concept: &str,
+    child_concept_name: &ExpandedName,
     taxonomy: &TaxonomySet,
 ) -> bool {
-    let child_local = child_concept.rsplit(':').next().unwrap_or(child_concept);
-    let Some(child_element) = taxonomy.find_concept(child_local) else {
+    let Some(child_concept) = taxonomy.find_concept(child_concept_name) else {
         return false;
     };
 
-    tuple_child_ref_matches_element(child_ref, child_element, taxonomy)
-}
-
-/// Check if a tuple child reference matches a given concept, considering direct
-/// matches and substitution group relationships.
-fn tuple_child_ref_matches_element(
-    child_ref: &TupleChild,
-    child_element: &Concept,
-    taxonomy: &TaxonomySet,
-) -> bool {
     let allowed_local = &child_ref.name.local_name;
 
     // Direct match
-    if &child_element.name.local_name == allowed_local {
+    if &child_concept.name.local_name == allowed_local {
         return true;
     }
 
     // Walk substitution group chain: if the child substitutes for the declared
     // child ref (directly or transitively), it is allowed.
-    let mut current = &child_element.substitution_group.original.local_name;
+    let mut current = &child_concept.substitution_group.original;
     let mut seen = HashSet::new();
-    while seen.insert(current.as_str()) {
-        if current == allowed_local {
+
+    while seen.insert(current) {
+        if &current.local_name == allowed_local {
             return true;
         }
         let Some(parent) = taxonomy.find_concept(current) else {
             break;
         };
-        current = &parent.substitution_group.original.local_name;
+        current = &parent.substitution_group.original;
     }
 
     false
@@ -613,7 +608,6 @@ fn validate_item_fact(
     taxonomy: &TaxonomySet,
     result: &mut ValidationResult,
 ) {
-    let local_name = fact.local_name();
     let concept_name = fact.concept_name();
     let ctx_ref = fact.context_ref();
 
@@ -624,19 +618,22 @@ fn validate_item_fact(
             Severity::Error,
             "spec.invalid_context_ref",
             format!("Fact '{concept_name}' references unknown context '{ctx_ref}'"),
-            Some(concept_name),
-            Some(ctx_ref),
+            Some(concept_name.to_string()),
+            Some(ctx_ref.to_string()),
         );
     }
 
     // 2. Concept must exist in the DTS
-    let Some(concept) = taxonomy.find_concept(local_name) else {
+    let Some(concept) = taxonomy.find_concept(concept_name) else {
         result.add(
             Severity::Error,
             "schema.concept_not_found",
-            format!("Fact concept '{local_name}' not found in taxonomy"),
-            Some(concept_name),
-            Some(ctx_ref),
+            format!(
+                "Fact concept '{}' not found in taxonomy",
+                concept_name.local_name
+            ),
+            Some(concept_name.to_string()),
+            Some(ctx_ref.to_string()),
         );
         return;
     };
@@ -646,20 +643,26 @@ fn validate_item_fact(
         result.add(
             Severity::Error,
             "schema.abstract_concept",
-            format!("Fact reports abstract concept '{local_name}'"),
-            Some(concept_name),
-            Some(ctx_ref),
+            format!(
+                "Fact reports abstract concept '{}'",
+                concept_name.local_name
+            ),
+            Some(concept_name.to_string()),
+            Some(ctx_ref.to_string()),
         );
     }
 
-    // 4. Nillable check — if fact is nil, element must be nillable
+    // 4. Nillable check: if fact is nil, element must be nillable
     if fact.is_nil() && !concept.nillable {
         result.add(
             Severity::Error,
             "schema.nil_not_allowed",
-            format!("Fact '{local_name}' is nil but element is not nillable"),
-            Some(concept_name),
-            Some(ctx_ref),
+            format!(
+                "Fact '{}' is nil but element is not nillable",
+                concept_name.local_name
+            ),
+            Some(concept_name.to_string()),
+            Some(ctx_ref.to_string()),
         );
     }
 
@@ -669,9 +672,9 @@ fn validate_item_fact(
             result.add(
                 Severity::Error,
                 "spec.numeric_no_unit",
-                format!("Numeric fact '{local_name}' has no unitRef"),
-                Some(concept_name),
-                Some(ctx_ref),
+                format!("Numeric fact '{}' has no unitRef", concept_name.local_name),
+                Some(concept_name.to_string()),
+                Some(ctx_ref.to_string()),
             );
         }
 
@@ -684,17 +687,23 @@ fn validate_item_fact(
             result.add(
                 Severity::Error,
                 "spec.numeric_decimals_precision_mutual_exclusion",
-                format!("Numeric fact '{local_name}' specifies both decimals and precision"),
-                Some(concept_name),
-                Some(ctx_ref),
+                format!(
+                    "Numeric fact '{}' specifies both decimals and precision",
+                    concept_name.local_name
+                ),
+                Some(concept_name.to_string()),
+                Some(ctx_ref.to_string()),
             );
         } else if !fact.is_nil() && !has_decimals && !has_precision && !has_declared_accuracy {
             result.add(
                 Severity::Error,
                 "spec.numeric_missing_accuracy",
-                format!("Numeric fact '{local_name}' must specify either decimals or precision"),
-                Some(concept_name),
-                Some(ctx_ref),
+                format!(
+                    "Numeric fact '{}' must specify either decimals or precision",
+                    concept_name.local_name
+                ),
+                Some(concept_name.to_string()),
+                Some(ctx_ref.to_string()),
             );
         }
 
@@ -702,9 +711,12 @@ fn validate_item_fact(
             result.add(
                 Severity::Error,
                 "spec.nil_fact_has_accuracy",
-                format!("Nil numeric fact '{local_name}' must not specify decimals or precision"),
-                Some(concept_name),
-                Some(ctx_ref),
+                format!(
+                    "Nil numeric fact '{}' must not specify decimals or precision",
+                    concept_name.local_name
+                ),
+                Some(concept_name.to_string()),
+                Some(ctx_ref.to_string()),
             );
         }
 
@@ -713,11 +725,12 @@ fn validate_item_fact(
                 Severity::Error,
                 "schema.invalid_numeric_lexical",
                 format!(
-                    "Numeric fact '{local_name}' has invalid lexical value '{}'",
+                    "Numeric fact '{}' has invalid lexical value '{}'",
+                    concept_name.local_name,
                     fact.value()
                 ),
-                Some(concept_name),
-                Some(ctx_ref),
+                Some(concept_name.to_string()),
+                Some(ctx_ref.to_string()),
             );
         }
     }
@@ -727,9 +740,12 @@ fn validate_item_fact(
         result.add(
             Severity::Error,
             "spec.non_numeric_has_unit",
-            format!("Non-numeric fact '{local_name}' must not have unitRef"),
-            Some(concept_name),
-            Some(ctx_ref),
+            format!(
+                "Non-numeric fact '{}' must not have unitRef",
+                concept_name.local_name
+            ),
+            Some(concept_name.to_string()),
+            Some(ctx_ref.to_string()),
         );
     }
 
@@ -740,9 +756,12 @@ fn validate_item_fact(
         result.add(
             Severity::Error,
             "spec.invalid_unit_ref",
-            format!("Fact '{local_name}' references unknown unit '{unit_ref}'"),
-            Some(concept_name),
-            Some(ctx_ref),
+            format!(
+                "Fact '{}' references unknown unit '{}'",
+                concept_name.local_name, unit_ref
+            ),
+            Some(concept_name.to_string()),
+            Some(ctx_ref.to_string()),
         );
     }
 
@@ -763,10 +782,11 @@ fn validate_item_fact(
                 Severity::Error,
                 "schema.period_type_mismatch",
                 format!(
-                    "Fact '{local_name}' requires {period_type:?} period but context '{ctx_ref}' has {actual}",
+                    "Fact '{}' requires {:?} period but context '{}' has {}",
+                    concept_name.local_name, period_type, ctx_ref, actual
                 ),
-                Some(concept_name),
-                Some(ctx_ref),
+                Some(concept_name.to_string()),
+                Some(ctx_ref.to_string()),
             );
         }
     }
@@ -789,16 +809,16 @@ fn validate_contexts(
     taxonomy: &TaxonomySet,
     result: &mut ValidationResult,
 ) {
-    for (ctx_id, context) in instance.contexts() {
+    for (context_id, context) in instance.contexts() {
         if context.entity.scheme.trim().is_empty() {
             result.add(
                 Severity::Error,
                 "spec.identifier_missing_scheme",
                 format!(
-                    "Context '{ctx_id}' entity identifier is missing required @scheme attribute"
+                    "Context '{context_id}' entity identifier is missing required @scheme attribute"
                 ),
                 None,
-                Some(ctx_id),
+                Some(context_id.to_string()),
             );
         }
 
@@ -807,10 +827,10 @@ fn validate_contexts(
                 Severity::Error,
                 "spec.segment_contains_xbrli",
                 format!(
-                    "Context '{ctx_id}' has a segment descendant in the XBRL instance namespace"
+                    "Context '{context_id}' has a segment descendant in the XBRL instance namespace"
                 ),
                 None,
-                Some(ctx_id),
+                Some(context_id.to_string()),
             );
         }
 
@@ -819,30 +839,30 @@ fn validate_contexts(
                 Severity::Error,
                 "spec.scenario_contains_xbrli",
                 format!(
-                    "Context '{ctx_id}' has a scenario descendant in the XBRL instance namespace"
+                    "Context '{context_id}' has a scenario descendant in the XBRL instance namespace"
                 ),
                 None,
-                Some(ctx_id),
+                Some(context_id.to_string()),
             );
         }
 
-        for qname in context
+        for segment_element in context
             .segment_elements
             .iter()
             .chain(context.scenario_elements.iter())
         {
-            let local = qname.rsplit(':').next().unwrap_or(qname);
-            if let Some(concept) = taxonomy.find_concept(local)
+            if let Some(concept) = taxonomy.find_concept(segment_element)
                 && (concept.is_item() || concept.is_tuple())
             {
                 result.add(
                     Severity::Error,
                     "spec.context_contains_xbrl_item",
                     format!(
-                        "Context '{ctx_id}' contains '{qname}' which is in an XBRL substitution group"
+                        "Context '{context_id}' contains '{}' which is in an XBRL substitution group",
+                        segment_element.local_name
                     ),
                     None,
-                    Some(ctx_id),
+                    Some(context_id.to_string()),
                 );
             }
         }
@@ -854,10 +874,10 @@ fn validate_contexts(
                 Severity::Error,
                 "spec.invalid_period_order",
                 format!(
-                    "Context '{ctx_id}' has start date '{start}' that is not earlier than end date '{end}'"
+                    "Context '{context_id}' has start date '{start}' that is not earlier than end date '{end}'"
                 ),
                 None,
-                Some(ctx_id),
+                Some(context_id.to_string()),
             );
         }
     }
@@ -870,7 +890,7 @@ fn validate_unit_constraints(
     result: &mut ValidationResult,
 ) {
     let concept_name = fact.concept_name();
-    let ctx_ref = fact.context_ref();
+    let context_ref = fact.context_ref();
 
     if !unit.denominator.is_empty() {
         let mut numerator_counts: HashMap<(&str, &str), usize> = HashMap::new();
@@ -889,12 +909,12 @@ fn validate_unit_constraints(
                     "spec.unit_not_simplest_form",
                     format!(
                         "Fact '{}' uses unit '{}' that is not in simplest form (canceling measure '{}')",
-                        fact.local_name(),
+                        fact.concept_name(),
                         unit.id,
                         measure
                     ),
-                    Some(concept_name),
-                    Some(ctx_ref),
+                    Some(concept_name.to_string()),
+                    Some(context_ref.to_string()),
                 );
                 break;
             }
@@ -911,11 +931,11 @@ fn validate_unit_constraints(
                 "spec.invalid_xbrli_measure_local_name",
                 format!(
                     "Fact '{}' uses invalid measure '{}' in XBRL instance namespace",
-                    fact.local_name(),
+                    fact.concept_name(),
                     measure
                 ),
-                Some(concept_name),
-                Some(ctx_ref),
+                Some(concept_name.to_string()),
+                Some(context_ref.to_string()),
             );
             return;
         }
@@ -931,10 +951,10 @@ fn validate_unit_constraints(
                 "spec.invalid_monetary_unit_shape",
                 format!(
                     "Monetary fact '{}' must use exactly one non-divide measure",
-                    fact.local_name()
+                    fact.concept_name()
                 ),
-                Some(concept_name),
-                Some(ctx_ref),
+                Some(concept_name.to_string()),
+                Some(context_ref.to_string()),
             );
             return;
         }
@@ -952,11 +972,11 @@ fn validate_unit_constraints(
                     "spec.invalid_monetary_measure",
                     format!(
                         "Monetary fact '{}' must use ISO4217 currency measure, got '{}'",
-                        fact.local_name(),
+                        fact.concept_name(),
                         measure
                     ),
-                    Some(concept_name),
-                    Some(ctx_ref),
+                    Some(concept_name.to_string()),
+                    Some(context_ref.to_string()),
                 );
             }
         }
@@ -969,10 +989,10 @@ fn validate_unit_constraints(
                 "spec.invalid_shares_unit_shape",
                 format!(
                     "Shares fact '{}' must use exactly one non-divide measure",
-                    fact.local_name()
+                    fact.concept_name()
                 ),
-                Some(concept_name),
-                Some(ctx_ref),
+                Some(concept_name.to_string()),
+                Some(context_ref.to_string()),
             );
             return;
         }
@@ -985,20 +1005,20 @@ fn validate_unit_constraints(
                 "spec.invalid_shares_measure",
                 format!(
                     "Shares fact '{}' must use xbrli:shares measure, got '{}'",
-                    fact.local_name(),
+                    fact.concept_name(),
                     measure
                 ),
-                Some(concept_name),
-                Some(ctx_ref),
+                Some(concept_name.to_string()),
+                Some(context_ref.to_string()),
             );
         }
     }
 }
 
 fn period_order_is_valid(start: &str, end: &str) -> bool {
-    let s = start.trim();
-    let e = end.trim();
-    !s.is_empty() && !e.is_empty() && s < e
+    let start = start.trim();
+    let end = end.trim();
+    !start.is_empty() && !end.is_empty() && start < end
 }
 
 fn is_valid_numeric_lexical(value: &str) -> bool {

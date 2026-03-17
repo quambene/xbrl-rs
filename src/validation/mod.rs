@@ -27,7 +27,7 @@ pub struct ValidationMessage {
     /// Human-readable explanation.
     pub message: String,
     /// The concept name of the fact that triggered this, if applicable.
-    pub concept: Option<String>,
+    pub concept_name: Option<String>,
     /// The context ref of the fact that triggered this, if applicable.
     pub context_ref: Option<String>,
 }
@@ -69,15 +69,15 @@ impl ValidationResult {
         severity: Severity,
         code: &str,
         message: String,
-        concept: Option<&str>,
-        context_ref: Option<&str>,
+        concept_name: Option<String>,
+        context_ref: Option<String>,
     ) {
         self.messages.push(ValidationMessage {
             severity,
             code: code.to_string(),
             message,
-            concept: concept.map(str::to_string),
-            context_ref: context_ref.map(str::to_string),
+            concept_name,
+            context_ref,
         });
     }
 }

@@ -6,6 +6,34 @@ use std::{
     str::FromStr,
 };
 
+/// The `link:schemaRef` element in an XML document, referencing a schema
+/// definition.
+#[derive(Debug, PartialEq, Eq)]
+pub struct SchemaRef {
+    /// The `xlink:href` attribute value pointing to the schema file.
+    pub href: String,
+}
+
+/// The `link:roleRef` element in an XML document, referencing a role
+/// definition.
+#[derive(Debug, PartialEq, Eq)]
+pub struct RoleRef {
+    /// The `roleURI` attribute value identifying the role.
+    pub role_uri: String,
+    /// The `xlink:href` attribute value pointing to the role definition.
+    pub href: String,
+}
+
+/// The `link:arcroleRef` element in an XML document, referencing an arcrole
+/// definition.
+#[derive(Debug, PartialEq, Eq)]
+pub struct ArcroleRef {
+    /// The `arcroleURI` attribute value identifying the arcrole.
+    pub arcrole_uri: String,
+    /// The `xlink:href` attribute value pointing to the arcrole definition.
+    pub href: String,
+}
+
 /// Type-safe namespace prefix key (e.g. `xmlns:xbrli` declaration on the root
 /// `<xbrli:xbrl>` element).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -149,7 +177,7 @@ impl fmt::Display for SchemaRefUrl {
 
 /// Extended link role URI used in presentation/calculation/definition maps
 /// (e.g. <http://www.xbrl.de/taxonomies/de-gaap-ci/role/balanceSheet> or
-/// <http://www.xbrl.de/taxonomies/de-gaap-ci/role/incomeStatement>).
+/// <http://www.xbrl.org/2003/role/label>).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct RoleUri(String);
 
@@ -195,6 +223,44 @@ impl Borrow<str> for RoleUri {
 impl fmt::Display for RoleUri {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.as_str())
+    }
+}
+
+/// Arc role URI used in presentation/calculation/definition maps (e.g.
+/// <http://www.xbrl.org/2003/arcrole/parent-child>).
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct ArcroleUri(String);
+
+impl ArcroleUri {
+    /// Returns the arcrole URI as a string slice.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl From<String> for ArcroleUri {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+
+impl From<&str> for ArcroleUri {
+    fn from(value: &str) -> Self {
+        Self(value.to_owned())
+    }
+}
+
+impl Deref for ArcroleUri {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        self.as_str()
+    }
+}
+
+impl AsRef<str> for ArcroleUri {
+    fn as_ref(&self) -> &str {
+        self.as_str()
     }
 }
 
@@ -319,6 +385,8 @@ impl ExpandedName {
     }
 }
 
+/// The display name of a concept (e.g.
+/// "{http://xbrl.org/2003/instance}Revenue").
 impl Display for ExpandedName {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{{{}}}{}", self.namespace_uri, self.local_name)

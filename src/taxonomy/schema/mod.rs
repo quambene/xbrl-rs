@@ -6,6 +6,8 @@ use crate::{NamespacePrefix, NamespaceUri, XbrlError, instance::Decimals};
 pub use parser::{
     ArcroleType, Compositor, LinkbaseRef, RoleType, SchemaImport, SchemaInclude, SchemaParser,
 };
+#[cfg(test)]
+pub use resolver::BaseSubstitutionGroup;
 pub use resolver::{Concept, MaxOccurs, SubstitutionGroup, TupleChild, XbrlType};
 use std::{
     collections::HashMap,
@@ -156,7 +158,6 @@ mod tests {
             RoleType,
             schema::resolver::{BaseSubstitutionGroup, SubstitutionGroup, XbrlType},
         },
-        xml::QName,
     };
     use assert_matches::assert_matches;
     use std::collections::HashMap;
@@ -201,8 +202,8 @@ mod tests {
                 "stringItemType",
                 SubstitutionGroup {
                     base: BaseSubstitutionGroup::Item,
-                    original: QName {
-                        prefix: None,
+                    original: ExpandedName {
+                        namespace_uri: NamespaceUri::from("http://example.com/taxonomy"),
                         local_name: "item".to_string(),
                     },
                 },
@@ -234,8 +235,8 @@ mod tests {
                 "stringItemType",
                 SubstitutionGroup {
                     base: BaseSubstitutionGroup::Item,
-                    original: QName {
-                        prefix: None,
+                    original: ExpandedName {
+                        namespace_uri: NamespaceUri::from("http://example.com/taxonomy"),
                         local_name: "item".to_string(),
                     },
                 },
@@ -267,8 +268,8 @@ mod tests {
                 "stringItemType",
                 SubstitutionGroup {
                     base: BaseSubstitutionGroup::Tuple,
-                    original: QName {
-                        prefix: None,
+                    original: ExpandedName {
+                        namespace_uri: NamespaceUri::from("http://example.com/taxonomy"),
                         local_name: "tuple".to_string(),
                     },
                 },
@@ -300,8 +301,8 @@ mod tests {
                 "stringItemType",
                 SubstitutionGroup {
                     base: BaseSubstitutionGroup::Tuple,
-                    original: QName {
-                        prefix: None,
+                    original: ExpandedName {
+                        namespace_uri: NamespaceUri::from("http://example.com/taxonomy"),
                         local_name: "tuple".to_string(),
                     },
                 },
@@ -364,8 +365,8 @@ mod tests {
                 data_type: XbrlType::Monetary,
                 substitution_group: SubstitutionGroup {
                     base: BaseSubstitutionGroup::Item,
-                    original: QName {
-                        prefix: None,
+                    original: ExpandedName {
+                        namespace_uri: NamespaceUri::from("http://example.com/taxonomy"),
                         local_name: "item".to_string(),
                     },
                 },

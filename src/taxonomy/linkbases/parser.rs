@@ -1,4 +1,4 @@
-use crate::XbrlError;
+use crate::{RoleUri, XbrlError, xml::ArcroleUri};
 use quick_xml::{
     Reader,
     events::{BytesStart, Event},
@@ -51,22 +51,22 @@ pub struct ReferenceResource {
 
 /// A parent-child relationship from a presentation linkbase.
 #[derive(Debug, Clone, PartialEq)]
-pub struct PresentationArc {
-    /// Parent concept element ID.
+pub struct RawPresentationArc {
+    /// Parent concept locator label.
     pub from: String,
-    /// Child concept element ID.
+    /// Child concept locator label.
     pub to: String,
     /// Display order among siblings.
     pub order: Option<Decimal>,
     /// The preferred label role URI, if specified.
-    pub preferred_label: Option<String>,
+    pub preferred_label: Option<RoleUri>,
     /// The arc role URI (e.g., `http://www.xbrl.org/2003/arcrole/parent-child`).
-    pub arcrole: String,
+    pub arcrole: ArcroleUri,
 }
 
 /// A summation-item relationship from a calculation linkbase.
 #[derive(Debug, Clone, PartialEq)]
-pub struct CalculationArc {
+pub struct RawCalculationArc {
     /// Parent (summation) concept element ID.
     pub from: String,
     /// Child (contributing item) concept element ID.
@@ -76,12 +76,12 @@ pub struct CalculationArc {
     /// Weight factor (typically 1.0 or -1.0).
     pub weight: Decimal,
     /// The arc role URI (e.g., `http://www.xbrl.org/2003/arcrole/summation-item`).
-    pub arcrole: String,
+    pub arcrole: ArcroleUri,
 }
 
 /// A dimensional relationship from a definition linkbase.
 #[derive(Debug, Clone, PartialEq)]
-pub struct DefinitionArc {
+pub struct RawDefinitionArc {
     /// Source concept element ID.
     pub from: String,
     /// Target concept element ID.
@@ -89,12 +89,12 @@ pub struct DefinitionArc {
     /// Display/processing order.
     pub order: Option<Decimal>,
     /// The arc role URI.
-    pub arcrole: String,
+    pub arcrole: ArcroleUri,
 }
 
 /// An arc in a label link, connecting a locator to a resource.
 #[derive(Debug, PartialEq, Eq)]
-pub struct LabelArc {
+pub struct RawLabelArc {
     /// The label of the source locator, referencing the `xlink:label` of a
     /// `loc` element.
     pub from: String,
@@ -105,7 +105,7 @@ pub struct LabelArc {
 
 /// An arc in a reference link, connecting a locator to a resource.
 #[derive(Debug, PartialEq, Eq)]
-pub struct ReferenceArc {
+pub struct RawReferenceArc {
     /// The label of the source locator, referencing the `xlink:label` of a
     /// `loc` element.
     pub from: String,
@@ -125,7 +125,7 @@ pub struct PresentationLink {
     pub locators: Vec<Locator>,
     /// The arcs in the presentation link, used to specify the relationships
     /// between locators.
-    pub arcs: Vec<PresentationArc>,
+    pub arcs: Vec<RawPresentationArc>,
 }
 
 /// A calculation link, containing locators and arcs.
@@ -139,7 +139,7 @@ pub struct CalculationLink {
     pub locators: Vec<Locator>,
     /// The arcs in the calculation link, used to specify the relationships
     /// between locators.
-    pub arcs: Vec<CalculationArc>,
+    pub arcs: Vec<RawCalculationArc>,
 }
 
 /// A definition link, containing locators and arcs.
@@ -153,7 +153,7 @@ pub struct DefinitionLink {
     pub locators: Vec<Locator>,
     /// The arcs in the definition link, used to specify the relationships
     /// between locators.
-    pub arcs: Vec<DefinitionArc>,
+    pub arcs: Vec<RawDefinitionArc>,
 }
 
 /// A reference link, containing locators, arcs, and resources.
@@ -167,7 +167,7 @@ pub struct ReferenceLink {
     pub locators: Vec<Locator>,
     /// The arcs in the reference link, used to specify the relationships
     /// between locators.
-    pub arcs: Vec<ReferenceArc>,
+    pub arcs: Vec<RawReferenceArc>,
     /// The resources in the reference link, used to provide additional
     /// information about the referenced elements.
     pub references: Vec<ReferenceResource>,
@@ -198,7 +198,7 @@ pub struct LabelLink {
     pub locators: Vec<Locator>,
     /// The arcs in the label link, used to specify the relationships
     /// between locators.
-    pub arcs: Vec<LabelArc>,
+    pub arcs: Vec<RawLabelArc>,
     /// The labels in the label link, used to provide additional
     /// information about the referenced elements.
     pub labels: Vec<LabelResource>,
@@ -435,7 +435,7 @@ impl<R: BufRead> LinkbaseParser<R> {
                             }
                         }
 
-                        let arc = PresentationArc {
+                        let arc = RawPresentationArc {
                             from: from.ok_or_else(|| XbrlError::ParseError {
                                 expected: "xlink:from on presentationArc",
                                 value: "".to_string(),
@@ -444,12 +444,14 @@ impl<R: BufRead> LinkbaseParser<R> {
                                 expected: "xlink:to on presentationArc",
                                 value: "".to_string(),
                             })?,
-                            arcrole: arcrole.ok_or_else(|| XbrlError::ParseError {
-                                expected: "xlink:arcrole on presentationArc",
-                                value: "".to_string(),
-                            })?,
+                            arcrole: arcrole
+                                .ok_or_else(|| XbrlError::ParseError {
+                                    expected: "xlink:arcrole on presentationArc",
+                                    value: "".to_string(),
+                                })?
+                                .into(),
                             order,
-                            preferred_label,
+                            preferred_label: preferred_label.map(RoleUri::from),
                         };
                         arcs.push(arc);
                     }
@@ -560,7 +562,7 @@ impl<R: BufRead> LinkbaseParser<R> {
                             }
                         }
 
-                        arcs.push(CalculationArc {
+                        arcs.push(RawCalculationArc {
                             from: from.ok_or_else(|| XbrlError::ParseError {
                                 expected: "xlink:from on calculationArc",
                                 value: "".to_string(),
@@ -569,10 +571,12 @@ impl<R: BufRead> LinkbaseParser<R> {
                                 expected: "xlink:to on calculationArc",
                                 value: "".to_string(),
                             })?,
-                            arcrole: arcrole.ok_or_else(|| XbrlError::ParseError {
-                                expected: "xlink:arcrole on calculationArc",
-                                value: "".to_string(),
-                            })?,
+                            arcrole: arcrole
+                                .ok_or_else(|| XbrlError::ParseError {
+                                    expected: "xlink:arcrole on calculationArc",
+                                    value: "".to_string(),
+                                })?
+                                .into(),
                             order,
                             weight: weight.ok_or_else(|| XbrlError::ParseError {
                                 expected: "weight on calculationArc",
@@ -678,7 +682,7 @@ impl<R: BufRead> LinkbaseParser<R> {
                             }
                         }
 
-                        arcs.push(DefinitionArc {
+                        arcs.push(RawDefinitionArc {
                             from: from.ok_or_else(|| XbrlError::ParseError {
                                 expected: "xlink:from on definitionArc",
                                 value: "".to_string(),
@@ -687,10 +691,12 @@ impl<R: BufRead> LinkbaseParser<R> {
                                 expected: "xlink:to on definitionArc",
                                 value: "".to_string(),
                             })?,
-                            arcrole: arcrole.ok_or_else(|| XbrlError::ParseError {
-                                expected: "xlink:arcrole on definitionArc",
-                                value: "".to_string(),
-                            })?,
+                            arcrole: arcrole
+                                .ok_or_else(|| XbrlError::ParseError {
+                                    expected: "xlink:arcrole on definitionArc",
+                                    value: "".to_string(),
+                                })?
+                                .into(),
                             order,
                         });
                     }
@@ -778,7 +784,7 @@ impl<R: BufRead> LinkbaseParser<R> {
                             }
                         }
 
-                        arcs.push(LabelArc {
+                        arcs.push(RawLabelArc {
                             from: from.ok_or_else(|| XbrlError::ParseError {
                                 expected: "xlink:from on labelArc",
                                 value: "".to_string(),
@@ -926,7 +932,7 @@ impl<R: BufRead> LinkbaseParser<R> {
                             }
                         }
 
-                        arcs.push(ReferenceArc {
+                        arcs.push(RawReferenceArc {
                             from: from.ok_or_else(|| XbrlError::ParseError {
                                 expected: "xlink:from on referenceArc",
                                 value: "".to_string(),
@@ -1107,12 +1113,12 @@ mod tests {
                         href: "taxonomy.xsd#Cash".to_string(),
                     },
                 ],
-                arcs: vec![PresentationArc {
+                arcs: vec![RawPresentationArc {
                     from: "loc_assets".to_string(),
                     to: "loc_cash".to_string(),
                     order: Some(Decimal::new(1, 0)),
                     preferred_label: None,
-                    arcrole: "http://www.xbrl.org/2003/arcrole/parent-child".to_string(),
+                    arcrole: "http://www.xbrl.org/2003/arcrole/parent-child".into(),
                 }],
             }
         );
@@ -1146,12 +1152,12 @@ mod tests {
             &CalculationLink {
                 role: "".to_string(),
                 locators: vec![],
-                arcs: vec![CalculationArc {
+                arcs: vec![RawCalculationArc {
                     from: "loc_assets".to_string(),
                     to: "loc_cash".to_string(),
                     order: Some(Decimal::new(1, 0)),
                     weight: Decimal::new(1, 0),
-                    arcrole: "http://www.xbrl.org/2003/arcrole/summation-item".to_string(),
+                    arcrole: "http://www.xbrl.org/2003/arcrole/summation-item".into(),
                 }],
             }
         );
@@ -1183,10 +1189,10 @@ mod tests {
             &DefinitionLink {
                 role: "".to_string(),
                 locators: vec![],
-                arcs: vec![DefinitionArc {
+                arcs: vec![RawDefinitionArc {
                     from: "loc_domain".to_string(),
                     to: "loc_member".to_string(),
-                    arcrole: "http://xbrl.org/int/dim/arcrole/domain-member".to_string(),
+                    arcrole: "http://xbrl.org/int/dim/arcrole/domain-member".into(),
                     order: None,
                 }],
             }
@@ -1232,7 +1238,7 @@ mod tests {
                     label: "loc_assets".to_string(),
                     href: "taxonomy.xsd#Assets".to_string(),
                 }],
-                arcs: vec![LabelArc {
+                arcs: vec![RawLabelArc {
                     from: "loc_assets".to_string(),
                     to: "lab_assets".to_string(),
                 }],
@@ -1303,11 +1309,11 @@ mod tests {
                     },
                 ],
                 arcs: vec![
-                    ReferenceArc {
+                    RawReferenceArc {
                         from: "loc_assets".to_string(),
                         to: "ref_assets".to_string(),
                     },
-                    ReferenceArc {
+                    RawReferenceArc {
                         from: "loc_cash".to_string(),
                         to: "ref_cash".to_string(),
                     },

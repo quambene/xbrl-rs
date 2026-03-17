@@ -4,7 +4,7 @@
 //! valid members in the definition linkbase's domain-member relationships.
 
 use super::{Severity, ValidationResult};
-use crate::{InstanceDocument, TaxonomySet};
+use crate::{ExpandedName, InstanceDocument, TaxonomySet};
 use std::collections::{HashMap, HashSet};
 
 /// Well-known XBRL Dimensions arcrole URIs.
@@ -22,23 +22,20 @@ pub(super) fn validate_dimensions(
         return;
     }
 
-    for (ctx_id, context) in instance.contexts() {
+    for (context_id, context) in instance.contexts() {
         for (dimension, member) in &context.dimensions {
-            let dim_id = qname_to_element_id(dimension);
-            let member_id = qname_to_element_id(member);
-
-            if let Some(allowed_members) = valid_members.get(&dim_id)
-                && !allowed_members.contains(&member_id)
+            if let Some(allowed_members) = valid_members.get(dimension)
+                && !allowed_members.contains(member)
             {
                 result.add(
                     Severity::Error,
                     "dim.invalid_member",
                     format!(
-                        "Context '{ctx_id}': dimension '{dimension}' has member \
+                        "Context '{context_id}': dimension '{dimension}' has member \
                          '{member}' which is not a valid domain member in the taxonomy"
                     ),
                     None,
-                    Some(ctx_id),
+                    Some(context_id.to_string()),
                 );
             }
         }
@@ -49,15 +46,17 @@ pub(super) fn validate_dimensions(
 ///
 /// Traverses `dimension-domain` and `domain-member` arcs to collect the full
 /// tree of allowed members for each dimension.
-fn build_valid_dimension_members(taxonomy: &TaxonomySet) -> HashMap<String, HashSet<String>> {
-    let mut dim_domains: HashMap<String, HashSet<String>> = HashMap::new();
-    let mut domain_members: HashMap<String, HashSet<String>> = HashMap::new();
+fn build_valid_dimension_members(
+    taxonomy: &TaxonomySet,
+) -> HashMap<ExpandedName, HashSet<ExpandedName>> {
+    let mut dimension_domains: HashMap<ExpandedName, HashSet<ExpandedName>> = HashMap::new();
+    let mut domain_members: HashMap<ExpandedName, HashSet<ExpandedName>> = HashMap::new();
 
     for arcs in taxonomy.definitions().values() {
         for arc in arcs {
             match arc.arcrole.as_str() {
                 ARCROLE_DIMENSION_DOMAIN => {
-                    dim_domains
+                    dimension_domains
                         .entry(arc.from.clone())
                         .or_default()
                         .insert(arc.to.clone());
@@ -73,14 +72,14 @@ fn build_valid_dimension_members(taxonomy: &TaxonomySet) -> HashMap<String, Hash
         }
     }
 
-    let mut result: HashMap<String, HashSet<String>> = HashMap::new();
+    let mut result: HashMap<ExpandedName, HashSet<ExpandedName>> = HashMap::new();
 
-    for (dim_id, domains) in &dim_domains {
+    for (dimension_id, dimension_domains) in &dimension_domains {
         let mut members = HashSet::new();
-        let mut queue: Vec<&str> = domains.iter().map(|s| s.as_str()).collect();
+        let mut queue = dimension_domains.iter().collect::<Vec<_>>();
 
         while let Some(current) = queue.pop() {
-            if !members.insert(current.to_string()) {
+            if !members.insert(current.clone()) {
                 continue;
             }
             if let Some(children) = domain_members.get(current) {
@@ -90,17 +89,8 @@ fn build_valid_dimension_members(taxonomy: &TaxonomySet) -> HashMap<String, Hash
             }
         }
 
-        result.insert(dim_id.clone(), members);
+        result.insert(dimension_id.clone(), members);
     }
 
     result
-}
-
-/// Convert a QName like "prefix:local.name" to an element ID like "prefix_local.name".
-fn qname_to_element_id(qname: &str) -> String {
-    if let Some((prefix, local)) = qname.split_once(':') {
-        format!("{prefix}_{local}")
-    } else {
-        qname.to_string()
-    }
 }

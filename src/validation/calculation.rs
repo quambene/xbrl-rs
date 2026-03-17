@@ -23,7 +23,9 @@ pub(super) fn validate_calculations(
 
     for (role, arcs) in taxonomy.calculations() {
         // Group arcs by parent (from) to collect all children
-        let mut parent_children: HashMap<&str, Vec<(&str, Decimal)>> = HashMap::new();
+        let mut parent_children: HashMap<&ExpandedName, Vec<(&ExpandedName, Decimal)>> =
+            HashMap::new();
+
         for arc in arcs {
             let Ok(weight) = Decimal::from_str(&arc.weight.to_string()) else {
                 continue;
@@ -108,8 +110,8 @@ pub(super) fn validate_calculations(
                             "Calculation inconsistency in role '{role}': '{parent_id}' \
                              reported effective value {parent_effective_value} but children sum to {weighted_sum_effective}",
                         ),
-                        Some(parent_fact.concept_name()),
-                        Some(parent_fact.context_ref()),
+                        Some(parent_fact.concept_name().to_string()),
+                        Some(parent_fact.context_ref().to_string()),
                     );
                 }
             }
@@ -145,9 +147,9 @@ struct ContextKey {
     entity_scheme: String,
     entity_value: String,
     period: PeriodKey,
-    dimensions: Vec<(String, String)>,
-    segment_elements: Vec<String>,
-    scenario_elements: Vec<String>,
+    dimensions: Vec<(ExpandedName, ExpandedName)>,
+    segment_elements: Vec<ExpandedName>,
+    scenario_elements: Vec<ExpandedName>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -163,33 +165,35 @@ struct UnitKey {
     denominator: Vec<ExpandedName>,
 }
 
-/// Build an index: element_id -> { (ctx, unit) -> &Fact }.
+/// Build an index: concept_name -> { (ctx, unit) -> &Fact }.
 ///
 /// Only includes non-nil facts whose local_name maps to a known element with an id.
 fn build_fact_index<'a>(
     instance: &'a InstanceDocument,
     taxonomy: &TaxonomySet,
-) -> HashMap<String, HashMap<CtxUnitKey, IndexedFact<'a>>> {
-    let mut index: HashMap<String, HashMap<CtxUnitKey, IndexedFact<'a>>> = HashMap::new();
+) -> HashMap<ExpandedName, HashMap<CtxUnitKey, IndexedFact<'a>>> {
+    let mut index: HashMap<ExpandedName, HashMap<CtxUnitKey, IndexedFact<'a>>> = HashMap::new();
 
     for fact in instance.item_facts() {
         if fact.is_nil() {
             continue;
         }
-        let local_name = fact.local_name();
-        if let Some(element) = taxonomy.find_concept(local_name)
+
+        let concept_name = fact.concept_name();
+
+        if let Some(concept) = taxonomy.find_concept(concept_name)
             && let Some(context) = instance.get_context(fact.context_ref())
         {
             let Some(key) = fact_semantic_key(instance, fact, context) else {
                 continue;
             };
-            let element_index = index
-                .entry(element.id.clone().unwrap_or_default().to_string())
-                .or_default();
-            if let Some(existing) = element_index.get_mut(&key) {
+
+            let concept_index = index.entry(concept.name.clone()).or_default();
+
+            if let Some(existing) = concept_index.get_mut(&key) {
                 existing.is_duplicate = true;
             } else {
-                element_index.insert(
+                concept_index.insert(
                     key,
                     IndexedFact {
                         fact,
@@ -235,11 +239,11 @@ fn context_key(context: &Context) -> ContextKey {
         Period::Forever => PeriodKey::Forever,
     };
 
-    let mut dimensions: Vec<(String, String)> = context
+    let mut dimensions = context
         .dimensions
         .iter()
         .map(|(dimension, member)| (dimension.clone(), member.clone()))
-        .collect();
+        .collect::<Vec<_>>();
     dimensions.sort();
 
     ContextKey {

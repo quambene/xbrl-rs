@@ -6,8 +6,8 @@ mod taxonomy_set;
 
 pub use linkbases::{
     locator::LinkbaseLocator,
-    parser::{CalculationArc, DefinitionArc, LinkbaseParser, PresentationArc},
-    resolver::{Label, Reference, ReferencePart},
+    parser::LinkbaseParser,
+    resolver::{CalculationArc, DefinitionArc, Label, PresentationArc, Reference, ReferencePart},
 };
 #[cfg(feature = "download")]
 pub use loader::TaxonomyLoader;

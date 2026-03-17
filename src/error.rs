@@ -120,6 +120,10 @@ pub enum XbrlError {
         reason: String,
     },
 
+    /// Error resolving linkbase references
+    #[error("Error resolving linkbase references: {reason}")]
+    InvalidLinkbaseResolution { reason: String },
+
     /// A string value could not be parsed as the expected XBRL type.
     #[error("invalid {expected} value '{value}'")]
     ParseError {

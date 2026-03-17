@@ -202,7 +202,8 @@ pub struct ComplexType {
 pub struct Element {
     /// The element's local name (e.g., "bs.ass.fixAss").
     pub name: String,
-    /// The element's id attribute (optional in XBRL).
+    /// The element's id attribute (e.g. "de-gaap-ci_bs.ass.fixAss"). Optional
+    /// in XBRL.
     pub id: Option<String>,
     /// The type QName (e.g., "xbrli:monetaryItemType").
     pub type_name: Option<QName>,

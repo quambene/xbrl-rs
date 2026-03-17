@@ -1,6 +1,6 @@
 use rust_decimal::Decimal;
 use std::{path::PathBuf, str::FromStr};
-use xbrl_rs::{ExpandedName, Label, PeriodType, TaxonomySet};
+use xbrl_rs::{ExpandedName, Label, NamespaceUri, PeriodType, TaxonomySet};
 
 const TAXONOMY_ENTRY_POINT: &str = "test_data/taxonomies";
 
@@ -30,13 +30,18 @@ fn parse_labels_linkbase() {
     let dts = TaxonomySet::discover(vec![gaap.to_owned()], entry_point).unwrap();
 
     assert!(
-        !dts.labels().is_empty(),
+        !dts.labels_map().is_empty(),
         "Expected labels to be parsed from label linkbases"
     );
 
     // bs.ass should have labels in German and English
     let bs_ass_labels = dts
-        .labels_for("de-gaap-ci_bs.ass")
+        .labels(&ExpandedName {
+            namespace_uri: NamespaceUri::from(
+                "http://www.xbrl.de/taxonomies/de-gaap-ci-2020-04-01",
+            ),
+            local_name: "bs.ass".to_string(),
+        })
         .expect("Expected labels for de-gaap-ci_bs.ass");
 
     assert!(bs_ass_labels.contains(&Label {
@@ -74,7 +79,7 @@ fn parse_labels_linkbase_multiple_roles() {
     let dts = TaxonomySet::discover(vec![gcd.to_owned()], entry_point).unwrap();
 
     // Find a concept that has both a standard label and documentation
-    let concept_labels = dts.labels();
+    let concept_labels = dts.labels_map();
 
     let has_multiple_roles = concept_labels.values().any(|labels| {
         let has_label = labels.iter().any(|l| l.role.ends_with("/label"));
@@ -107,9 +112,20 @@ fn parse_presentation_linkbase() {
 
     // bs.ass -> bs.ass.fixAss should be a known parent-child relationship
     assert!(
-        bs_arcs
-            .iter()
-            .any(|a| a.from == "de-gaap-ci_bs.ass" && a.to == "de-gaap-ci_bs.ass.fixAss"),
+        bs_arcs.iter().any(|arc| arc.from
+            == ExpandedName {
+                namespace_uri: NamespaceUri::from(
+                    "http://www.xbrl.de/taxonomies/de-gaap-ci-2020-04-01"
+                ),
+                local_name: "bs.ass".to_string()
+            }
+            && arc.to
+                == ExpandedName {
+                    namespace_uri: NamespaceUri::from(
+                        "http://www.xbrl.de/taxonomies/de-gaap-ci-2020-04-01"
+                    ),
+                    local_name: "bs.ass.fixAss".to_string()
+                }),
         "Expected bs.ass -> bs.ass.fixAss presentation arc"
     );
 }
@@ -134,7 +150,22 @@ fn parse_calculation_linkbase() {
     // bs.ass should sum its children with weight 1
     let child_arc = bs_arcs
         .iter()
-        .find(|a| a.from == "de-gaap-ci_bs.ass" && a.to == "de-gaap-ci_bs.ass.fixAss")
+        .find(|arc| {
+            arc.from
+                == ExpandedName {
+                    namespace_uri: NamespaceUri::from(
+                        "http://www.xbrl.de/taxonomies/de-gaap-ci-2020-04-01",
+                    ),
+                    local_name: "bs.ass".to_string(),
+                }
+                && arc.to
+                    == ExpandedName {
+                        namespace_uri: NamespaceUri::from(
+                            "http://www.xbrl.de/taxonomies/de-gaap-ci-2020-04-01",
+                        ),
+                        local_name: "bs.ass.fixAss".to_string(),
+                    }
+        })
         .expect("Expected bs.ass -> bs.ass.fixAss calculation arc");
     assert_eq!(child_arc.weight, Decimal::ONE);
 }
