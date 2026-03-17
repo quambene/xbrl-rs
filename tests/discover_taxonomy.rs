@@ -6,11 +6,11 @@ use xbrl_rs::{Balance, ExpandedName, NamespaceUri, PeriodType, TaxonomySet};
 
 const TAXONOMY_ENTRY_POINT: &str = "test_data/taxonomies";
 
-fn assert_dts(dts: &TaxonomySet) {
+fn assert_dts(dts: &TaxonomySet, gcd_namespace: &str, gaap_ci_namespace: &str) {
     // GCD elements
     assert!(
         dts.find_concept(&ExpandedName {
-            namespace_uri: NamespaceUri::from("http://www.xbrl.de/taxonomies/de-gcd-2020-04-01"),
+            namespace_uri: NamespaceUri::from(gcd_namespace),
             local_name: "genInfo".to_string()
         })
         .is_some(),
@@ -20,9 +20,7 @@ fn assert_dts(dts: &TaxonomySet) {
     // GAAP-CI elements
     let bs_ass = dts
         .find_concept(&ExpandedName {
-            namespace_uri: NamespaceUri::from(
-                "http://www.xbrl.de/taxonomies/de-gaap-ci-2020-04-01",
-            ),
+            namespace_uri: NamespaceUri::from(gaap_ci_namespace),
             local_name: "bs.ass".to_string(),
         })
         .expect("bs.ass not found");
@@ -85,7 +83,11 @@ fn discover_full_dts_2020() {
     let entry_point = PathBuf::from_str(TAXONOMY_ENTRY_POINT).unwrap();
     let dts = TaxonomySet::discover(schema_refs, entry_point).unwrap();
 
-    assert_dts(&dts);
+    assert_dts(
+        &dts,
+        "http://www.xbrl.de/taxonomies/de-gcd-2020-04-01",
+        "http://www.xbrl.de/taxonomies/de-gaap-ci-2020-04-01",
+    );
 }
 
 // -- 2021-04-14 (v6.5) --
@@ -107,5 +109,9 @@ fn discover_full_dts_2021() {
     let entry_point = PathBuf::from_str(TAXONOMY_ENTRY_POINT).unwrap();
     let dts = TaxonomySet::discover(schema_refs, entry_point).unwrap();
 
-    assert_dts(&dts);
+    assert_dts(
+        &dts,
+        "http://www.xbrl.de/taxonomies/de-gcd-2021-04-14",
+        "http://www.xbrl.de/taxonomies/de-gaap-ci-2021-04-14",
+    );
 }
