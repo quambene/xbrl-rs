@@ -6,6 +6,34 @@ use std::{
     str::FromStr,
 };
 
+/// The `link:schemaRef` element in an XML document, referencing a schema
+/// definition.
+#[derive(Debug, PartialEq, Eq)]
+pub struct SchemaRef {
+    /// The `xlink:href` attribute value pointing to the schema file.
+    pub href: String,
+}
+
+/// The `link:roleRef` element in an XML document, referencing a role
+/// definition.
+#[derive(Debug, PartialEq, Eq)]
+pub struct RoleRef {
+    /// The `roleURI` attribute value identifying the role.
+    pub role_uri: String,
+    /// The `xlink:href` attribute value pointing to the role definition.
+    pub href: String,
+}
+
+/// The `link:arcroleRef` element in an XML document, referencing an arcrole
+/// definition.
+#[derive(Debug, PartialEq, Eq)]
+pub struct ArcroleRef {
+    /// The `arcroleURI` attribute value identifying the arcrole.
+    pub arcrole_uri: String,
+    /// The `xlink:href` attribute value pointing to the arcrole definition.
+    pub href: String,
+}
+
 /// Type-safe namespace prefix key (e.g. `xmlns:xbrli` declaration on the root
 /// `<xbrli:xbrl>` element).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]

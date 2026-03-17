@@ -1,6 +1,6 @@
 use crate::{
     NamespacePrefix, NamespaceUri, QName, XbrlError,
-    xml::{self, parse_qname},
+    xml::{self, ArcroleRef, RoleRef, SchemaRef, parse_qname},
 };
 use quick_xml::{
     Reader,
@@ -12,23 +12,6 @@ use std::{
     io::{BufRead, BufReader},
     path::{Path, PathBuf},
 };
-
-#[derive(Debug, PartialEq, Eq)]
-pub struct SchemaRef {
-    pub href: String,
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub struct RoleRef {
-    pub role_uri: String,
-    pub href: String,
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub struct ArcroleRef {
-    pub arcrole_uri: String,
-    pub href: String,
-}
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct RawContext {
