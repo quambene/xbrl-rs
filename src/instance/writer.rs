@@ -66,7 +66,7 @@ pub(crate) fn write_xml<W: io::Write>(
     let mut ctx_sorted: Vec<_> = instance.contexts().iter().collect();
     ctx_sorted.sort_by_key(|(id, _)| *id);
     for (_, context) in &ctx_sorted {
-        write_context(writer, context)?;
+        write_context(writer, context, &uri_to_prefix)?;
     }
 
     // <xbrli:unit> elements
@@ -86,7 +86,11 @@ pub(crate) fn write_xml<W: io::Write>(
     Ok(())
 }
 
-fn write_context<W: std::io::Write>(writer: &mut Writer<W>, context: &Context) -> Result<()> {
+fn write_context<W: std::io::Write>(
+    writer: &mut Writer<W>,
+    context: &Context,
+    uri_to_prefix: &HashMap<NamespaceUri, NamespacePrefix>,
+) -> Result<()> {
     let mut element = BytesStart::new("xbrli:context");
     element.push_attribute(("id", context.id.as_str()));
     writer.write_event(Event::Start(element))?;
@@ -129,12 +133,24 @@ fn write_context<W: std::io::Write>(writer: &mut Writer<W>, context: &Context) -
         dim_sorted.sort_by_key(|(dim, _)| *dim);
         for (dimension, member) in &dim_sorted {
             let mut explicit = BytesStart::new("xbrldi:explicitMember");
+            let dimension = QName {
+                prefix: uri_to_prefix.get(&dimension.namespace_uri).cloned(),
+                local_name: dimension.local_name.clone(),
+            }
+            .to_string();
+            let member = QName {
+                prefix: uri_to_prefix.get(&member.namespace_uri).cloned(),
+                local_name: member.local_name.clone(),
+            }
+            .to_string();
+
             explicit.push_attribute(("dimension", dimension.as_str()));
+
             if member.is_empty() {
                 writer.write_event(Event::Empty(explicit))?;
             } else {
                 writer.write_event(Event::Start(explicit))?;
-                writer.write_event(Event::Text(BytesText::new(member)))?;
+                writer.write_event(Event::Text(BytesText::new(&member)))?;
                 writer.write_event(Event::End(BytesEnd::new("xbrldi:explicitMember")))?;
             }
         }
