@@ -157,7 +157,7 @@ fn build_nodes<'a>(
     visited: &mut HashSet<&'a ExpandedName>,
 ) -> Vec<TreeNode<'a>> {
     if !visited.insert(parent_id) {
-        // Cycle detected — skip this branch.
+        // The branch is skipped if a cycle is detected.
         return Vec::new();
     }
 

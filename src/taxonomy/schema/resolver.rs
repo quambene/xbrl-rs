@@ -188,9 +188,6 @@ pub fn resolve_schema(schema: RawSchema) -> TaxonomySchema {
 }
 
 /// Resolve all elements in a `RawSchema` into fully resolved `Concept`s.
-///
-/// Elements without a `substitutionGroup` attribute are skipped — they are
-/// plain XSD elements, not XBRL concepts.
 pub fn resolve_concepts(raw: &RawSchema) -> Vec<Concept> {
     let elements_by_name: HashMap<&str, &Element> =
         raw.elements.iter().map(|e| (e.name.as_str(), e)).collect();
@@ -294,7 +291,7 @@ fn resolve_substitution_group(
         current_name = parent_substitution_group.local_name.as_str();
     }
 
-    // Could not resolve — default to Item.
+    // Default to item if the substitution group could not be resolved.
     SubstitutionGroup {
         base: BaseSubstitutionGroup::Item,
         original,
