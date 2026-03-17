@@ -13,20 +13,33 @@ use std::{
     path::{Path, PathBuf},
 };
 
+/// An `xbrli:context` element as parsed from the instance document.
 #[derive(Debug, PartialEq, Eq)]
 pub struct RawContext {
+    /// Id attribute of the context.
     pub id: String,
+    /// Entity definition for the context.
     pub entity: RawEntity,
+    /// Period definition for the context.
     pub period: RawPeriod,
-    pub dimensions: Vec<RawDimension>,
+    /// Scenario dimensions for the context.
+    pub scenario_dimensions: Vec<RawDimension>,
 }
 
+/// An `xbrli:entity` element as parsed from the instance document.
 #[derive(Debug, PartialEq, Eq)]
 pub struct RawEntity {
+    /// Identifier for the entity, typically a legal entity identifier (LEI).
     pub identifier: String,
+    /// Scheme for the entity identifier, typically a URI that defines the
+    /// syntax and semantics of the identifier (e.g.
+    /// "http://standards.iso.org/iso/17442" for LEIs).
     pub scheme: String,
+    /// Segment dimensions for the entity.
+    pub segment_dimensions: Vec<RawDimension>,
 }
 
+/// An `xbrli:period` element as parsed from the instance document.
 #[derive(Debug, PartialEq, Eq)]
 pub enum RawPeriod {
     Instant(String),
@@ -37,6 +50,7 @@ pub enum RawPeriod {
     Forever,
 }
 
+/// A dimension defined in a `scenario` or `segment` element.
 #[derive(Debug, PartialEq, Eq)]
 pub struct RawDimension {
     /// QName of the dimension
@@ -57,6 +71,7 @@ pub struct RawUnit {
     pub denominator: Vec<QName>,
 }
 
+/// A fact in the instance document, which can be either an item or a tuple.
 #[derive(Debug, PartialEq, Eq)]
 pub enum RawFact {
     Item(RawItemFact),
@@ -435,6 +450,10 @@ impl<R: BufRead> InstanceParser<R> {
     }
 
     /// Parse the `xbrli:context` element to extract the context definition.
+    ///
+    /// `xbrli:segment` and `xbrli:scenario` elements are parsed as dimensional
+    /// containers. `xbrli:segment` is always a child of `xbrli:entity`, while
+    /// `xbrli:scenario` is a direct child of `xbrli:context`.
     fn parse_context(
         &mut self,
         instance: &mut RawInstance,
@@ -463,7 +482,7 @@ impl<R: BufRead> InstanceParser<R> {
 
         let mut entity = None;
         let mut period = None;
-        let mut dimensions = Vec::new();
+        let mut scenario_dimensions = Vec::new();
         let mut buf = Vec::new();
 
         loop {
@@ -476,7 +495,7 @@ impl<R: BufRead> InstanceParser<R> {
                         period = Some(self.parse_period()?);
                     }
                     b"scenario" => {
-                        self.parse_dimensional_container(&mut dimensions)?;
+                        self.parse_dimensional_container(&mut scenario_dimensions)?;
                     }
                     _ => {}
                 },
@@ -497,7 +516,7 @@ impl<R: BufRead> InstanceParser<R> {
                 path: self.path.clone(),
                 reason: "missing period in xbrli:context".to_string(),
             })?,
-            dimensions,
+            scenario_dimensions,
         });
 
         Ok(())
@@ -508,34 +527,33 @@ impl<R: BufRead> InstanceParser<R> {
     fn parse_entity(&mut self) -> Result<RawEntity, XbrlError> {
         let mut identifier = None;
         let mut scheme = None;
+        let mut segment_dimensions = Vec::new();
         let mut buf = Vec::new();
 
         loop {
             match self.reader.read_event_into(&mut buf)? {
-                Event::Start(ref event) => {
-                    match event.local_name().as_ref() {
-                        b"identifier" => {
-                            for attribute in event.attributes() {
-                                let attribute = attribute.map_err(|err| XbrlError::XmlParse {
-                                    path: self.path.clone(),
-                                    position: self.reader.buffer_position(),
-                                    element: Some("identifier".to_string()),
-                                    source: err.into(),
-                                })?;
+                Event::Start(ref event) => match event.local_name().as_ref() {
+                    b"identifier" => {
+                        for attribute in event.attributes() {
+                            let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                                path: self.path.clone(),
+                                position: self.reader.buffer_position(),
+                                element: Some("identifier".to_string()),
+                                source: err.into(),
+                            })?;
 
-                                if attribute.key.local_name().as_ref() == b"scheme" {
-                                    let value = attribute
-                                        .decode_and_unescape_value(self.reader.decoder())?;
-                                    scheme = Some(value.into_owned());
-                                }
+                            if attribute.key.local_name().as_ref() == b"scheme" {
+                                let value =
+                                    attribute.decode_and_unescape_value(self.reader.decoder())?;
+                                scheme = Some(value.into_owned());
                             }
                         }
-                        b"segment" => {
-                            // TODO: dimensions can appear in entity/segment
-                        }
-                        _ => {}
                     }
-                }
+                    b"segment" => {
+                        self.parse_dimensional_container(&mut segment_dimensions)?;
+                    }
+                    _ => {}
+                },
                 Event::Text(ref text) => {
                     if identifier.is_none() {
                         let value = text.xml_content().map_err(quick_xml::Error::from)?;
@@ -558,6 +576,7 @@ impl<R: BufRead> InstanceParser<R> {
                 path: self.path.clone(),
                 reason: "missing scheme in xbrli:identifier".to_string(),
             })?,
+            segment_dimensions,
         })
     }
 
@@ -1229,14 +1248,16 @@ mod tests {
                                             <xbrldi:explicitMember dimension="ifrs:OperatingSegmentsAxis">
                                                 ifrs:EuropeSegmentMember
                                             </xbrldi:explicitMember>
-                                            <xbrldi:explicitMember dimension="ifrs:ProductsAndServicesAxis">
-                                                ifrs:SoftwareMember
-                                            </xbrldi:explicitMember>
                                         </segment>
                                     </entity>
                                     <period>
                                         <instant>2024-12-31</instant>
                                     </period>
+                                    <scenario>
+                                        <xbrldi:explicitMember dimension="ifrs:ProductsAndServicesAxis">
+                                            ifrs:SoftwareMember
+                                        </xbrldi:explicitMember>
+                                    </scenario>
                                 </context>
                             </xbrli:xbrl>"#;
         let mut parser = InstanceParser::from_reader(xml.as_bytes());
@@ -1251,18 +1272,16 @@ mod tests {
                 entity: RawEntity {
                     identifier: "ABC".to_string(),
                     scheme: "http://example.com".to_string(),
-                },
-                period: RawPeriod::Instant("2024-12-31".to_string()),
-                dimensions: vec![
-                    RawDimension {
+                    segment_dimensions: vec![RawDimension {
                         dimension: QName::from_str("ifrs:OperatingSegmentsAxis").unwrap(),
                         member: QName::from_str("ifrs:EuropeSegmentMember").unwrap(),
-                    },
-                    RawDimension {
-                        dimension: QName::from_str("ifrs:ProductsAndServicesAxis").unwrap(),
-                        member: QName::from_str("ifrs:SoftwareMember").unwrap(),
-                    },
-                ],
+                    }],
+                },
+                period: RawPeriod::Instant("2024-12-31".to_string()),
+                scenario_dimensions: vec![RawDimension {
+                    dimension: QName::from_str("ifrs:ProductsAndServicesAxis").unwrap(),
+                    member: QName::from_str("ifrs:SoftwareMember").unwrap(),
+                }],
             }
         );
     }
@@ -1536,9 +1555,10 @@ mod tests {
                     entity: RawEntity {
                         identifier: "ABC".to_string(),
                         scheme: "http://example.com".to_string(),
+                        segment_dimensions: vec![],
                     },
                     period: RawPeriod::Instant("2024-12-31".to_string()),
-                    dimensions: vec![],
+                    scenario_dimensions: vec![],
                 }],
                 units: vec![RawUnit {
                     id: "u1".to_string(),

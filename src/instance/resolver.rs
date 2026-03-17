@@ -67,7 +67,7 @@ fn resolve_contexts(
             };
             let mut context = Context::new(id.clone(), entity, period);
 
-            for dim in raw_context.dimensions {
+            for dim in raw_context.scenario_dimensions {
                 let dimension = resolve_measure(&dim.dimension, namespaces)?;
                 let member = resolve_measure(&dim.member, namespaces)?;
                 context.add_dimension(dimension, member);
@@ -323,9 +323,10 @@ mod tests {
             entity: RawEntity {
                 identifier: "ABC".to_string(),
                 scheme: "http://example.com".to_string(),
+                segment_dimensions: vec![],
             },
             period: RawPeriod::Instant("2024-12-31".to_string()),
-            dimensions: vec![RawDimension {
+            scenario_dimensions: vec![RawDimension {
                 dimension: QName::from_str("dim:Axis").unwrap(),
                 member: QName::from_str("dim:Member").unwrap(),
             }],
@@ -371,12 +372,13 @@ mod tests {
             entity: RawEntity {
                 identifier: "XYZ".to_string(),
                 scheme: "http://example.com".to_string(),
+                segment_dimensions: vec![],
             },
             period: RawPeriod::Duration {
                 start_date: "2024-01-01".to_string(),
                 end_date: "2024-12-31".to_string(),
             },
-            dimensions: vec![],
+            scenario_dimensions: vec![],
         });
 
         let doc = resolve_instance(raw).unwrap();
