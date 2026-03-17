@@ -40,9 +40,9 @@ pub enum RawPeriod {
 #[derive(Debug, PartialEq, Eq)]
 pub struct RawDimension {
     /// QName of the dimension
-    pub dimension: String,
+    pub dimension: QName,
     /// QName of the member
-    pub member: String,
+    pub member: QName,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -644,7 +644,7 @@ impl<R: BufRead> InstanceParser<R> {
                             if attribute.key.local_name().as_ref() == b"dimension" {
                                 let value =
                                     attribute.decode_and_unescape_value(self.reader.decoder())?;
-                                dimension = Some(value.into_owned());
+                                dimension = Some(parse_qname(&value));
                             }
                         }
 
@@ -658,6 +658,7 @@ impl<R: BufRead> InstanceParser<R> {
                                     .xml_content()
                                     .map_err(quick_xml::Error::from)?
                                     .into_owned();
+                                let member = parse_qname(&member);
                                 dimensions.push(RawDimension { dimension, member });
                             }
                         }
@@ -1217,26 +1218,53 @@ mod tests {
 
     #[test]
     fn test_parse_context() {
-        let xml = r#"<xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance"
-                            xmlns:ifrs="http://xbrl.ifrs.org/taxonomy/2023">
-                            <context id="c1">
-                                <entity>
-                                    <identifier scheme="http://example.com">ABC</identifier>
-                                </entity>
-                                <period>
-                                    <instant>2024-12-31</instant>
-                                </period>
-                            </context>
-                        </xbrli:xbrl>"#;
+        let xml = r#"<xbrli:xbrl
+                                xmlns:xbrli="http://www.xbrl.org/2003/instance"
+                                xmlns:xbrldi="http://xbrl.org/2006/xbrldi"
+                                xmlns:ifrs="http://xbrl.ifrs.org/taxonomy/2023">
+                                <context id="c1">
+                                    <entity>
+                                        <identifier scheme="http://example.com">ABC</identifier>
+                                        <segment>
+                                            <xbrldi:explicitMember dimension="ifrs:OperatingSegmentsAxis">
+                                                ifrs:EuropeSegmentMember
+                                            </xbrldi:explicitMember>
+                                            <xbrldi:explicitMember dimension="ifrs:ProductsAndServicesAxis">
+                                                ifrs:SoftwareMember
+                                            </xbrldi:explicitMember>
+                                        </segment>
+                                    </entity>
+                                    <period>
+                                        <instant>2024-12-31</instant>
+                                    </period>
+                                </context>
+                            </xbrli:xbrl>"#;
         let mut parser = InstanceParser::from_reader(xml.as_bytes());
         let instance = parser.parse_instance().unwrap();
 
         assert_eq!(instance.contexts.len(), 1);
         let context = &instance.contexts[0];
-        assert_eq!(context.id, "c1");
-        assert_eq!(context.entity.identifier, "ABC");
-        assert_eq!(context.entity.scheme, "http://example.com");
-        assert_eq!(context.period, RawPeriod::Instant("2024-12-31".to_string()));
+        assert_eq!(
+            context,
+            &RawContext {
+                id: "c1".to_string(),
+                entity: RawEntity {
+                    identifier: "ABC".to_string(),
+                    scheme: "http://example.com".to_string(),
+                },
+                period: RawPeriod::Instant("2024-12-31".to_string()),
+                dimensions: vec![
+                    RawDimension {
+                        dimension: QName::from_str("ifrs:OperatingSegmentsAxis").unwrap(),
+                        member: QName::from_str("ifrs:EuropeSegmentMember").unwrap(),
+                    },
+                    RawDimension {
+                        dimension: QName::from_str("ifrs:ProductsAndServicesAxis").unwrap(),
+                        member: QName::from_str("ifrs:SoftwareMember").unwrap(),
+                    },
+                ],
+            }
+        );
     }
 
     #[test]
