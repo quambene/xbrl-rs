@@ -172,7 +172,7 @@ impl TaxonomySet {
         for (path, schema) in &schemas {
             for role_type in &schema.role_types {
                 role_source_schema
-                    .entry(role_type.role_uri.clone().into())
+                    .entry(role_type.role_uri.clone())
                     .or_insert_with(|| path.clone());
             }
         }
