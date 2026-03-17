@@ -6,6 +6,8 @@ use crate::{NamespacePrefix, NamespaceUri, XbrlError, instance::Decimals};
 pub use parser::{
     ArcroleType, Compositor, LinkbaseRef, RoleType, SchemaImport, SchemaInclude, SchemaParser,
 };
+#[cfg(test)]
+pub use resolver::BaseSubstitutionGroup;
 pub use resolver::{Concept, MaxOccurs, SubstitutionGroup, TupleChild, XbrlType};
 use std::{
     collections::HashMap,

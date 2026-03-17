@@ -541,7 +541,10 @@ mod tests {
         let tuple = doc.facts()[0].as_tuple().unwrap();
 
         assert_eq!(tuple.id(), None);
-        assert_eq!(tuple.concept_name().to_string(), "{http://example.com}Address");
+        assert_eq!(
+            tuple.concept_name().to_string(),
+            "{http://example.com}Address"
+        );
         assert_eq!(tuple.children().len(), 2);
         assert_matches!(&tuple.children()[0], Fact::Item(item) => {
             assert_eq!(item.concept_name().to_string(), "{http://example.com}Street");

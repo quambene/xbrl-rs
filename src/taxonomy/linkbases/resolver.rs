@@ -314,29 +314,215 @@ fn href_fragment(href: &str) -> Option<&str> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::taxonomy::{
+        linkbases::parser::{
+            CalculationLink, DefinitionLink, LabelLink, Locator, PresentationLink,
+            RawCalculationArc, RawDefinitionArc, RawLabelArc, RawPresentationArc, RawReferenceArc,
+            ReferenceLink,
+        },
+        schema::{BaseSubstitutionGroup, PeriodType, SubstitutionGroup, XbrlType},
+    };
 
-    #[test]
-    fn test_resolve_presentation_arc() {
-        todo!()
+    fn create_concepts() -> Vec<Concept> {
+        vec![
+            Concept {
+                name: ExpandedName::new("http://example.com".to_string(), "concept1".to_string()),
+                id: Some("concept1".to_string()),
+                data_type: XbrlType::Monetary,
+                substitution_group: SubstitutionGroup {
+                    base: BaseSubstitutionGroup::Item,
+                    original: ExpandedName::new(
+                        "http://www.xbrl.org/2003/instance".to_string(),
+                        "item".to_string(),
+                    ),
+                },
+                period_type: Some(PeriodType::Instant),
+                balance: None,
+                nillable: false,
+                is_abstract: false,
+                tuple_children: Vec::new(),
+                compositor: None,
+            },
+            Concept {
+                name: ExpandedName::new("http://example.com".to_string(), "concept2".to_string()),
+                id: Some("concept2".to_string()),
+                data_type: XbrlType::Monetary,
+                substitution_group: SubstitutionGroup {
+                    base: BaseSubstitutionGroup::Item,
+                    original: ExpandedName::new(
+                        "http://www.xbrl.org/2003/instance".to_string(),
+                        "item".to_string(),
+                    ),
+                },
+                period_type: Some(PeriodType::Instant),
+                balance: None,
+                nillable: false,
+                is_abstract: false,
+                tuple_children: Vec::new(),
+                compositor: None,
+            },
+        ]
     }
 
     #[test]
-    fn test_resolve_calculation_arc() {
-        todo!()
-    }
+    fn test_resolve_linkbases() {
+        let concepts = create_concepts();
+        let concepts_by_id = concepts
+            .iter()
+            .map(|concept| (ConceptId::from(concept.id.clone().unwrap()), concept))
+            .collect::<HashMap<_, _>>();
+        let raw_presentation = RawLinkbases {
+            presentation_links: vec![PresentationLink {
+                role: "http://example.com/role/presentation".into(),
+                locators: vec![
+                    Locator {
+                        label: "loc1".into(),
+                        href: "schema.xsd#concept1".into(),
+                    },
+                    Locator {
+                        label: "loc2".into(),
+                        href: "schema.xsd#concept2".into(),
+                    },
+                ],
+                arcs: vec![RawPresentationArc {
+                    from: "loc1".into(),
+                    to: "loc2".into(),
+                    order: Some(Decimal::new(1, 0)),
+                    preferred_label: None,
+                    arcrole: "http://www.xbrl.org/2003/arcrole/parent-child".into(),
+                }],
+            }],
+            calculation_links: vec![CalculationLink {
+                role: "http://example.com/role/calculation".into(),
+                locators: vec![
+                    Locator {
+                        label: "loc1".into(),
+                        href: "schema.xsd#concept1".into(),
+                    },
+                    Locator {
+                        label: "loc2".into(),
+                        href: "schema.xsd#concept2".into(),
+                    },
+                ],
+                arcs: vec![RawCalculationArc {
+                    from: "loc1".into(),
+                    to: "loc2".into(),
+                    order: Some(Decimal::new(1, 0)),
+                    weight: Decimal::new(1, 0),
+                    arcrole: "http://www.xbrl.org/2003/arcrole/summation-item".into(),
+                }],
+            }],
+            definition_links: vec![DefinitionLink {
+                role: "http://example.com/role/definition".into(),
+                locators: vec![
+                    Locator {
+                        label: "loc1".into(),
+                        href: "schema.xsd#concept1".into(),
+                    },
+                    Locator {
+                        label: "loc2".into(),
+                        href: "schema.xsd#concept2".into(),
+                    },
+                ],
+                arcs: vec![RawDefinitionArc {
+                    from: "loc1".into(),
+                    to: "loc2".into(),
+                    order: Some(Decimal::new(1, 0)),
+                    arcrole: "http://www.xbrl.org/2003/arcrole/parent-child".into(),
+                }],
+            }],
+            label_links: vec![LabelLink {
+                role: "http://example.com/role/label".into(),
+                locators: vec![Locator {
+                    label: "loc1".into(),
+                    href: "schema.xsd#concept1".into(),
+                }],
+                labels: vec![LabelResource {
+                    label: "lab1".into(),
+                    role: Some("http://www.xbrl.org/2003/role/label".into()),
+                    lang: "en".into(),
+                    text: "Concept 1 Label".into(),
+                }],
+                arcs: vec![RawLabelArc {
+                    from: "loc1".into(),
+                    to: "lab1".into(),
+                }],
+            }],
+            reference_links: vec![ReferenceLink {
+                role: "http://example.com/role/reference".into(),
+                locators: vec![Locator {
+                    label: "loc1".into(),
+                    href: "schema.xsd#concept1".into(),
+                }],
+                references: vec![ReferenceResource {
+                    label: "ref1".into(),
+                    role: Some("http://www.xbrl.org/2003/role/reference".into()),
+                }],
+                arcs: vec![RawReferenceArc {
+                    from: "loc1".into(),
+                    to: "ref1".into(),
+                }],
+            }],
+        };
+        let linkbases = resolve_linkbases(raw_presentation, &concepts_by_id).unwrap();
+        assert_eq!(linkbases.presentations.len(), 1);
+        assert_eq!(linkbases.calculations.len(), 1);
+        assert_eq!(linkbases.definitions.len(), 1);
+        assert_eq!(linkbases.labels.len(), 1);
+        assert_eq!(linkbases.references.len(), 1);
 
-    #[test]
-    fn test_resolve_definition_arc() {
-        todo!()
-    }
+        let presentation_arc = &linkbases.presentations["http://example.com/role/presentation"][0];
+        assert_eq!(
+            presentation_arc,
+            &PresentationArc {
+                from: ExpandedName::new("http://example.com".to_string(), "concept1".to_string()),
+                to: ExpandedName::new("http://example.com".to_string(), "concept2".to_string()),
+                order: Some(Decimal::new(1, 0)),
+                preferred_label: None,
+                arcrole: "http://www.xbrl.org/2003/arcrole/parent-child".into(),
+            }
+        );
 
-    #[test]
-    fn test_resolve_labels() {
-        todo!()
-    }
+        let calculation_arc = &linkbases.calculations["http://example.com/role/calculation"][0];
+        assert_eq!(
+            calculation_arc,
+            &CalculationArc {
+                from: ExpandedName::new("http://example.com".to_string(), "concept1".to_string()),
+                to: ExpandedName::new("http://example.com".to_string(), "concept2".to_string()),
+                order: Some(Decimal::new(1, 0)),
+                weight: Decimal::new(1, 0),
+                arcrole: "http://www.xbrl.org/2003/arcrole/summation-item".into(),
+            }
+        );
 
-    #[test]
-    fn test_resolve_references() {
-        todo!()
+        let definition_arc = &linkbases.definitions["http://example.com/role/definition"][0];
+        assert_eq!(
+            definition_arc,
+            &DefinitionArc {
+                from: ExpandedName::new("http://example.com".to_string(), "concept1".to_string()),
+                to: ExpandedName::new("http://example.com".to_string(), "concept2".to_string()),
+                order: Some(Decimal::new(1, 0)),
+                arcrole: "http://www.xbrl.org/2003/arcrole/parent-child".into(),
+            }
+        );
+
+        let label = &linkbases.labels
+            [&ExpandedName::new("http://example.com".to_string(), "concept1".to_string())][0];
+        assert_eq!(
+            label,
+            &Label {
+                role: "http://www.xbrl.org/2003/role/label".into(),
+                lang: "en".into(),
+                text: "Concept 1 Label".into(),
+            }
+        );
+
+        let reference = &linkbases.references[&ConceptId::from("concept1".to_string())][0];
+        assert_eq!(
+            reference,
+            &Reference {
+                role: "http://www.xbrl.org/2003/role/reference".into(),
+            }
+        );
     }
 }
