@@ -2,6 +2,7 @@
 //!
 //! Contexts define the reporting entity and time period for facts.
 
+use crate::ExpandedName;
 use std::{borrow::Borrow, collections::HashMap, fmt, ops::Deref};
 
 /// Type-safe identifier for an XBRL context (the `id` attribute on
@@ -73,13 +74,24 @@ pub enum Period {
 /// XBRL context combining entity, period, and optional dimensions
 #[derive(Debug, Clone, PartialEq)]
 pub struct Context {
+    /// The `id` attribute of the `<xbrli:context>` element.
     pub id: ContextId,
+    /// The reporting entity (e.g., a company identified by a LEI).
     pub entity: EntityIdentifier,
+    /// The time period this context applies to (e.g., an instant or duration).
     pub period: Period,
-    pub dimensions: HashMap<String, String>,
-    pub segment_elements: Vec<String>,
-    pub scenario_elements: Vec<String>,
+    /// Optional dimensions (e.g., segment, scenario) as a map from dimension
+    /// name to member name.
+    pub dimensions: HashMap<ExpandedName, ExpandedName>,
+    /// Track which dimensions were defined in segments.
+    pub segment_elements: Vec<ExpandedName>,
+    /// Track which dimensions were defined in scenarios.   
+    pub scenario_elements: Vec<ExpandedName>,
+    /// True if any segment element has an instance descendant (directly or via
+    /// substitution group).
     pub segment_has_instance_descendant: bool,
+    /// True if any scenario element has an instance descendant (directly or via
+    /// substitution group).
     pub scenario_has_instance_descendant: bool,
 }
 
@@ -97,7 +109,7 @@ impl Context {
         }
     }
 
-    pub fn add_dimension(&mut self, dimension: String, member: String) {
+    pub fn add_dimension(&mut self, dimension: ExpandedName, member: ExpandedName) {
         self.dimensions.insert(dimension, member);
     }
 }

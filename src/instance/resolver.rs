@@ -19,7 +19,7 @@ use std::collections::HashMap;
 pub(crate) fn resolve_instance(raw: RawInstance) -> Result<InstanceDocument, XbrlError> {
     let namespaces = &raw.namespaces;
     let schema_refs = raw.schema_refs.into_iter().map(|s| s.href).collect();
-    let contexts = resolve_contexts(raw.contexts);
+    let contexts = resolve_contexts(raw.contexts, namespaces)?;
     let units = resolve_units(raw.units, namespaces)?;
     let facts = resolve_facts(raw.facts, namespaces)?;
     let footnote_links = resolve_footnote_links(raw.footnote_links);
@@ -43,15 +43,18 @@ pub(crate) fn resolve_instance(raw: RawInstance) -> Result<InstanceDocument, Xbr
     Ok(instance)
 }
 
-fn resolve_contexts(raw: Vec<RawContext>) -> HashMap<ContextId, Context> {
+fn resolve_contexts(
+    raw: Vec<RawContext>,
+    namespaces: &HashMap<NamespacePrefix, NamespaceUri>,
+) -> Result<HashMap<ContextId, Context>, XbrlError> {
     raw.into_iter()
-        .map(|raw_ctx| {
-            let id = ContextId::from(raw_ctx.id);
+        .map(|raw_context| {
+            let id = ContextId::from(raw_context.id);
             let entity = EntityIdentifier {
-                scheme: raw_ctx.entity.scheme,
-                value: raw_ctx.entity.identifier,
+                scheme: raw_context.entity.scheme,
+                value: raw_context.entity.identifier,
             };
-            let period = match raw_ctx.period {
+            let period = match raw_context.period {
                 RawPeriod::Instant(date) => Period::Instant { date },
                 RawPeriod::Duration {
                     start_date,
@@ -64,11 +67,13 @@ fn resolve_contexts(raw: Vec<RawContext>) -> HashMap<ContextId, Context> {
             };
             let mut context = Context::new(id.clone(), entity, period);
 
-            for dim in raw_ctx.dimensions {
-                context.add_dimension(dim.dimension, dim.member);
+            for dim in raw_context.dimensions {
+                let dimension = resolve_measure(&dim.dimension, namespaces)?;
+                let member = resolve_measure(&dim.member, namespaces)?;
+                context.add_dimension(dimension, member);
             }
 
-            (id, context)
+            Ok((id, context))
         })
         .collect()
 }
@@ -253,7 +258,8 @@ mod tests {
     use super::*;
     use crate::{
         Decimals,
-        instance::parser::{ArcroleRef, RawDimension, RawEntity, RoleRef, SchemaRef},
+        instance::parser::{RawDimension, RawEntity},
+        xml::{ArcroleRef, RoleRef, SchemaRef},
     };
     use assert_matches::assert_matches;
     use std::str::FromStr;
@@ -320,8 +326,8 @@ mod tests {
             },
             period: RawPeriod::Instant("2024-12-31".to_string()),
             dimensions: vec![RawDimension {
-                dimension: "dim:Axis".to_string(),
-                member: "dim:Member".to_string(),
+                dimension: QName::from_str("dim:Axis").unwrap(),
+                member: QName::from_str("dim:Member").unwrap(),
             }],
         });
 
@@ -340,8 +346,14 @@ mod tests {
                     date: "2024-12-31".to_string(),
                 },
                 dimensions: HashMap::from_iter([(
-                    "dim:Axis".to_string(),
-                    "dim:Member".to_string()
+                    ExpandedName {
+                        namespace_uri: NamespaceUri::from("http://www.example.com"),
+                        local_name: "Axis".to_string(),
+                    },
+                    ExpandedName {
+                        namespace_uri: NamespaceUri::from("http://www.example.com"),
+                        local_name: "Member".to_string(),
+                    }
                 )]),
                 segment_elements: vec![],
                 scenario_elements: vec![],
