@@ -172,7 +172,7 @@ impl InstanceDocument {
                 let mut hoisted: Vec<Fact> = Vec::new();
                 Self::populate_from_tree(
                     &arc_index,
-                    &concept_name,
+                    concept_name,
                     taxonomy,
                     &instant_context_ref,
                     &duration_context_ref,

@@ -2,19 +2,30 @@
 //! across all available taxonomy versions.
 
 use std::{path::PathBuf, str::FromStr};
-use xbrl_rs::{Balance, PeriodType, TaxonomySet};
+use xbrl_rs::{Balance, ExpandedName, NamespaceUri, PeriodType, TaxonomySet};
 
 const TAXONOMY_ENTRY_POINT: &str = "test_data/taxonomies";
 
 fn assert_dts(dts: &TaxonomySet) {
     // GCD elements
     assert!(
-        dts.find_concept("genInfo").is_some(),
+        dts.find_concept(&ExpandedName {
+            namespace_uri: NamespaceUri::from("http://www.xbrl.de/taxonomies/de-gcd-2020-04-01"),
+            local_name: "genInfo".to_string()
+        })
+        .is_some(),
         "Expected genInfo from de-gcd"
     );
 
     // GAAP-CI elements
-    let bs_ass = dts.find_concept("bs.ass").expect("bs.ass not found");
+    let bs_ass = dts
+        .find_concept(&ExpandedName {
+            namespace_uri: NamespaceUri::from(
+                "http://www.xbrl.de/taxonomies/de-gaap-ci-2020-04-01",
+            ),
+            local_name: "bs.ass".to_string(),
+        })
+        .expect("bs.ass not found");
     assert_eq!(bs_ass.period_type, Some(PeriodType::Instant));
     assert_eq!(bs_ass.balance, Some(Balance::Debit));
     assert!(bs_ass.nillable);
@@ -26,7 +37,7 @@ fn assert_dts(dts: &TaxonomySet) {
     );
 
     // Linkbases
-    assert!(!dts.labels().is_empty(), "Expected labels");
+    assert!(!dts.labels_map().is_empty(), "Expected labels");
     assert!(!dts.presentations().is_empty(), "Expected presentations");
     assert!(!dts.calculations().is_empty(), "Expected calculations");
     assert!(!dts.definitions().is_empty(), "Expected definitions");

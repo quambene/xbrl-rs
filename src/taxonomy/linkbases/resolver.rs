@@ -104,8 +104,8 @@ pub struct Linkbases {
     /// Definition arcs grouped by role URI.
     pub definitions: HashMap<RoleUri, Vec<DefinitionArc>>,
     /// Concept labels parsed from label linkbase files.
-    /// Keyed by concept ID (e.g., "de-gaap-ci_bs.ass").
-    pub labels: HashMap<ConceptId, Vec<Label>>,
+    /// Keyed by resolved concept name.
+    pub labels: HashMap<ExpandedName, Vec<Label>>,
     /// Concept references parsed from reference linkbase files.
     /// Keyed by concept element ID.
     pub references: HashMap<ConceptId, Vec<Reference>>,
@@ -117,7 +117,7 @@ pub fn resolve_linkbases(
     linkbases: RawLinkbases,
     concepts_by_id: &HashMap<ConceptId, &Concept>,
 ) -> Result<Linkbases, XbrlError> {
-    let mut labels: HashMap<ConceptId, Vec<Label>> = HashMap::new();
+    let mut labels: HashMap<ExpandedName, Vec<Label>> = HashMap::new();
     let mut presentations: IndexMap<RoleUri, Vec<PresentationArc>> = IndexMap::new();
     let mut calculations: HashMap<RoleUri, Vec<CalculationArc>> = HashMap::new();
     let mut definitions: HashMap<RoleUri, Vec<DefinitionArc>> = HashMap::new();
@@ -249,11 +249,20 @@ pub fn resolve_linkbases(
                 locator_map.get(arc.from.as_str()),
                 resource_map.get(arc.to.as_str()),
             ) {
-                labels.entry(concept_id.into()).or_default().push(Label {
-                    role: resource.role.clone().unwrap_or_default(),
-                    lang: resource.lang.clone(),
-                    text: resource.text.clone(),
-                });
+                if let Some(concept) = concepts_by_id.get(&ConceptId::from(concept_id)) {
+                    labels.entry(concept.name.clone()).or_default().push(Label {
+                        role: resource.role.clone().unwrap_or_default(),
+                        lang: resource.lang.clone(),
+                        text: resource.text.clone(),
+                    });
+                } else {
+                    return Err(XbrlError::InvalidLinkbaseResolution {
+                        reason: format!(
+                            "Label linkbase refers to unknown concept ID '{}'",
+                            concept_id
+                        ),
+                    });
+                }
             }
         }
     }

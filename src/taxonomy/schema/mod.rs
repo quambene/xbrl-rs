@@ -156,7 +156,6 @@ mod tests {
             RoleType,
             schema::resolver::{BaseSubstitutionGroup, SubstitutionGroup, XbrlType},
         },
-        xml::QName,
     };
     use assert_matches::assert_matches;
     use std::collections::HashMap;

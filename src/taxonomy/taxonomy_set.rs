@@ -162,12 +162,7 @@ impl TaxonomySet {
         let concepts_by_id = schemas
             .values()
             .flat_map(|schema| &schema.concepts)
-            .filter_map(|concept| {
-                concept
-                    .id
-                    .clone()
-                    .map(|id| (ConceptId::from(id), concept.clone()))
-            })
+            .filter_map(|concept| concept.id.clone().map(|id| (ConceptId::from(id), concept)))
             .collect::<HashMap<_, _>>();
 
         let linkbases = resolver::resolve_linkbases(linkbases, &concepts_by_id)?;
@@ -313,21 +308,14 @@ impl TaxonomySet {
     }
 
     /// Get all concept labels.
-    pub fn labels(&self) -> &HashMap<ConceptId, Vec<Label>> {
-        &self.linkbases.labels_by_id
+    pub fn labels_map(&self) -> &HashMap<ExpandedName, Vec<Label>> {
+        &self.linkbases.labels
     }
 
-    /// Get labels for a specific concept by its element ID (e.g., "de-gaap-ci_bs.ass").
-    pub fn labels_for(&self, concept_id: &str) -> Option<&[Label]> {
+    /// Get labels for a specific concept by its name.
+    pub fn labels(&self, concept_name: &ExpandedName) -> Option<&[Label]> {
         self.linkbases
-            .labels_by_id
-            .get(concept_id)
-            .map(|labels| labels.as_slice())
-    }
-
-    pub fn labels_for_concept(&self, concept_name: &ExpandedName) -> Option<&[Label]> {
-        self.linkbases
-            .labels_by_name
+            .labels
             .get(concept_name)
             .map(|labels| labels.as_slice())
     }
@@ -403,11 +391,11 @@ impl TaxonomySet {
             .push(arc);
     }
 
-    /// Insert a label for a concept ID. Used in unit tests.
-    pub fn add_label(&mut self, concept_id: String, label: Label) {
+    /// Insert a label for a concept name.
+    pub fn add_label(&mut self, concept_name: ExpandedName, label: Label) {
         self.linkbases
-            .labels_by_id
-            .entry(concept_id.into())
+            .labels
+            .entry(concept_name)
             .or_default()
             .push(label);
     }

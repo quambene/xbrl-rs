@@ -55,7 +55,6 @@ pub struct TreeNode<'a> {
     pub children: Vec<TreeNode<'a>>,
 }
 
-// TODO: use concept id instead of concept name
 /// Build a [`DocumentView`] by walking the presentation linkbase and
 /// attaching instance facts and taxonomy labels to each node.
 ///
@@ -83,9 +82,11 @@ pub fn build_view<'a>(facts: &[&ItemFact], taxonomy: &'a TaxonomySet) -> Documen
 
     for (role, arcs) in roles {
         let mut arc_index: HashMap<&'a ExpandedName, Vec<&'a PresentationArc>> = HashMap::new();
+
         for arc in arcs {
             arc_index.entry(&arc.from).or_default().push(arc);
         }
+
         // Sort children by `order` up front so `build_nodes` never needs to
         // re-sort.
         for children in arc_index.values_mut() {
@@ -168,7 +169,7 @@ fn build_nodes<'a>(
 
     for arc in children_arcs {
         let child_id = &arc.to;
-        let labels = taxonomy.labels_for_concept(child_id).unwrap_or(&[]);
+        let labels = taxonomy.labels(child_id).unwrap_or_default();
         let fact_indices = fact_index.get(child_id).cloned().unwrap_or_default();
         let children = build_nodes(
             arc_index,
@@ -201,14 +202,14 @@ mod tests {
 
     fn create_taxonomy(
         arcs: Vec<(String, PresentationArc)>,
-        labels: Vec<(String, Label)>,
+        labels: Vec<(ExpandedName, Label)>,
     ) -> TaxonomySet {
         let mut taxonomy = TaxonomySet::default();
         for (role, arc) in arcs {
             taxonomy.add_presentation_arc(role, arc);
         }
-        for (concept_id, label) in labels {
-            taxonomy.add_label(concept_id, label);
+        for (concept_name, label) in labels {
+            taxonomy.add_label(concept_name, label);
         }
         taxonomy
     }
@@ -262,7 +263,7 @@ mod tests {
             ),
         ];
         let labels = vec![(
-            "child_a".to_string(),
+            ExpandedName::new("http://example.com/namespace".into(), "child_a".into()),
             Label {
                 role: "http://www.xbrl.org/2003/role/label".to_string(),
                 lang: "en".to_string(),
