@@ -1,6 +1,6 @@
 use crate::{
-    Balance, NamespacePrefix, NamespaceUri, PeriodType, XbrlError,
-    xml::{self, QName},
+    Balance, NamespacePrefix, NamespaceUri, PeriodType, RoleUri, XbrlError,
+    xml::{self, ArcroleUri, QName},
 };
 use quick_xml::{
     Reader,
@@ -117,11 +117,11 @@ pub struct RoleType {
     /// The id attribute (e.g., "role_balanceSheet").
     pub id: String,
     /// The roleURI attribute.
-    pub role_uri: String,
+    pub role_uri: RoleUri,
     /// The human-readable definition (child `link:definition` text).
     pub definition: Option<String>,
     /// Which link types this role is used on (child `link:usedOn` texts).
-    pub used_on: Vec<String>,
+    pub used_on: Vec<QName>,
 }
 
 /// A `link:arcroleType` definition from a taxonomy schema.
@@ -130,11 +130,11 @@ pub struct ArcroleType {
     /// The id attribute.
     pub id: String,
     /// The arcroleURI attribute.
-    pub arcrole_uri: String,
+    pub arcrole_uri: ArcroleUri,
     /// The human-readable definition.
     pub definition: Option<String>,
     /// Which link types this arcrole is used on.
-    pub used_on: Vec<String>,
+    pub used_on: Vec<QName>,
     /// The cycles-allowed attribute.
     pub cycles_allowed: Option<CyclesAllowed>,
 }
@@ -643,11 +643,9 @@ impl<R: BufRead> SchemaParser<R> {
                     }
                     b"usedOn" => {
                         if let Event::Text(text) = self.reader.read_event_into(&mut buf)? {
-                            used_on.push(
-                                text.xml_content()
-                                    .map_err(quick_xml::Error::from)?
-                                    .into_owned(),
-                            );
+                            used_on.push(xml::parse_qname(
+                                &text.xml_content().map_err(quick_xml::Error::from)?,
+                            ));
                         }
                     }
                     _ => self.skip_element()?,
@@ -660,7 +658,7 @@ impl<R: BufRead> SchemaParser<R> {
 
         Ok(RoleType {
             id,
-            role_uri,
+            role_uri: RoleUri::from(role_uri),
             definition,
             used_on,
         })
@@ -707,11 +705,9 @@ impl<R: BufRead> SchemaParser<R> {
                     }
                     b"usedOn" => {
                         if let Event::Text(text) = self.reader.read_event_into(&mut buf)? {
-                            used_on.push(
-                                text.xml_content()
-                                    .map_err(quick_xml::Error::from)?
-                                    .into_owned(),
-                            );
+                            used_on.push(xml::parse_qname(
+                                &text.xml_content().map_err(quick_xml::Error::from)?,
+                            ));
                         }
                     }
                     _ => self.skip_element()?,
@@ -724,7 +720,7 @@ impl<R: BufRead> SchemaParser<R> {
 
         Ok(ArcroleType {
             id,
-            arcrole_uri,
+            arcrole_uri: ArcroleUri::from(arcrole_uri),
             definition,
             used_on,
             cycles_allowed,
@@ -1463,7 +1459,7 @@ mod tests {
         assert_eq!(schema.role_types.len(), 1);
         let role_type = &schema.role_types[0];
         assert_eq!(
-            role_type.role_uri,
+            role_type.role_uri.as_str(),
             "http://www.xbrl.de/taxonomies/de-gaap-ci/role/balanceSheet"
         );
         assert_eq!(role_type.id, "balanceSheet");
@@ -1493,7 +1489,7 @@ mod tests {
         assert_eq!(schema.arcrole_types.len(), 1);
         let arcrole_type = &schema.arcrole_types[0];
         assert_eq!(
-            arcrole_type.arcrole_uri,
+            arcrole_type.arcrole_uri.as_str(),
             "http://www.xbrl.de/taxonomies/de-gaap-ci/arcrole/parent-child"
         );
         assert_eq!(arcrole_type.cycles_allowed, Some(CyclesAllowed::Undirected));

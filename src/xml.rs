@@ -264,6 +264,12 @@ impl AsRef<str> for ArcroleUri {
     }
 }
 
+impl Display for ArcroleUri {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
 /// Concept element identifier used in label/reference maps
 /// (e.g. `de-gaap-ci_bs.ass`).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]

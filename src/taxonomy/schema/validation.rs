@@ -1,8 +1,6 @@
 use crate::{
     XbrlError,
-    taxonomy::schema::{
-        TaxonomySchema, is_absolute_uri, is_ncname, local_name, resolver::XbrlType,
-    },
+    taxonomy::schema::{TaxonomySchema, is_absolute_uri, is_ncname, resolver::XbrlType},
 };
 
 /// Validate schema-level XBRL constraints.
@@ -116,7 +114,7 @@ pub fn validate(taxonomy: &TaxonomySchema) -> Result<(), XbrlError> {
             if role_type
                 .used_on
                 .iter()
-                .any(|value| local_name(value) == "label")
+                .any(|qname| qname.local_name == "label")
             {
                 return Err(XbrlError::InvalidSchemaDocument {
                     path: taxonomy.file_path.clone(),

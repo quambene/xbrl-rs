@@ -114,11 +114,6 @@ impl TaxonomySchema {
     }
 }
 
-/// Extract the local name from a possibly prefixed XML name.
-fn local_name(name: &str) -> &str {
-    name.rsplit(':').next().unwrap_or(name)
-}
-
 fn is_ncname(value: &str) -> bool {
     let mut chars = value.chars();
     let Some(first) = chars.next() else {
@@ -153,7 +148,7 @@ fn is_absolute_uri(value: &str) -> bool {
 mod tests {
     use super::{Concept, TaxonomySchema};
     use crate::{
-        Balance, ExpandedName, NamespaceUri, PeriodType, XbrlError,
+        Balance, ExpandedName, NamespaceUri, PeriodType, RoleUri, XbrlError,
         taxonomy::{
             RoleType,
             schema::resolver::{BaseSubstitutionGroup, SubstitutionGroup, XbrlType},
@@ -329,7 +324,7 @@ mod tests {
             linkbase_refs: vec![],
             role_types: vec![RoleType {
                 id: "1invalid-id".to_string(),
-                role_uri: "http://example.com/role".to_string(),
+                role_uri: RoleUri::from("http://example.com/role"),
                 definition: None,
                 used_on: vec![],
             }],
