@@ -67,8 +67,8 @@ pub enum BaseSubstitutionGroup {
 pub struct SubstitutionGroup {
     /// The fully resolved base group (item, tuple, dimension, etc.)
     pub base: BaseSubstitutionGroup,
-    /// The original QName of the substitution group
-    pub original: QName,
+    /// The original name of the substitution group.
+    pub original: ExpandedName,
 }
 
 impl SubstitutionGroup {
@@ -209,13 +209,15 @@ pub fn resolve_concepts(raw: &RawSchema) -> Vec<Concept> {
         })
         .collect();
 
+    // Missing target space is allowed in XBRL.
     let target_namespace = raw.target_namespace.as_deref().unwrap_or("");
 
     raw.elements
         .iter()
         .filter(|element| element.substitution_group.is_some())
         .map(|element| {
-            let sub_group = resolve_substitution_group(element, &elements_by_name);
+            let sub_group =
+                resolve_substitution_group(element, &elements_by_name, target_namespace);
 
             let data_type = match &element.type_name {
                 Some(type_qname) => {
@@ -262,10 +264,14 @@ pub fn resolve_concepts(raw: &RawSchema) -> Vec<Concept> {
 fn resolve_substitution_group(
     element: &Element,
     elements_by_name: &HashMap<&str, &Element>,
+    target_namespace: &str,
 ) -> SubstitutionGroup {
     // The element is guaranteed to have a substitution group at this point.
     let substitution_group = element.substitution_group.as_ref().unwrap();
-    let original = convert_qname(substitution_group);
+    let original = ExpandedName::new(
+        target_namespace.to_owned(),
+        substitution_group.local_name.clone(),
+    );
 
     if let Some(base) = match_head_group(&substitution_group.local_name) {
         return SubstitutionGroup { base, original };
@@ -455,13 +461,6 @@ fn heuristic_type(local_name: &str) -> XbrlType {
         XbrlType::QName
     } else {
         XbrlType::Simple(local_name.to_owned())
-    }
-}
-
-fn convert_qname(raw: &QName) -> QName {
-    QName {
-        prefix: raw.prefix.clone(),
-        local_name: raw.local_name.clone(),
     }
 }
 

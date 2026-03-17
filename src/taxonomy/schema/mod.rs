@@ -201,8 +201,8 @@ mod tests {
                 "stringItemType",
                 SubstitutionGroup {
                     base: BaseSubstitutionGroup::Item,
-                    original: QName {
-                        prefix: None,
+                    original: ExpandedName {
+                        namespace_uri: NamespaceUri::from("http://example.com/taxonomy"),
                         local_name: "item".to_string(),
                     },
                 },
@@ -234,8 +234,8 @@ mod tests {
                 "stringItemType",
                 SubstitutionGroup {
                     base: BaseSubstitutionGroup::Item,
-                    original: QName {
-                        prefix: None,
+                    original: ExpandedName {
+                        namespace_uri: NamespaceUri::from("http://example.com/taxonomy"),
                         local_name: "item".to_string(),
                     },
                 },
@@ -267,8 +267,8 @@ mod tests {
                 "stringItemType",
                 SubstitutionGroup {
                     base: BaseSubstitutionGroup::Tuple,
-                    original: QName {
-                        prefix: None,
+                    original: ExpandedName {
+                        namespace_uri: NamespaceUri::from("http://example.com/taxonomy"),
                         local_name: "tuple".to_string(),
                     },
                 },
@@ -300,8 +300,8 @@ mod tests {
                 "stringItemType",
                 SubstitutionGroup {
                     base: BaseSubstitutionGroup::Tuple,
-                    original: QName {
-                        prefix: None,
+                    original: ExpandedName {
+                        namespace_uri: NamespaceUri::from("http://example.com/taxonomy"),
                         local_name: "tuple".to_string(),
                     },
                 },
@@ -364,8 +364,8 @@ mod tests {
                 data_type: XbrlType::Monetary,
                 substitution_group: SubstitutionGroup {
                     base: BaseSubstitutionGroup::Item,
-                    original: QName {
-                        prefix: None,
+                    original: ExpandedName {
+                        namespace_uri: NamespaceUri::from("http://example.com/taxonomy"),
                         local_name: "item".to_string(),
                     },
                 },
