@@ -288,7 +288,8 @@ pub fn resolve_concepts(raw: &RawSchema) -> Result<Vec<Concept>, XbrlError> {
         .iter()
         .filter(|element| element.substitution_group.is_some())
         .map(|element| {
-            let sub_group = resolve_substitution_group(element, &elements_by_name, namespaces)?;
+            let substitution_group =
+                resolve_substitution_group(element, &elements_by_name, namespaces)?;
 
             let data_type = match &element.type_name {
                 Some(type_qname) => {
@@ -301,7 +302,7 @@ pub fn resolve_concepts(raw: &RawSchema) -> Result<Vec<Concept>, XbrlError> {
                 id: element.id.clone(),
                 name: ExpandedName::new(target_namespace.into(), element.name.clone()),
                 data_type,
-                substitution_group: sub_group,
+                substitution_group,
                 period_type: element.period_type.clone(),
                 balance: element.balance.clone(),
                 nillable: element.is_nillable,
