@@ -10,7 +10,7 @@
                 cyclesAllowed="any"
                 id="conformance">
                 <link:usedOn>link:someArc</link:usedOn>
-                <link:usedOn xmlns="http://www.xbrl.org/2003/linkbase">someArc</link:usedOn>
+                <link:usedOn>link:someArc</link:usedOn>
             </link:arcroleType>
         </xsd:appinfo>
     </xsd:annotation>

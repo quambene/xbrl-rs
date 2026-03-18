@@ -25,7 +25,11 @@ fn from_xml_unchecked_accepts_arcrole_used_on_when_qnames_are_not_s_equal() {
     let path = Path::new(SCHEMA_BASE).join("arcrole_used_on_not_s_equal.xsd");
     let parsed = TaxonomySchema::from_file_unchecked(&path);
 
-    assert!(parsed.is_ok());
+    assert!(
+        parsed.is_ok(),
+        "Expected successful parse, got error: {:?}",
+        parsed.err()
+    );
 }
 
 #[test]
@@ -33,7 +37,11 @@ fn from_xml_unchecked_accepts_role_used_on_when_qnames_are_not_s_equal() {
     let path = Path::new(SCHEMA_BASE).join("role_used_on_not_s_equal.xsd");
     let parsed = TaxonomySchema::from_file_unchecked(&path);
 
-    assert!(parsed.is_ok());
+    assert!(
+        parsed.is_ok(),
+        "Expected successful parse, got error: {:?}",
+        parsed.err()
+    );
 }
 
 #[test]

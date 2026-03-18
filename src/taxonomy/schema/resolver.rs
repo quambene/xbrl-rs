@@ -247,7 +247,7 @@ fn resolve_used_on(
                 namespaces
                     .get(prefix)
                     .ok_or_else(|| XbrlError::InvalidSchemaResolution {
-                        reason: "Unknown namespace prefix in roleType usedOn".to_string(),
+                        reason: format!("Unknown namespace prefix '{}' in roleType usedOn", prefix),
                     })?;
 
             Ok(ExpandedName::new(
