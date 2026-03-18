@@ -88,13 +88,13 @@ cargo test conformance_suite --features conformance-test
 
 | Category                  |  Passed |  Failed | Skipped |   Total | Pass Rate |
 | ------------------------- | ------: | ------: | ------: | ------: | --------: |
-| 100-schema                |      76 |       0 |       0 |      76 |      100% |
-| 200-linkbase              |     127 |      77 |       0 |     204 |       62% |
-| 300-instance              |     251 |      54 |       0 |     305 |       82% |
+| 100-schema                |      61 |      15 |       0 |      76 |       80% |
+| 200-linkbase              |     117 |      87 |       0 |     204 |       57% |
+| 300-instance              |     228 |      77 |       0 |     305 |       75% |
 | 400-misc                  |       4 |       7 |       0 |      11 |       36% |
 | arc-duplication           |       1 |       3 |       0 |       4 |       25% |
 | uniqueParticleAttribution |       4 |       2 |       0 |       6 |       67% |
-| **TOTAL**                 | **463** | **143** |   **0** | **606** |   **76%** |
+| **TOTAL**                 | **417** | **189** |   **0** | **606** |   **69%** |
 
 ## Benchmarks
 
