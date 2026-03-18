@@ -383,9 +383,9 @@ pub struct ExpandedName {
 }
 
 impl ExpandedName {
-    pub fn new(namespace_uri: String, local_name: String) -> Self {
+    pub fn new(namespace_uri: NamespaceUri, local_name: String) -> Self {
         Self {
-            namespace_uri: namespace_uri.into(),
+            namespace_uri,
             local_name,
         }
     }

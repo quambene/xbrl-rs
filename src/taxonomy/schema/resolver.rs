@@ -1,5 +1,9 @@
 use super::parser::{ComplexType, Compositor, Element, RawSchema, SimpleType};
-use crate::{Balance, ExpandedName, PeriodType, TaxonomySchema, xml::QName};
+use crate::{
+    Balance, ExpandedName, NamespacePrefix, NamespaceUri, PeriodType, TaxonomySchema, XbrlError,
+    taxonomy::{RoleType, schema::ArcroleType},
+    xml::QName,
+};
 use std::collections::{HashMap, HashSet};
 
 /// Standard XBRL base types (from xbrli) and common custom types (e.g.,
@@ -124,6 +128,9 @@ pub struct Concept {
     /// The element's id attribute (e.g., "de-gaap-ci_bs.ass.fixAss").
     pub id: Option<String>,
     /// The element's qualified name.
+    ///
+    /// A concept's xs:element is declared in the schema's `targetNamespace`, so
+    /// the `NamespaceUri` should be the `targetNamespace`.
     pub name: ExpandedName,
     /// The base type resolved from simple or complex types.
     pub data_type: XbrlType,
@@ -171,24 +178,88 @@ impl Concept {
     }
 }
 
-pub fn resolve_schema(schema: RawSchema) -> TaxonomySchema {
-    let concepts = resolve_concepts(&schema);
+/// Resolve a raw schema into a fully resolved `TaxonomySchema`, including
+/// resolving concept types and substitution groups.
+pub fn resolve_schema(schema: RawSchema) -> Result<TaxonomySchema, XbrlError> {
+    let namespaces = &schema.namespaces;
+    let role_types = schema
+        .role_types
+        .iter()
+        .map(|role_type| {
+            let used_on = resolve_used_on(&role_type.used_on, namespaces)?;
 
-    TaxonomySchema {
+            Ok(RoleType {
+                id: role_type.id.clone(),
+                role_uri: role_type.role_uri.clone(),
+                definition: role_type.definition.clone(),
+                used_on,
+            })
+        })
+        .collect::<Result<Vec<_>, XbrlError>>()?;
+
+    let arcrole_types = schema
+        .arcrole_types
+        .iter()
+        .map(|arcrole_type| {
+            let used_on = resolve_used_on(&arcrole_type.used_on, namespaces)?;
+
+            Ok(ArcroleType {
+                id: arcrole_type.id.clone(),
+                arcrole_uri: arcrole_type.arcrole_uri.clone(),
+                definition: arcrole_type.definition.clone(),
+                cycles_allowed: arcrole_type.cycles_allowed.clone(),
+                used_on,
+            })
+        })
+        .collect::<Result<Vec<_>, XbrlError>>()?;
+    let concepts = resolve_concepts(&schema)?;
+
+    Ok(TaxonomySchema {
         file_path: None,
         target_namespace: schema.target_namespace,
         namespaces: schema.namespaces,
         imports: schema.imports,
         includes: schema.includes,
         linkbase_refs: schema.linkbase_refs,
-        role_types: schema.role_types,
-        arcrole_types: schema.arcrole_types,
+        role_types,
+        arcrole_types,
         concepts,
-    }
+    })
+}
+
+/// Resolve the `usedOn` QNames of a `RoleType` to `ExpandedName`s using the
+/// schema's namespace mappings.
+fn resolve_used_on(
+    used_on: &[QName],
+    namespaces: &HashMap<NamespacePrefix, NamespaceUri>,
+) -> Result<Vec<ExpandedName>, XbrlError> {
+    used_on
+        .iter()
+        .map(|qname| {
+            let prefix =
+                qname
+                    .prefix
+                    .as_ref()
+                    .ok_or_else(|| XbrlError::InvalidSchemaResolution {
+                        reason: "Missing namespace prefix in roleType usedOn".to_string(),
+                    })?;
+            let namespace_uri =
+                namespaces
+                    .get(prefix)
+                    .ok_or_else(|| XbrlError::InvalidSchemaResolution {
+                        reason: "Unknown namespace prefix in roleType usedOn".to_string(),
+                    })?;
+
+            Ok(ExpandedName::new(
+                namespace_uri.to_owned(),
+                qname.local_name.clone(),
+            ))
+        })
+        .collect()
 }
 
 /// Resolve all elements in a `RawSchema` into fully resolved `Concept`s.
-pub fn resolve_concepts(raw: &RawSchema) -> Vec<Concept> {
+pub fn resolve_concepts(raw: &RawSchema) -> Result<Vec<Concept>, XbrlError> {
     let elements_by_name: HashMap<&str, &Element> =
         raw.elements.iter().map(|e| (e.name.as_str(), e)).collect();
 
@@ -211,13 +282,13 @@ pub fn resolve_concepts(raw: &RawSchema) -> Vec<Concept> {
 
     // Missing target space is allowed in XBRL.
     let target_namespace = raw.target_namespace.as_deref().unwrap_or("");
+    let namespaces = &raw.namespaces;
 
     raw.elements
         .iter()
         .filter(|element| element.substitution_group.is_some())
         .map(|element| {
-            let sub_group =
-                resolve_substitution_group(element, &elements_by_name, target_namespace);
+            let sub_group = resolve_substitution_group(element, &elements_by_name, namespaces)?;
 
             let data_type = match &element.type_name {
                 Some(type_qname) => {
@@ -226,9 +297,9 @@ pub fn resolve_concepts(raw: &RawSchema) -> Vec<Concept> {
                 None => XbrlType::Complex(element.name.clone()),
             };
 
-            Concept {
+            Ok(Concept {
                 id: element.id.clone(),
-                name: ExpandedName::new(target_namespace.to_owned(), element.name.clone()),
+                name: ExpandedName::new(target_namespace.into(), element.name.clone()),
                 data_type,
                 substitution_group: sub_group,
                 period_type: element.period_type.clone(),
@@ -254,9 +325,9 @@ pub fn resolve_concepts(raw: &RawSchema) -> Vec<Concept> {
                     .complex_type
                     .as_ref()
                     .and_then(|complex_type| complex_type.compositor.clone()),
-            }
+            })
         })
-        .collect()
+        .collect::<Result<Vec<_>, _>>()
 }
 
 /// Resolve the substitution group chain for an element to determine the base
@@ -264,17 +335,32 @@ pub fn resolve_concepts(raw: &RawSchema) -> Vec<Concept> {
 fn resolve_substitution_group(
     element: &Element,
     elements_by_name: &HashMap<&str, &Element>,
-    target_namespace: &str,
-) -> SubstitutionGroup {
+    namespaces: &HashMap<NamespacePrefix, NamespaceUri>,
+) -> Result<SubstitutionGroup, XbrlError> {
     // The element is guaranteed to have a substitution group at this point.
-    let substitution_group = element.substitution_group.as_ref().unwrap();
-    let original = ExpandedName::new(
-        target_namespace.to_owned(),
-        substitution_group.local_name.clone(),
-    );
+    let substitution_group =
+        element
+            .substitution_group
+            .as_ref()
+            .ok_or_else(|| XbrlError::InvalidSchemaResolution {
+                reason: "Missing substitution group".to_string(),
+            })?;
+    let prefix =
+        substitution_group
+            .prefix
+            .as_ref()
+            .ok_or_else(|| XbrlError::InvalidSchemaResolution {
+                reason: "Missing prefix in substitution group".to_string(),
+            })?;
+    let namespace = namespaces
+        .get(prefix)
+        .ok_or_else(|| XbrlError::InvalidSchemaResolution {
+            reason: "Unknown namespace prefix in substitution group".to_string(),
+        })?;
+    let original = ExpandedName::new(namespace.to_owned(), substitution_group.local_name.clone());
 
     if let Some(base) = match_head_group(&substitution_group.local_name) {
-        return SubstitutionGroup { base, original };
+        return Ok(SubstitutionGroup { base, original });
     }
 
     // Walk the chain following substitution group references.
@@ -291,17 +377,17 @@ fn resolve_substitution_group(
         };
 
         if let Some(base) = match_head_group(&parent_substitution_group.local_name) {
-            return SubstitutionGroup { base, original };
+            return Ok(SubstitutionGroup { base, original });
         }
 
         current_name = parent_substitution_group.local_name.as_str();
     }
 
     // Default to item if the substitution group could not be resolved.
-    SubstitutionGroup {
+    Ok(SubstitutionGroup {
         base: BaseSubstitutionGroup::Item,
         original,
-    }
+    })
 }
 
 /// Check if a local name matches one of the XBRL head substitution groups.
@@ -473,7 +559,10 @@ mod tests {
     fn empty_schema() -> RawSchema {
         RawSchema {
             target_namespace: Some("http://example.com/taxonomy".to_owned()),
-            namespaces: HashMap::new(),
+            namespaces: HashMap::from_iter([(
+                NamespacePrefix::from("xbrli"),
+                NamespaceUri::from("http://www.xbrl.org/2003/instance"),
+            )]),
             element_form_default: FormDefault::Unqualified,
             attribute_form_default: FormDefault::Unqualified,
             imports: vec![],
@@ -530,17 +619,14 @@ mod tests {
             complex_type: None,
         });
 
-        let concepts = resolve_concepts(&schema);
+        let concepts = resolve_concepts(&schema).unwrap();
 
         assert_eq!(concepts.len(), 1);
         let concept = &concepts[0];
         assert_eq!(concept.id, Some("Revenue".to_owned()));
         assert_eq!(
             concept.name,
-            ExpandedName::new(
-                "http://example.com/taxonomy".to_owned(),
-                "Revenue".to_owned()
-            )
+            ExpandedName::new("http://example.com/taxonomy".into(), "Revenue".to_owned())
         );
         assert_eq!(concept.data_type, XbrlType::Monetary);
         assert_eq!(concept.substitution_group.base, BaseSubstitutionGroup::Item);
@@ -565,7 +651,7 @@ mod tests {
             complex_type: None,
         });
 
-        let concepts = resolve_concepts(&schema);
+        let concepts = resolve_concepts(&schema).unwrap();
 
         assert_eq!(concepts.len(), 1);
         let c = &concepts[0];
@@ -596,7 +682,7 @@ mod tests {
             id: Some("ConcreteItem".to_owned()),
             type_name: Some(string_type()),
             substitution_group: Some(QName {
-                prefix: None,
+                prefix: Some("xbrli".into()),
                 local_name: "abstractItem".to_owned(),
             }),
             is_nillable: true,
@@ -606,7 +692,7 @@ mod tests {
             complex_type: None,
         });
 
-        let concepts = resolve_concepts(&schema);
+        let concepts = resolve_concepts(&schema).unwrap();
 
         assert_eq!(concepts.len(), 2);
         let concrete = &concepts[1];
@@ -656,7 +742,7 @@ mod tests {
             complex_type: None,
         });
 
-        let concepts = resolve_concepts(&schema);
+        let concepts = resolve_concepts(&schema).unwrap();
 
         assert_eq!(concepts.len(), 1);
         assert_eq!(concepts[0].data_type, XbrlType::String);
@@ -678,7 +764,7 @@ mod tests {
             complex_type: None,
         });
 
-        let concepts = resolve_concepts(&schema);
+        let concepts = resolve_concepts(&schema).unwrap();
         assert!(concepts.is_empty());
     }
 
@@ -691,7 +777,7 @@ mod tests {
             id: None,
             type_name: Some(string_type()),
             substitution_group: Some(QName {
-                prefix: None,
+                prefix: Some("xbrli".into()),
                 local_name: "b".to_owned(),
             }),
             is_nillable: false,
@@ -706,7 +792,7 @@ mod tests {
             id: None,
             type_name: Some(string_type()),
             substitution_group: Some(QName {
-                prefix: None,
+                prefix: Some("xbrli".into()),
                 local_name: "a".to_owned(),
             }),
             is_nillable: false,
@@ -716,7 +802,7 @@ mod tests {
             complex_type: None,
         });
 
-        let concepts = resolve_concepts(&schema);
+        let concepts = resolve_concepts(&schema).unwrap();
 
         assert_eq!(concepts.len(), 2);
         // Both should default to Item when cycle is detected.
@@ -749,7 +835,7 @@ mod tests {
             complex_type: None,
         });
 
-        let concepts = resolve_concepts(&schema);
+        let concepts = resolve_concepts(&schema).unwrap();
 
         assert_eq!(concepts.len(), 1);
         assert_eq!(concepts[0].data_type, XbrlType::Shares);
@@ -795,7 +881,7 @@ mod tests {
             complex_type: None,
         });
 
-        let concepts = resolve_concepts(&schema);
+        let concepts = resolve_concepts(&schema).unwrap();
 
         assert_eq!(concepts.len(), 1);
         assert_eq!(concepts[0].data_type, XbrlType::Monetary);
@@ -818,7 +904,7 @@ mod tests {
             complex_type: None,
         });
 
-        let concepts = resolve_concepts(&schema);
+        let concepts = resolve_concepts(&schema).unwrap();
 
         assert_eq!(concepts.len(), 1);
         assert_eq!(concepts[0].name.namespace_uri, NamespaceUri::from(""));

@@ -113,7 +113,7 @@ pub struct LinkbaseRef {
 
 /// A `link:roleType` definition from a taxonomy schema.
 #[derive(Debug, PartialEq, Eq)]
-pub struct RoleType {
+pub struct RawRoleType {
     /// The id attribute (e.g., "role_balanceSheet").
     pub id: String,
     /// The roleURI attribute.
@@ -126,7 +126,7 @@ pub struct RoleType {
 
 /// A `link:arcroleType` definition from a taxonomy schema.
 #[derive(Debug, PartialEq, Eq)]
-pub struct ArcroleType {
+pub struct RawArcroleType {
     /// The id attribute.
     pub id: String,
     /// The arcroleURI attribute.
@@ -240,9 +240,9 @@ pub struct RawSchema {
     /// Parsed `link:linkbaseRef` entries.
     pub linkbase_refs: Vec<LinkbaseRef>,
     /// Parsed `link:roleType` definitions.
-    pub role_types: Vec<RoleType>,
+    pub role_types: Vec<RawRoleType>,
     /// Parsed `link:arcroleType` definitions.
-    pub arcrole_types: Vec<ArcroleType>,
+    pub arcrole_types: Vec<RawArcroleType>,
     /// Parsed elements (`xs:element`) in this schema.
     pub elements: Vec<Element>,
     /// Parsed simple type definitions (`xs:simpleType`) in this schema.
@@ -605,7 +605,7 @@ impl<R: BufRead> SchemaParser<R> {
     }
 
     /// Parses a `link:roleType` element.
-    fn parse_role_type(&mut self, attributes: Attributes) -> Result<RoleType, XbrlError> {
+    fn parse_role_type(&mut self, attributes: Attributes) -> Result<RawRoleType, XbrlError> {
         let mut id = String::new();
         let mut role_uri = String::new();
 
@@ -656,7 +656,7 @@ impl<R: BufRead> SchemaParser<R> {
             buf.clear();
         }
 
-        Ok(RoleType {
+        Ok(RawRoleType {
             id,
             role_uri: RoleUri::from(role_uri),
             definition,
@@ -665,7 +665,7 @@ impl<R: BufRead> SchemaParser<R> {
     }
 
     /// Parses a `link:arcroleType` element.
-    fn parse_arcrole_type(&mut self, attributes: Attributes) -> Result<ArcroleType, XbrlError> {
+    fn parse_arcrole_type(&mut self, attributes: Attributes) -> Result<RawArcroleType, XbrlError> {
         let mut id = String::new();
         let mut arcrole_uri = String::new();
         let mut cycles_allowed = None;
@@ -718,7 +718,7 @@ impl<R: BufRead> SchemaParser<R> {
             buf.clear();
         }
 
-        Ok(ArcroleType {
+        Ok(RawArcroleType {
             id,
             arcrole_uri: ArcroleUri::from(arcrole_uri),
             definition,
