@@ -106,6 +106,10 @@ pub enum XbrlError {
         reason: String,
     },
 
+    /// Error resolving schema
+    #[error("Error resolving schema: {reason}")]
+    InvalidSchemaResolution { reason: String },
+
     // Invalid instance document
     #[error("Invalid instance document '{}': {reason}", path.as_ref().map(|path| path.display().to_string()).unwrap_or_else(|| "unknown".to_string()))]
     InvalidInstanceDocument {
@@ -120,8 +124,8 @@ pub enum XbrlError {
         reason: String,
     },
 
-    /// Error resolving linkbase references
-    #[error("Error resolving linkbase references: {reason}")]
+    /// Error resolving linkbase
+    #[error("Error resolving linkbase: {reason}")]
     InvalidLinkbaseResolution { reason: String },
 
     /// A string value could not be parsed as the expected XBRL type.

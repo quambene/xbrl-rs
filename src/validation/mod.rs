@@ -82,22 +82,13 @@ impl ValidationResult {
     }
 }
 
-/// Run all validation checks: schema, calculation, and dimension.
+/// Run all validation checks on schema level and linkbase level (i.e.,
+/// calculation, and dimension).
 pub fn validate_all(instance: &InstanceDocument, taxonomy: &TaxonomySet) -> ValidationResult {
     let mut result = ValidationResult::new();
     let prepared = value::prepare_fact_values(instance, taxonomy, &mut result);
     schema::validate_schema(instance, taxonomy, &prepared, &mut result);
     calculation::validate_calculations(instance, taxonomy, &prepared, &mut result);
-    validate_dimensions(instance, taxonomy, &mut result);
+    dimension::validate_dimensions(instance, taxonomy, &mut result);
     result
-}
-
-/// Check that dimension members in contexts are valid per the definition
-/// linkbase.
-pub fn validate_dimensions(
-    instance: &InstanceDocument,
-    taxonomy: &TaxonomySet,
-    result: &mut ValidationResult,
-) {
-    dimension::validate_dimensions(instance, taxonomy, result);
 }

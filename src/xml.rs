@@ -264,6 +264,12 @@ impl AsRef<str> for ArcroleUri {
     }
 }
 
+impl Display for ArcroleUri {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
 /// Concept element identifier used in label/reference maps
 /// (e.g. `de-gaap-ci_bs.ass`).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -316,7 +322,7 @@ impl fmt::Display for ConceptId {
 
 /// Represents a qualified name in the XML document (e.g.,
 /// "xbrli:monetaryItemType").
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct QName {
     /// The namespace prefix (e.g., "xbrli") if present.
     pub prefix: Option<NamespacePrefix>,
@@ -377,9 +383,9 @@ pub struct ExpandedName {
 }
 
 impl ExpandedName {
-    pub fn new(namespace_uri: String, local_name: String) -> Self {
+    pub fn new(namespace_uri: NamespaceUri, local_name: String) -> Self {
         Self {
-            namespace_uri: namespace_uri.into(),
+            namespace_uri,
             local_name,
         }
     }

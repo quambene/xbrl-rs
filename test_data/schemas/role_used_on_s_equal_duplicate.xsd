@@ -9,7 +9,7 @@
                 roleURI="http://xbrl.org/role/conformance"
                 id="conformance">
                 <link:usedOn>link:definitionLink</link:usedOn>
-                <link:usedOn xmlns="http://www.xbrl.org/2003/linkbase">definitionLink</link:usedOn>
+                <link:usedOn>link:definitionLink</link:usedOn>
             </link:roleType>
         </xsd:appinfo>
     </xsd:annotation>

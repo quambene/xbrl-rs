@@ -2,10 +2,11 @@ mod parser;
 mod resolver;
 mod validation;
 
-use crate::{NamespacePrefix, NamespaceUri, XbrlError, instance::Decimals};
-pub use parser::{
-    ArcroleType, Compositor, LinkbaseRef, RoleType, SchemaImport, SchemaInclude, SchemaParser,
+use crate::{
+    ExpandedName, NamespacePrefix, NamespaceUri, RoleUri, XbrlError, instance::Decimals,
+    taxonomy::schema::parser::CyclesAllowed, xml::ArcroleUri,
 };
+pub use parser::{Compositor, LinkbaseRef, SchemaImport, SchemaInclude, SchemaParser};
 #[cfg(test)]
 pub use resolver::BaseSubstitutionGroup;
 pub use resolver::{Concept, MaxOccurs, SubstitutionGroup, TupleChild, XbrlType};
@@ -44,6 +45,34 @@ pub struct DeclaredAccuracy {
     pub decimals: Option<Decimals>,
     /// Declared `precision` constraint, if any.
     pub precision: Option<Decimals>,
+}
+
+/// A resolved `link:roleType` definition from a taxonomy schema.
+#[derive(Debug, PartialEq, Eq)]
+pub struct RoleType {
+    /// The id attribute (e.g., "role_balanceSheet").
+    pub id: String,
+    /// The roleURI attribute.
+    pub role_uri: RoleUri,
+    /// The human-readable definition (child `link:definition` text).
+    pub definition: Option<String>,
+    /// Which link types this role is used on (child `link:usedOn` texts).
+    pub used_on: Vec<ExpandedName>,
+}
+
+/// A resolved `link:arcroleType` definition from a taxonomy schema.
+#[derive(Debug, PartialEq, Eq)]
+pub struct ArcroleType {
+    /// The id attribute.
+    pub id: String,
+    /// The arcroleURI attribute.
+    pub arcrole_uri: ArcroleUri,
+    /// The human-readable definition.
+    pub definition: Option<String>,
+    /// Which link types this arcrole is used on.
+    pub used_on: Vec<ExpandedName>,
+    /// The cycles-allowed attribute.
+    pub cycles_allowed: Option<CyclesAllowed>,
 }
 
 /// A parsed taxonomy schema (.xsd) file.
@@ -96,7 +125,7 @@ impl TaxonomySchema {
         let reader = BufReader::new(file);
         let mut parser = SchemaParser::from_reader(reader);
         let raw_schema = parser.parse_schema()?;
-        let schema = resolver::resolve_schema(raw_schema);
+        let schema = resolver::resolve_schema(raw_schema)?;
         Ok(schema)
     }
 
@@ -104,7 +133,7 @@ impl TaxonomySchema {
     pub fn from_reader_unchecked<R: io::BufRead>(reader: R) -> Result<Self, XbrlError> {
         let mut parser = SchemaParser::from_reader(reader);
         let raw_schema = parser.parse_schema()?;
-        let schema = resolver::resolve_schema(raw_schema);
+        let schema = resolver::resolve_schema(raw_schema)?;
         Ok(schema)
     }
 
@@ -112,11 +141,6 @@ impl TaxonomySchema {
     pub fn validate(&self) -> Result<(), XbrlError> {
         validation::validate(self)
     }
-}
-
-/// Extract the local name from a possibly prefixed XML name.
-fn local_name(name: &str) -> &str {
-    name.rsplit(':').next().unwrap_or(name)
 }
 
 fn is_ncname(value: &str) -> bool {
@@ -153,7 +177,7 @@ fn is_absolute_uri(value: &str) -> bool {
 mod tests {
     use super::{Concept, TaxonomySchema};
     use crate::{
-        Balance, ExpandedName, NamespaceUri, PeriodType, XbrlError,
+        Balance, ExpandedName, NamespaceUri, PeriodType, RoleUri, XbrlError,
         taxonomy::{
             RoleType,
             schema::resolver::{BaseSubstitutionGroup, SubstitutionGroup, XbrlType},
@@ -329,7 +353,7 @@ mod tests {
             linkbase_refs: vec![],
             role_types: vec![RoleType {
                 id: "1invalid-id".to_string(),
-                role_uri: "http://example.com/role".to_string(),
+                role_uri: RoleUri::from("http://example.com/role"),
                 definition: None,
                 used_on: vec![],
             }],

@@ -326,13 +326,13 @@ mod tests {
     fn create_concepts() -> Vec<Concept> {
         vec![
             Concept {
-                name: ExpandedName::new("http://example.com".to_string(), "concept1".to_string()),
+                name: ExpandedName::new("http://example.com".into(), "concept1".to_string()),
                 id: Some("concept1".to_string()),
                 data_type: XbrlType::Monetary,
                 substitution_group: SubstitutionGroup {
                     base: BaseSubstitutionGroup::Item,
                     original: ExpandedName::new(
-                        "http://www.xbrl.org/2003/instance".to_string(),
+                        "http://www.xbrl.org/2003/instance".into(),
                         "item".to_string(),
                     ),
                 },
@@ -344,13 +344,13 @@ mod tests {
                 compositor: None,
             },
             Concept {
-                name: ExpandedName::new("http://example.com".to_string(), "concept2".to_string()),
+                name: ExpandedName::new("http://example.com".into(), "concept2".to_string()),
                 id: Some("concept2".to_string()),
                 data_type: XbrlType::Monetary,
                 substitution_group: SubstitutionGroup {
                     base: BaseSubstitutionGroup::Item,
                     original: ExpandedName::new(
-                        "http://www.xbrl.org/2003/instance".to_string(),
+                        "http://www.xbrl.org/2003/instance".into(),
                         "item".to_string(),
                     ),
                 },
@@ -475,8 +475,8 @@ mod tests {
         assert_eq!(
             presentation_arc,
             &PresentationArc {
-                from: ExpandedName::new("http://example.com".to_string(), "concept1".to_string()),
-                to: ExpandedName::new("http://example.com".to_string(), "concept2".to_string()),
+                from: ExpandedName::new("http://example.com".into(), "concept1".to_string()),
+                to: ExpandedName::new("http://example.com".into(), "concept2".to_string()),
                 order: Some(Decimal::new(1, 0)),
                 preferred_label: None,
                 arcrole: "http://www.xbrl.org/2003/arcrole/parent-child".into(),
@@ -487,8 +487,8 @@ mod tests {
         assert_eq!(
             calculation_arc,
             &CalculationArc {
-                from: ExpandedName::new("http://example.com".to_string(), "concept1".to_string()),
-                to: ExpandedName::new("http://example.com".to_string(), "concept2".to_string()),
+                from: ExpandedName::new("http://example.com".into(), "concept1".to_string()),
+                to: ExpandedName::new("http://example.com".into(), "concept2".to_string()),
                 order: Some(Decimal::new(1, 0)),
                 weight: Decimal::new(1, 0),
                 arcrole: "http://www.xbrl.org/2003/arcrole/summation-item".into(),
@@ -499,15 +499,15 @@ mod tests {
         assert_eq!(
             definition_arc,
             &DefinitionArc {
-                from: ExpandedName::new("http://example.com".to_string(), "concept1".to_string()),
-                to: ExpandedName::new("http://example.com".to_string(), "concept2".to_string()),
+                from: ExpandedName::new("http://example.com".into(), "concept1".to_string()),
+                to: ExpandedName::new("http://example.com".into(), "concept2".to_string()),
                 order: Some(Decimal::new(1, 0)),
                 arcrole: "http://www.xbrl.org/2003/arcrole/parent-child".into(),
             }
         );
 
         let label = &linkbases.labels
-            [&ExpandedName::new("http://example.com".to_string(), "concept1".to_string())][0];
+            [&ExpandedName::new("http://example.com".into(), "concept1".to_string())][0];
         assert_eq!(
             label,
             &Label {
