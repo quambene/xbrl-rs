@@ -322,7 +322,7 @@ impl fmt::Display for ConceptId {
 
 /// Represents a qualified name in the XML document (e.g.,
 /// "xbrli:monetaryItemType").
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct QName {
     /// The namespace prefix (e.g., "xbrli") if present.
     pub prefix: Option<NamespacePrefix>,

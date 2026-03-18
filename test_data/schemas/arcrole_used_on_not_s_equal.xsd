@@ -3,6 +3,7 @@
     xmlns:xsd="http://www.w3.org/2001/XMLSchema"
     xmlns:link="http://www.xbrl.org/2003/linkbase"
     xmlns:this="http://example.com/this"
+    xmlns:that="http://example.com/that"
     targetNamespace="http://xbrl.org/conformance">
     <xsd:annotation>
         <xsd:appinfo>
@@ -11,7 +12,7 @@
                 cyclesAllowed="any"
                 id="conformance">
                 <link:usedOn>this:someArc</link:usedOn>
-                <link:usedOn>this:someArc</link:usedOn>
+                <link:usedOn>that:someArc</link:usedOn>
             </link:arcroleType>
         </xsd:appinfo>
     </xsd:annotation>
