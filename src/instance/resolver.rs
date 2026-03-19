@@ -18,7 +18,11 @@ use std::collections::HashMap;
 /// Resolve a [`RawInstance`] into an [`InstanceDocument`].
 pub(crate) fn resolve_instance(raw: RawInstance) -> Result<InstanceDocument, XbrlError> {
     let namespaces = &raw.namespaces;
-    let schema_refs = raw.schema_refs.into_iter().map(|s| s.href).collect();
+    let schema_refs = raw
+        .schema_refs
+        .into_iter()
+        .map(|schema_ref| schema_ref.href)
+        .collect();
     let contexts = resolve_contexts(raw.contexts, namespaces)?;
     let units = resolve_units(raw.units, namespaces)?;
     let facts = resolve_facts(raw.facts, namespaces)?;
