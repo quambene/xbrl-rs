@@ -72,8 +72,8 @@ fn resolve_contexts(
             let mut context = Context::new(id.clone(), entity, period);
 
             for dim in raw_context.scenario_dimensions {
-                let dimension = resolve_measure(&dim.dimension, namespaces)?;
-                let member = resolve_measure(&dim.member, namespaces)?;
+                let dimension = resolve_measure(dim.dimension, namespaces)?;
+                let member = resolve_measure(dim.member, namespaces)?;
                 context.add_dimension(dimension, member);
             }
 
@@ -92,12 +92,12 @@ fn resolve_units(
             let numerator = raw_unit
                 .numerator
                 .into_iter()
-                .map(|qname| resolve_measure(&qname, namespaces))
+                .map(|qname| resolve_measure(qname, namespaces))
                 .collect::<Result<Vec<_>, _>>()?;
             let denominator = raw_unit
                 .denominator
                 .into_iter()
-                .map(|qname| resolve_measure(&qname, namespaces))
+                .map(|qname| resolve_measure(qname, namespaces))
                 .collect::<Result<Vec<_>, _>>()?;
             let unit = Unit {
                 id: id.clone(),
@@ -113,7 +113,7 @@ fn resolve_units(
 /// Resolve a QName measure string (e.g. `iso4217:EUR`) into a [`ExpandedName`]
 /// by looking up the namespace URI in the document's namespace map.
 fn resolve_measure(
-    qname: &QName,
+    qname: QName,
     namespaces: &HashMap<NamespacePrefix, NamespaceUri>,
 ) -> Result<ExpandedName, XbrlError> {
     let namespace_uri = if let Some(prefix) = qname.prefix.as_deref() {
@@ -131,7 +131,7 @@ fn resolve_measure(
 
     Ok(ExpandedName {
         namespace_uri,
-        local_name: qname.local_name.clone(),
+        local_name: qname.local_name,
     })
 }
 
@@ -158,7 +158,7 @@ fn resolve_item_fact(
     raw: RawItemFact,
     namespaces: &HashMap<NamespacePrefix, NamespaceUri>,
 ) -> Result<ItemFact, XbrlError> {
-    let concept_name = resolve_measure(&raw.name, namespaces)?;
+    let concept_name = resolve_measure(raw.name, namespaces)?;
     let mut fact = ItemFact::new(
         None,
         concept_name,
@@ -190,7 +190,7 @@ fn resolve_tuple_fact(
     raw: RawTupleFact,
     namespaces: &HashMap<NamespacePrefix, NamespaceUri>,
 ) -> Result<TupleFact, XbrlError> {
-    let concept_name = resolve_measure(&raw.name, namespaces)?;
+    let concept_name = resolve_measure(raw.name, namespaces)?;
     let mut tuple = TupleFact::new(concept_name);
 
     if let Some(id) = raw.id {
