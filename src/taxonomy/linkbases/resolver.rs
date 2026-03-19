@@ -134,7 +134,7 @@ pub fn resolve_linkbases(
             .collect();
         let arcs: Vec<PresentationArc> = link
             .arcs
-            .iter()
+            .into_iter()
             .filter_map(|arc| {
                 let from_fragment = locator_map.get(arc.from.as_str())?;
                 let from_concept = concepts_by_id.get(&ConceptId::from(*from_fragment))?;
@@ -170,7 +170,7 @@ pub fn resolve_linkbases(
             .collect();
         let arcs: Vec<CalculationArc> = link
             .arcs
-            .iter()
+            .into_iter()
             .filter_map(|arc| {
                 let from_fragment = locator_map.get(arc.from.as_str())?;
                 let from_concept = concepts_by_id.get(&ConceptId::from(*from_fragment))?;
@@ -206,7 +206,7 @@ pub fn resolve_linkbases(
             .collect();
         let arcs: Vec<DefinitionArc> = link
             .arcs
-            .iter()
+            .into_iter()
             .filter_map(|arc| {
                 let from_fragment = locator_map.get(arc.from.as_str())?;
                 let from_concept = concepts_by_id.get(&ConceptId::from(*from_fragment))?;

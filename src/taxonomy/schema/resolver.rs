@@ -184,9 +184,9 @@ pub fn resolve_schema(schema: RawSchema) -> Result<TaxonomySchema, XbrlError> {
     let namespaces = &schema.namespaces;
     let role_types = schema
         .role_types
-        .iter()
+        .into_iter()
         .map(|role_type| {
-            let used_on = resolve_used_on(&role_type.used_on, namespaces)?;
+            let used_on = resolve_used_on(role_type.used_on, namespaces)?;
 
             Ok(RoleType {
                 id: role_type.id.clone(),
@@ -196,12 +196,11 @@ pub fn resolve_schema(schema: RawSchema) -> Result<TaxonomySchema, XbrlError> {
             })
         })
         .collect::<Result<Vec<_>, XbrlError>>()?;
-
     let arcrole_types = schema
         .arcrole_types
-        .iter()
+        .into_iter()
         .map(|arcrole_type| {
-            let used_on = resolve_used_on(&arcrole_type.used_on, namespaces)?;
+            let used_on = resolve_used_on(arcrole_type.used_on, namespaces)?;
 
             Ok(ArcroleType {
                 id: arcrole_type.id.clone(),
@@ -212,7 +211,13 @@ pub fn resolve_schema(schema: RawSchema) -> Result<TaxonomySchema, XbrlError> {
             })
         })
         .collect::<Result<Vec<_>, XbrlError>>()?;
-    let concepts = resolve_concepts(&schema)?;
+    let concepts = resolve_concepts(
+        schema.elements,
+        schema.simple_types,
+        schema.complex_types,
+        schema.target_namespace.as_deref(),
+        &schema.namespaces,
+    )?;
 
     Ok(TaxonomySchema {
         file_path: None,
@@ -230,22 +235,20 @@ pub fn resolve_schema(schema: RawSchema) -> Result<TaxonomySchema, XbrlError> {
 /// Resolve the `usedOn` QNames of a `RoleType` to `ExpandedName`s using the
 /// schema's namespace mappings.
 fn resolve_used_on(
-    used_on: &[QName],
+    used_on: Vec<QName>,
     namespaces: &HashMap<NamespacePrefix, NamespaceUri>,
 ) -> Result<Vec<ExpandedName>, XbrlError> {
     used_on
-        .iter()
+        .into_iter()
         .map(|qname| {
-            let prefix =
-                qname
-                    .prefix
-                    .as_ref()
-                    .ok_or_else(|| XbrlError::InvalidSchemaResolution {
-                        reason: "Missing namespace prefix in roleType usedOn".to_string(),
-                    })?;
+            let prefix = qname
+                .prefix
+                .ok_or_else(|| XbrlError::InvalidSchemaResolution {
+                    reason: "Missing namespace prefix in roleType usedOn".to_string(),
+                })?;
             let namespace_uri =
                 namespaces
-                    .get(prefix)
+                    .get(&prefix)
                     .ok_or_else(|| XbrlError::InvalidSchemaResolution {
                         reason: format!("Unknown namespace prefix '{}' in roleType usedOn", prefix),
                     })?;
@@ -259,18 +262,24 @@ fn resolve_used_on(
 }
 
 /// Resolve all elements in a `RawSchema` into fully resolved `Concept`s.
-pub fn resolve_concepts(raw: &RawSchema) -> Result<Vec<Concept>, XbrlError> {
-    let elements_by_name: HashMap<&str, &Element> =
-        raw.elements.iter().map(|e| (e.name.as_str(), e)).collect();
+pub fn resolve_concepts(
+    elements: Vec<Element>,
+    simple_types: Vec<SimpleType>,
+    complex_types: Vec<ComplexType>,
+    target_namespace: Option<&str>,
+    namespaces: &HashMap<NamespacePrefix, NamespaceUri>,
+) -> Result<Vec<Concept>, XbrlError> {
+    let substitution_group_map: HashMap<String, Option<QName>> = elements
+        .iter()
+        .map(|element| (element.name.clone(), element.substitution_group.clone()))
+        .collect();
 
-    let simple_types_by_name: HashMap<&str, &SimpleType> = raw
-        .simple_types
+    let simple_types_by_name: HashMap<&str, &SimpleType> = simple_types
         .iter()
         .filter_map(|simple_type| simple_type.name.as_deref().map(|name| (name, simple_type)))
         .collect();
 
-    let complex_types_by_name: HashMap<&str, &ComplexType> = raw
-        .complex_types
+    let complex_types_by_name: HashMap<&str, &ComplexType> = complex_types
         .iter()
         .filter_map(|complex_type| {
             complex_type
@@ -281,51 +290,50 @@ pub fn resolve_concepts(raw: &RawSchema) -> Result<Vec<Concept>, XbrlError> {
         .collect();
 
     // Missing target space is allowed in XBRL.
-    let target_namespace = raw.target_namespace.as_deref().unwrap_or("");
-    let namespaces = &raw.namespaces;
+    let target_namespace = target_namespace.unwrap_or("");
 
-    raw.elements
-        .iter()
+    elements
+        .into_iter()
         .filter(|element| element.substitution_group.is_some())
         .map(|element| {
             let substitution_group =
-                resolve_substitution_group(element, &elements_by_name, namespaces)?;
-
+                resolve_substitution_group(&element, &substitution_group_map, namespaces)?;
             let data_type = match &element.type_name {
                 Some(type_qname) => {
                     resolve_type(type_qname, &simple_types_by_name, &complex_types_by_name)
                 }
                 None => XbrlType::Complex(element.name.clone()),
             };
+            let compositor = element
+                .complex_type
+                .as_ref()
+                .and_then(|complex_type| complex_type.compositor.clone());
+            let tuple_children = element
+                .complex_type
+                .map(|complex_type| complex_type.children)
+                .unwrap_or_default()
+                .into_iter()
+                .map(|child| TupleChild {
+                    name: child.name,
+                    min_occurs: child.min_occurs,
+                    max_occurs: match child.max_occurs {
+                        Some(n) => MaxOccurs::Bounded(n),
+                        None => MaxOccurs::Unbounded,
+                    },
+                })
+                .collect();
 
             Ok(Concept {
                 id: element.id.clone(),
-                name: ExpandedName::new(target_namespace.into(), element.name.clone()),
+                name: ExpandedName::new(target_namespace.into(), element.name),
                 data_type,
                 substitution_group,
-                period_type: element.period_type.clone(),
-                balance: element.balance.clone(),
+                period_type: element.period_type,
+                balance: element.balance,
                 nillable: element.is_nillable,
                 is_abstract: element.is_abstract,
-                tuple_children: element
-                    .complex_type
-                    .as_ref()
-                    .map(|complex_type| complex_type.children.clone())
-                    .unwrap_or_default()
-                    .into_iter()
-                    .map(|child| TupleChild {
-                        name: child.name,
-                        min_occurs: child.min_occurs,
-                        max_occurs: match child.max_occurs {
-                            Some(n) => MaxOccurs::Bounded(n),
-                            None => MaxOccurs::Unbounded,
-                        },
-                    })
-                    .collect(),
-                compositor: element
-                    .complex_type
-                    .as_ref()
-                    .and_then(|complex_type| complex_type.compositor.clone()),
+                tuple_children,
+                compositor,
             })
         })
         .collect::<Result<Vec<_>, _>>()
@@ -335,7 +343,7 @@ pub fn resolve_concepts(raw: &RawSchema) -> Result<Vec<Concept>, XbrlError> {
 /// group (`Item` or `Tuple`).
 fn resolve_substitution_group(
     element: &Element,
-    elements_by_name: &HashMap<&str, &Element>,
+    substitution_group_map: &HashMap<String, Option<QName>>,
     namespaces: &HashMap<NamespacePrefix, NamespaceUri>,
 ) -> Result<SubstitutionGroup, XbrlError> {
     // The element is guaranteed to have a substitution group at this point.
@@ -369,11 +377,11 @@ fn resolve_substitution_group(
     let mut seen = HashSet::new();
 
     while seen.insert(current_name) {
-        let Some(parent) = elements_by_name.get(current_name) else {
+        let Some(parent) = substitution_group_map.get(current_name) else {
             break;
         };
 
-        let Some(parent_substitution_group) = &parent.substitution_group else {
+        let Some(parent_substitution_group) = parent else {
             break;
         };
 
@@ -607,8 +615,8 @@ mod tests {
 
     #[test]
     fn resolve_direct_item() {
-        let mut schema = empty_schema();
-        schema.elements.push(Element {
+        let mut raw_schema = empty_schema();
+        raw_schema.elements.push(Element {
             name: "Revenue".to_owned(),
             id: Some("Revenue".to_owned()),
             type_name: Some(monetary_type()),
@@ -620,7 +628,8 @@ mod tests {
             complex_type: None,
         });
 
-        let concepts = resolve_concepts(&schema).unwrap();
+        let schema = resolve_schema(raw_schema).unwrap();
+        let concepts = schema.concepts;
 
         assert_eq!(concepts.len(), 1);
         let concept = &concepts[0];
@@ -639,8 +648,8 @@ mod tests {
 
     #[test]
     fn resolve_direct_tuple() {
-        let mut schema = empty_schema();
-        schema.elements.push(Element {
+        let mut raw_schema = empty_schema();
+        raw_schema.elements.push(Element {
             name: "Address".to_owned(),
             id: None,
             type_name: None,
@@ -652,20 +661,24 @@ mod tests {
             complex_type: None,
         });
 
-        let concepts = resolve_concepts(&schema).unwrap();
+        let schema = resolve_schema(raw_schema).unwrap();
+        let concepts = schema.concepts;
 
         assert_eq!(concepts.len(), 1);
-        let c = &concepts[0];
-        assert_eq!(c.substitution_group.base, BaseSubstitutionGroup::Tuple);
-        assert_eq!(c.data_type, XbrlType::Complex("Address".to_owned()));
+        let concept = &concepts[0];
+        assert_eq!(
+            concept.substitution_group.base,
+            BaseSubstitutionGroup::Tuple
+        );
+        assert_eq!(concept.data_type, XbrlType::Complex("Address".to_owned()));
     }
 
     #[test]
     fn resolve_substitution_group_chain() {
-        let mut schema = empty_schema();
+        let mut raw_schema = empty_schema();
 
         // Abstract head element in xbrli:item chain
-        schema.elements.push(Element {
+        raw_schema.elements.push(Element {
             name: "abstractItem".to_owned(),
             id: Some("abstractItem".to_owned()),
             type_name: Some(string_type()),
@@ -678,7 +691,7 @@ mod tests {
         });
 
         // Concrete element pointing to abstract head
-        schema.elements.push(Element {
+        raw_schema.elements.push(Element {
             name: "ConcreteItem".to_owned(),
             id: Some("ConcreteItem".to_owned()),
             type_name: Some(string_type()),
@@ -693,33 +706,30 @@ mod tests {
             complex_type: None,
         });
 
-        let concepts = resolve_concepts(&schema).unwrap();
+        let schema = resolve_schema(raw_schema).unwrap();
 
-        assert_eq!(concepts.len(), 2);
-        let concrete = &concepts[1];
-        assert_eq!(concrete.name.local_name, "ConcreteItem");
+        assert_eq!(schema.concepts.len(), 2);
+        let concept = &schema.concepts[1];
+
+        assert_eq!(concept.name.local_name, "ConcreteItem");
+        assert_eq!(concept.substitution_group.base, BaseSubstitutionGroup::Item);
         assert_eq!(
-            concrete.substitution_group.base,
-            BaseSubstitutionGroup::Item
-        );
-        assert_eq!(
-            concrete.substitution_group.original.local_name,
+            concept.substitution_group.original.local_name,
             "abstractItem"
         );
     }
 
     #[test]
     fn resolve_type_inheritance_chain() {
-        let mut schema = empty_schema();
+        let mut raw_schema = empty_schema();
 
         // Custom type deriving from another custom type
-        schema.simple_types.push(SimpleType {
+        raw_schema.simple_types.push(SimpleType {
             name: Some("myBaseType".to_owned()),
             base: Some(string_type()),
             enumerations: vec![],
         });
-
-        schema.simple_types.push(SimpleType {
+        raw_schema.simple_types.push(SimpleType {
             name: Some("myDerivedType".to_owned()),
             base: Some(QName {
                 prefix: None,
@@ -727,8 +737,7 @@ mod tests {
             }),
             enumerations: vec![],
         });
-
-        schema.elements.push(Element {
+        raw_schema.elements.push(Element {
             name: "CustomElement".to_owned(),
             id: Some("CustomElement".to_owned()),
             type_name: Some(QName {
@@ -743,7 +752,8 @@ mod tests {
             complex_type: None,
         });
 
-        let concepts = resolve_concepts(&schema).unwrap();
+        let schema = resolve_schema(raw_schema).unwrap();
+        let concepts = schema.concepts;
 
         assert_eq!(concepts.len(), 1);
         assert_eq!(concepts[0].data_type, XbrlType::String);
@@ -751,9 +761,8 @@ mod tests {
 
     #[test]
     fn skip_elements_without_substitution_group() {
-        let mut schema = empty_schema();
-
-        schema.elements.push(Element {
+        let mut raw_schema = empty_schema();
+        raw_schema.elements.push(Element {
             name: "plainElement".to_owned(),
             id: None,
             type_name: Some(string_type()),
@@ -765,15 +774,15 @@ mod tests {
             complex_type: None,
         });
 
-        let concepts = resolve_concepts(&schema).unwrap();
+        let schema = resolve_schema(raw_schema).unwrap();
+        let concepts = schema.concepts;
         assert!(concepts.is_empty());
     }
 
     #[test]
     fn substitution_group_cycle_defaults_to_item() {
-        let mut schema = empty_schema();
-
-        schema.elements.push(Element {
+        let mut raw_schema = empty_schema();
+        raw_schema.elements.push(Element {
             name: "a".to_owned(),
             id: None,
             type_name: Some(string_type()),
@@ -787,8 +796,7 @@ mod tests {
             balance: None,
             complex_type: None,
         });
-
-        schema.elements.push(Element {
+        raw_schema.elements.push(Element {
             name: "b".to_owned(),
             id: None,
             type_name: Some(string_type()),
@@ -803,7 +811,8 @@ mod tests {
             complex_type: None,
         });
 
-        let concepts = resolve_concepts(&schema).unwrap();
+        let schema = resolve_schema(raw_schema).unwrap();
+        let concepts = schema.concepts;
 
         assert_eq!(concepts.len(), 2);
         // Both should default to Item when cycle is detected.
@@ -819,9 +828,8 @@ mod tests {
 
     #[test]
     fn unknown_type_uses_heuristic() {
-        let mut schema = empty_schema();
-
-        schema.elements.push(Element {
+        let mut raw_schema = empty_schema();
+        raw_schema.elements.push(Element {
             name: "SharesOutstanding".to_owned(),
             id: None,
             type_name: Some(QName {
@@ -836,7 +844,8 @@ mod tests {
             complex_type: None,
         });
 
-        let concepts = resolve_concepts(&schema).unwrap();
+        let schema = resolve_schema(raw_schema).unwrap();
+        let concepts = schema.concepts;
 
         assert_eq!(concepts.len(), 1);
         assert_eq!(concepts[0].data_type, XbrlType::Shares);
@@ -844,9 +853,8 @@ mod tests {
 
     #[test]
     fn complex_type_inheritance_chain() {
-        let mut schema = empty_schema();
-
-        schema.complex_types.push(ComplexType {
+        let mut raw_schema = empty_schema();
+        raw_schema.complex_types.push(ComplexType {
             name: Some("myComplexBase".to_owned()),
             base: Some(monetary_type()),
             derivation: None,
@@ -854,8 +862,7 @@ mod tests {
             attributes: vec![],
             children: vec![],
         });
-
-        schema.complex_types.push(ComplexType {
+        raw_schema.complex_types.push(ComplexType {
             name: Some("myComplexDerived".to_owned()),
             base: Some(QName {
                 prefix: None,
@@ -866,8 +873,7 @@ mod tests {
             attributes: vec![],
             children: vec![],
         });
-
-        schema.elements.push(Element {
+        raw_schema.elements.push(Element {
             name: "MoneyElement".to_owned(),
             id: None,
             type_name: Some(QName {
@@ -882,7 +888,8 @@ mod tests {
             complex_type: None,
         });
 
-        let concepts = resolve_concepts(&schema).unwrap();
+        let schema = resolve_schema(raw_schema).unwrap();
+        let concepts = schema.concepts;
 
         assert_eq!(concepts.len(), 1);
         assert_eq!(concepts[0].data_type, XbrlType::Monetary);
@@ -890,10 +897,9 @@ mod tests {
 
     #[test]
     fn no_target_namespace_uses_empty_string() {
-        let mut schema = empty_schema();
-        schema.target_namespace = None;
-
-        schema.elements.push(Element {
+        let mut raw_schema = empty_schema();
+        raw_schema.target_namespace = None;
+        raw_schema.elements.push(Element {
             name: "Elem".to_owned(),
             id: None,
             type_name: Some(string_type()),
@@ -905,7 +911,8 @@ mod tests {
             complex_type: None,
         });
 
-        let concepts = resolve_concepts(&schema).unwrap();
+        let schema = resolve_schema(raw_schema).unwrap();
+        let concepts = schema.concepts;
 
         assert_eq!(concepts.len(), 1);
         assert_eq!(concepts[0].name.namespace_uri, NamespaceUri::from(""));

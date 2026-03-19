@@ -82,7 +82,9 @@ fn discover_full_dts_2020() {
     .collect();
     let entry_point = PathBuf::from_str(TAXONOMY_ENTRY_POINT).unwrap();
     let dts = TaxonomySet::discover(schema_refs, entry_point).unwrap();
+    let concepts = dts.elements();
 
+    assert_eq!(concepts.len(), 7217);
     assert_dts(
         &dts,
         "http://www.xbrl.de/taxonomies/de-gcd-2020-04-01",
@@ -108,7 +110,9 @@ fn discover_full_dts_2021() {
     .collect();
     let entry_point = PathBuf::from_str(TAXONOMY_ENTRY_POINT).unwrap();
     let dts = TaxonomySet::discover(schema_refs, entry_point).unwrap();
+    let concepts = dts.elements();
 
+    assert_eq!(concepts.len(), 7385);
     assert_dts(
         &dts,
         "http://www.xbrl.de/taxonomies/de-gcd-2021-04-14",
