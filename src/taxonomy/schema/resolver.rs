@@ -298,42 +298,42 @@ pub fn resolve_concepts(
         .map(|element| {
             let substitution_group =
                 resolve_substitution_group(&element, &substitution_group_map, namespaces)?;
-
             let data_type = match &element.type_name {
                 Some(type_qname) => {
                     resolve_type(type_qname, &simple_types_by_name, &complex_types_by_name)
                 }
                 None => XbrlType::Complex(element.name.clone()),
             };
+            let compositor = element
+                .complex_type
+                .as_ref()
+                .and_then(|complex_type| complex_type.compositor.clone());
+            let tuple_children = element
+                .complex_type
+                .map(|complex_type| complex_type.children)
+                .unwrap_or_default()
+                .into_iter()
+                .map(|child| TupleChild {
+                    name: child.name,
+                    min_occurs: child.min_occurs,
+                    max_occurs: match child.max_occurs {
+                        Some(n) => MaxOccurs::Bounded(n),
+                        None => MaxOccurs::Unbounded,
+                    },
+                })
+                .collect();
 
             Ok(Concept {
                 id: element.id.clone(),
-                name: ExpandedName::new(target_namespace.into(), element.name.clone()),
+                name: ExpandedName::new(target_namespace.into(), element.name),
                 data_type,
                 substitution_group,
-                period_type: element.period_type.clone(),
-                balance: element.balance.clone(),
+                period_type: element.period_type,
+                balance: element.balance,
                 nillable: element.is_nillable,
                 is_abstract: element.is_abstract,
-                tuple_children: element
-                    .complex_type
-                    .as_ref()
-                    .map(|complex_type| complex_type.children.clone())
-                    .unwrap_or_default()
-                    .into_iter()
-                    .map(|child| TupleChild {
-                        name: child.name,
-                        min_occurs: child.min_occurs,
-                        max_occurs: match child.max_occurs {
-                            Some(n) => MaxOccurs::Bounded(n),
-                            None => MaxOccurs::Unbounded,
-                        },
-                    })
-                    .collect(),
-                compositor: element
-                    .complex_type
-                    .as_ref()
-                    .and_then(|complex_type| complex_type.compositor.clone()),
+                tuple_children,
+                compositor,
             })
         })
         .collect::<Result<Vec<_>, _>>()
