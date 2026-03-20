@@ -1,5 +1,9 @@
 use roxmltree::Document;
-use std::{collections::HashMap, path::Path, path::PathBuf, str::FromStr};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+    str::FromStr,
+};
 use xbrl_rs::{
     Context, ContextId, EntityIdentifier, ExpandedName, InstanceDocument, NamespacePrefix,
     NamespaceUri, Period, TaxonomySet, Unit, UnitId, XmlWriter,

@@ -1,4 +1,7 @@
-use std::{fs, path::Path, path::PathBuf};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 use xbrl_rs::{DocumentView, InstanceDocument, ItemFact, TaxonomySet, TreeNode};
 
 const TAXONOMY_ENTRY_POINT: &str = "test_data/taxonomies";
@@ -13,7 +16,7 @@ pub fn render_view(view: &DocumentView, item_facts: &[&ItemFact], lang: &str) ->
 
     for section in &view.sections {
         for node in &section.nodes {
-            write_node_rows(&mut out, section.role, node, &item_facts, lang);
+            write_node_rows(&mut out, section.role, node, item_facts, lang);
         }
     }
 
