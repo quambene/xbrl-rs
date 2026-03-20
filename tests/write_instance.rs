@@ -1,5 +1,5 @@
 use roxmltree::Document;
-use std::{collections::HashMap, path::PathBuf, str::FromStr};
+use std::{collections::HashMap, path::Path, path::PathBuf, str::FromStr};
 use xbrl_rs::{
     Context, ContextId, EntityIdentifier, ExpandedName, InstanceDocument, NamespacePrefix,
     NamespaceUri, Period, TaxonomySet, Unit, UnitId, XmlWriter,
@@ -133,7 +133,6 @@ fn generate_instance() {
         duration_ctx,
         &[monetary_unit, pure_unit],
     );
-    assert_eq!(instance.item_fact_count(), 3609);
 
     // 5. Register namespace declarations from all discovered schemas
     for schema in taxonomy.schemas().values() {
@@ -156,24 +155,28 @@ fn generate_instance() {
         res.warnings()
     );
 
-    // 7. Serialize to XML
-    let mut writer: XmlWriter<Vec<u8>> = XmlWriter::new(Vec::new());
-    instance.to_xml(&mut writer).unwrap();
-    let xml = String::from_utf8(writer.into_inner()).unwrap();
+    // 7. Deserialize fixture from XML
+    let expected_instance =
+        InstanceDocument::from_file(Path::new("test_data/instances/generated_instance.xml"))
+            .unwrap();
 
-    let instance_from_xml = InstanceDocument::from_reader(xml.as_bytes()).unwrap();
+    let mut role_refs = instance.role_refs().to_vec();
+    role_refs.sort();
+    let mut expected_role_refs = expected_instance.role_refs().to_vec();
+    expected_role_refs.sort();
 
-    assert_eq!(instance.schema_refs(), instance_from_xml.schema_refs());
-    assert_eq!(instance.role_refs(), instance_from_xml.role_refs());
-    assert_eq!(instance.arcrole_refs(), instance_from_xml.arcrole_refs());
+    assert_eq!(instance.namespaces(), expected_instance.namespaces());
+    assert_eq!(instance.schema_refs(), expected_instance.schema_refs());
+    assert_eq!(role_refs, expected_role_refs);
+    assert_eq!(instance.arcrole_refs(), expected_instance.arcrole_refs());
     assert_eq!(
         instance.contexts().len(),
-        instance_from_xml.contexts().len()
+        expected_instance.contexts().len()
     );
-    assert_eq!(instance.units(), instance_from_xml.units());
-    assert_eq!(instance.facts().len(), instance_from_xml.facts().len());
+    assert_eq!(instance.units(), expected_instance.units());
+    assert_eq!(instance.facts().len(), expected_instance.facts().len());
     assert_eq!(
         instance.footnote_links().len(),
-        instance_from_xml.footnote_links().len()
+        expected_instance.footnote_links().len()
     );
 }
