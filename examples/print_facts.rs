@@ -40,7 +40,7 @@ fn resolve_label<'a>(node: &'a TreeNode<'a>, lang: &str) -> &'a str {
     {
         return label.text.as_str();
     }
-    node.concept_id
+    node.concept_name
 }
 
 fn print_node(
@@ -54,7 +54,7 @@ fn print_node(
     let indent = "  ".repeat(node.depth);
     let label = resolve_label(node, lang);
     let label_col = truncate(&format!("{indent}{label}"), w_label);
-    let concept_col = truncate(node.concept_id, w_concept);
+    let concept_col = truncate(node.concept_name, w_concept);
 
     let level = node.depth;
     if node.fact_indices.is_empty() {

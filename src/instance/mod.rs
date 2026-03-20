@@ -19,10 +19,11 @@ pub use context::{Context, ContextId, EntityIdentifier, Period};
 pub use fact::{Decimals, Fact, ItemFact, TupleFact};
 pub use footnote::{FootnoteArc, FootnoteLink, FootnoteLocator, FootnoteResource};
 pub use parser::InstanceParser;
-use quick_xml::Writer;
+use quick_xml::{Reader, Writer};
 use std::{
     cmp::Ordering,
     collections::{HashMap, HashSet},
+    fs::File,
     io,
     path::Path,
 };
@@ -100,9 +101,6 @@ impl InstanceDocument {
 
         for schema_url in taxonomy.schema_refs().keys() {
             instance.add_schema_ref(schema_url.to_string());
-        }
-        for role in taxonomy.role_types() {
-            instance.add_role_ref(role.role_uri.to_string());
         }
 
         let instant_context_ref = instant_context.id.clone();
@@ -216,6 +214,20 @@ impl InstanceDocument {
         Ok(doc)
     }
 
+    /// Parse an XBRL instance document from the XML reader.
+    ///
+    /// Automatically extracts the `<xbrli:xbrl>` element if the input
+    /// contains a wrapper around it.
+    pub fn from_xml_reader<R>(reader: Reader<R>) -> Result<Self>
+    where
+        R: io::BufRead,
+    {
+        let mut parser = InstanceParser::new(reader);
+        let instance = parser.parse_instance()?;
+        let doc = resolver::resolve_instance(instance)?;
+        Ok(doc)
+    }
+
     /// Validate this instance against a taxonomy.
     pub fn validate(&self, taxonomy: &TaxonomySet) -> ValidationResult {
         validation::validate_all(self, taxonomy)
@@ -227,8 +239,24 @@ impl InstanceDocument {
         DocumentView::build(&item_facts, taxonomy)
     }
 
-    /// Serialize this instance to an XBRL XML document.
-    pub fn to_xml<W>(&self, writer: &mut Writer<W>) -> Result<()>
+    /// Serialize this instance to an XML file at the given path.
+    pub fn to_file(&self, path: &Path) -> Result<()> {
+        let file = File::create(path)?;
+        self.to_writer(file)?;
+        Ok(())
+    }
+
+    /// Serialize this instance to an XBRL XML document using a writer.
+    pub fn to_writer<W>(&self, writer: W) -> Result<()>
+    where
+        W: io::Write,
+    {
+        let mut writer = Writer::new(writer);
+        writer::write_xml(&mut writer, self)
+    }
+
+    /// Serialize this instance to an XBRL XML document using an XML writer.
+    pub fn to_xml_writer<W>(&self, writer: &mut Writer<W>) -> Result<()>
     where
         W: io::Write,
     {
@@ -592,7 +620,7 @@ fn item_allowed_in_tuple(
 fn matches_tuple_child_ref(
     child_ref: &TupleChild,
     child_element: &Concept,
-    _taxonomy: &TaxonomySet,
+    taxonomy: &TaxonomySet,
 ) -> bool {
     let allowed_local = &child_ref.name.local_name;
 
@@ -600,13 +628,30 @@ fn matches_tuple_child_ref(
         return true;
     }
 
+    // Walk the substitution group ancestry: if the child's substitution group
+    // (or any ancestor in the chain) matches the declared child ref, the
+    // element is a valid substitute.
+    let mut current = child_element;
+
+    loop {
+        let parent_substitution_group = &current.substitution_group.original;
+
+        if &parent_substitution_group.local_name == allowed_local {
+            return true;
+        }
+
+        match taxonomy.find_concept(parent_substitution_group) {
+            Some(parent) => current = parent,
+            None => break,
+        }
+    }
+
     false
 }
 
 #[cfg(test)]
 mod tests {
-    use super::InstanceDocument;
-    use crate::TaxonomySet;
+    use super::{InstanceDocument, TaxonomySet};
 
     #[test]
     fn from_xml_parses_basic_instance() {

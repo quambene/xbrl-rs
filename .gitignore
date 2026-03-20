@@ -9,10 +9,6 @@
 /test_data/conformance
 /test_data/examples
 
-# Binaries
-src/bin/
-!src/bin/print_facts.rs
-
 # Environment
 **/.env
 

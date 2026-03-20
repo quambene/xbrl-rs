@@ -1,5 +1,9 @@
 use roxmltree::Document;
-use std::{collections::HashMap, path::PathBuf, str::FromStr};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+    str::FromStr,
+};
 use xbrl_rs::{
     Context, ContextId, EntityIdentifier, ExpandedName, InstanceDocument, NamespacePrefix,
     NamespaceUri, Period, TaxonomySet, Unit, UnitId, XmlWriter,
@@ -47,8 +51,8 @@ fn write_empty_instance() {
     let res = instance.validate(&taxonomy);
     assert!(res.is_valid());
 
-    let mut writer: XmlWriter<Vec<u8>> = XmlWriter::new(Vec::new());
-    instance.to_xml(&mut writer).unwrap();
+    let mut writer = XmlWriter::new(Vec::new());
+    instance.to_xml_writer(&mut writer).unwrap();
     let xml = String::from_utf8(writer.into_inner()).unwrap();
 
     // Parse the generated XML
@@ -60,7 +64,7 @@ fn write_empty_instance() {
 #[test]
 #[cfg_attr(not(feature = "taxonomy-test"), ignore)]
 fn generate_instance() {
-    // 1. Discover the taxonomy from the local test data
+    // Discover the taxonomy from the local test data
     let entry_point = PathBuf::from(TAXONOMY_ENTRY_POINT);
     let taxonomy = TaxonomySet::discover(
         vec![GCD_SCHEMA.to_owned(), GAAP_SCHEMA.to_owned()],
@@ -86,7 +90,7 @@ fn generate_instance() {
         ),
     ]);
 
-    // 2. Define an instant context (balance-sheet date) and a duration context (fiscal year)
+    // Define an instant context (balance-sheet date) and a duration context (fiscal year)
     let entity = EntityIdentifier {
         scheme: "http://example.com/id".to_owned(),
         value: "0000000000000".to_owned(),
@@ -107,7 +111,7 @@ fn generate_instance() {
         },
     );
 
-    // 3. Define units: monetary (EUR) and pure (for dimensionless numeric items)
+    // Define units: monetary (EUR) and pure (for dimensionless numeric items)
     let monetary_unit = Unit::new(
         UnitId::from("EUR"),
         vec![ExpandedName {
@@ -125,24 +129,16 @@ fn generate_instance() {
         vec![],
     );
 
-    // 4. Build the instance from the taxonomy.
-    let mut instance = InstanceDocument::from_taxonomy(
+    // Build the instance from the taxonomy.
+    let instance = InstanceDocument::from_taxonomy(
         &taxonomy,
         namespaces,
         instant_ctx,
         duration_ctx,
         &[monetary_unit, pure_unit],
     );
-    assert_eq!(instance.item_fact_count(), 3609);
 
-    // 5. Register namespace declarations from all discovered schemas
-    for schema in taxonomy.schemas().values() {
-        for (prefix, uri) in &schema.namespaces {
-            instance.add_namespace(prefix.clone(), uri.clone());
-        }
-    }
-
-    // 6. Validate the generated XBRL
+    // Validate the generated XBRL
     let res = instance.validate(&taxonomy);
     assert!(
         res.errors().is_empty(),
@@ -156,24 +152,27 @@ fn generate_instance() {
         res.warnings()
     );
 
-    // 7. Serialize to XML
-    let mut writer: XmlWriter<Vec<u8>> = XmlWriter::new(Vec::new());
-    instance.to_xml(&mut writer).unwrap();
-    let xml = String::from_utf8(writer.into_inner()).unwrap();
+    // Deserialize fixture from XML
+    let fixture_path = Path::new("test_data/instances/generated_instance.xml");
+    let expected_instance = InstanceDocument::from_file(fixture_path).unwrap();
 
-    let instance_from_xml = InstanceDocument::from_reader(xml.as_bytes()).unwrap();
+    let mut role_refs = instance.role_refs().to_vec();
+    role_refs.sort();
+    let mut expected_role_refs = expected_instance.role_refs().to_vec();
+    expected_role_refs.sort();
 
-    assert_eq!(instance.schema_refs(), instance_from_xml.schema_refs());
-    assert_eq!(instance.role_refs(), instance_from_xml.role_refs());
-    assert_eq!(instance.arcrole_refs(), instance_from_xml.arcrole_refs());
+    assert_eq!(instance.namespaces(), expected_instance.namespaces());
+    assert_eq!(instance.schema_refs(), expected_instance.schema_refs());
+    assert_eq!(role_refs, expected_role_refs);
+    assert_eq!(instance.arcrole_refs(), expected_instance.arcrole_refs());
     assert_eq!(
         instance.contexts().len(),
-        instance_from_xml.contexts().len()
+        expected_instance.contexts().len()
     );
-    assert_eq!(instance.units(), instance_from_xml.units());
-    assert_eq!(instance.facts().len(), instance_from_xml.facts().len());
+    assert_eq!(instance.units(), expected_instance.units());
+    assert_eq!(instance.facts().len(), expected_instance.facts().len());
     assert_eq!(
         instance.footnote_links().len(),
-        instance_from_xml.footnote_links().len()
+        expected_instance.footnote_links().len()
     );
 }
