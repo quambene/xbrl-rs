@@ -39,12 +39,8 @@ The main concepts of XBRL are:
 To download XBRL taxonomies, feature `download` needs to be enabled.
 
 ```rust
-// Parse instance document from XML file
+// Parse XBRL instance document from XML file
 let instance = InstanceDocument::from_file("/path/to/financial_report.xml").unwrap();
-
-// Write instance document to XML file
-let instance = InstanceDocument::default();
-instance.to_file("financial_report.xml").unwrap();
 
 // Validate instance document against taxonomy
 let schema_refs = instance.schema_refs();
