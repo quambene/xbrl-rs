@@ -19,7 +19,7 @@ pub use context::{Context, ContextId, EntityIdentifier, Period};
 pub use fact::{Decimals, Fact, ItemFact, TupleFact};
 pub use footnote::{FootnoteArc, FootnoteLink, FootnoteLocator, FootnoteResource};
 pub use parser::InstanceParser;
-use quick_xml::Writer;
+use quick_xml::{Reader, Writer};
 use std::{
     cmp::Ordering,
     collections::{HashMap, HashSet},
@@ -214,6 +214,20 @@ impl InstanceDocument {
         Ok(doc)
     }
 
+    /// Parse an XBRL instance document from the XML reader.
+    ///
+    /// Automatically extracts the `<xbrli:xbrl>` element if the input
+    /// contains a wrapper around it.
+    pub fn from_xml_reader<R>(reader: Reader<R>) -> Result<Self>
+    where
+        R: io::BufRead,
+    {
+        let mut parser = InstanceParser::new(reader);
+        let instance = parser.parse_instance()?;
+        let doc = resolver::resolve_instance(instance)?;
+        Ok(doc)
+    }
+
     /// Validate this instance against a taxonomy.
     pub fn validate(&self, taxonomy: &TaxonomySet) -> ValidationResult {
         validation::validate_all(self, taxonomy)
@@ -228,13 +242,21 @@ impl InstanceDocument {
     /// Serialize this instance to an XML file at the given path.
     pub fn to_file(&self, path: &Path) -> Result<()> {
         let file = File::create(path)?;
-        let mut writer = Writer::new(file);
-        self.to_xml(&mut writer)?;
+        self.to_writer(file)?;
         Ok(())
     }
 
-    /// Serialize this instance to an XBRL XML document.
-    pub fn to_xml<W>(&self, writer: &mut Writer<W>) -> Result<()>
+    /// Serialize this instance to an XBRL XML document using a writer.
+    pub fn to_writer<W>(&self, writer: W) -> Result<()>
+    where
+        W: io::Write,
+    {
+        let mut writer = Writer::new(writer);
+        writer::write_xml(&mut writer, self)
+    }
+
+    /// Serialize this instance to an XBRL XML document using an XML writer.
+    pub fn to_xml_writer<W>(&self, writer: &mut Writer<W>) -> Result<()>
     where
         W: io::Write,
     {

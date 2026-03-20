@@ -51,8 +51,8 @@ fn write_empty_instance() {
     let res = instance.validate(&taxonomy);
     assert!(res.is_valid());
 
-    let mut writer: XmlWriter<Vec<u8>> = XmlWriter::new(Vec::new());
-    instance.to_xml(&mut writer).unwrap();
+    let mut writer = XmlWriter::new(Vec::new());
+    instance.to_xml_writer(&mut writer).unwrap();
     let xml = String::from_utf8(writer.into_inner()).unwrap();
 
     // Parse the generated XML
