@@ -589,12 +589,30 @@ fn item_allowed_in_tuple(
 fn matches_tuple_child_ref(
     child_ref: &TupleChild,
     child_element: &Concept,
-    _taxonomy: &TaxonomySet,
+    taxonomy: &TaxonomySet,
 ) -> bool {
     let allowed_local = &child_ref.name.local_name;
 
     if &child_element.name.local_name == allowed_local {
         return true;
+    }
+
+    // Walk the substitution group ancestry: if the child's substitution group
+    // (or any ancestor in the chain) matches the declared child ref, the
+    // element is a valid substitute.
+    let mut current = child_element;
+
+    loop {
+        let parent_substitution_group = &current.substitution_group.original;
+
+        if &parent_substitution_group.local_name == allowed_local {
+            return true;
+        }
+
+        match taxonomy.find_concept(parent_substitution_group) {
+            Some(parent) => current = parent,
+            None => break,
+        }
     }
 
     false
