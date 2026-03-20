@@ -37,15 +37,15 @@ pub struct SectionView<'a> {
 /// A single node in the presentation hierarchy.
 #[derive(Debug)]
 pub struct TreeNode<'a> {
-    /// Concept element ID (e.g. `de-gaap-ci_bs.ass`).
-    pub concept_id: &'a str,
+    /// Concept name (e.g. `bs.ass`).
+    pub concept_name: &'a str,
     /// All labels for this concept. The caller selects the desired language
     /// and role (e.g. `terseLabel`, `label`).
     pub labels: &'a [Label],
     /// Depth in the tree; root nodes have depth 0.
     pub depth: usize,
     /// Indices into the `InstanceDocument::facts()` slice for facts whose concept
-    /// maps to this element ID.
+    /// maps to this concept name.
     ///
     /// Storing indices rather than references means the view's lifetime is tied
     /// only to the taxonomy, leaving the instance free to be mutably borrowed
@@ -181,7 +181,7 @@ fn build_nodes<'a>(
         );
 
         nodes.push(TreeNode {
-            concept_id: &child_id.local_name,
+            concept_name: &child_id.local_name,
             labels,
             depth,
             fact_indices,
@@ -296,7 +296,7 @@ mod tests {
         assert_eq!(section.nodes.len(), 2);
 
         let node_a = &section.nodes[0];
-        assert_eq!(node_a.concept_id, "child_a");
+        assert_eq!(node_a.concept_name, "child_a");
         assert_eq!(node_a.labels.len(), 1);
         assert_eq!(node_a.labels[0].text, "Child A");
         assert_eq!(node_a.labels[0].lang, "en");
@@ -306,12 +306,12 @@ mod tests {
         assert_eq!(node_a.children.len(), 1);
 
         let grandchild = &node_a.children[0];
-        assert_eq!(grandchild.concept_id, "grandchild");
+        assert_eq!(grandchild.concept_name, "grandchild");
         assert_eq!(grandchild.depth, 1);
         assert!(grandchild.labels.is_empty());
 
         let node_b = &section.nodes[1];
-        assert_eq!(node_b.concept_id, "child_b");
+        assert_eq!(node_b.concept_name, "child_b");
         assert!(node_b.fact_indices.is_empty());
     }
 
@@ -376,7 +376,7 @@ mod tests {
         let view = build_view(&[], &taxonomy);
 
         let section = &view.sections[0];
-        assert_eq!(section.nodes[0].concept_id, "a");
-        assert_eq!(section.nodes[1].concept_id, "b");
+        assert_eq!(section.nodes[0].concept_name, "a");
+        assert_eq!(section.nodes[1].concept_name, "b");
     }
 }
