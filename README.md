@@ -43,10 +43,8 @@ To download XBRL taxonomies, feature `download` needs to be enabled.
 let instance = InstanceDocument::from_file("/path/to/financial_report.xml").unwrap();
 
 // Write instance document to XML file
-let mut xml_file = File::create("financial_report.xml")?;
-let mut writer = XmlWriter::new(xml_file);
 let instance = InstanceDocument::default();
-instance.to_xml(&mut writer).unwrap();
+instance.to_file("financial_report.xml").unwrap();
 
 // Validate instance document against taxonomy
 let schema_refs = instance.schema_refs();
