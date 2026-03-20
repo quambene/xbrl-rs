@@ -101,9 +101,6 @@ impl InstanceDocument {
         for schema_url in taxonomy.schema_refs().keys() {
             instance.add_schema_ref(schema_url.to_string());
         }
-        for role in taxonomy.role_types() {
-            instance.add_role_ref(role.role_uri.to_string());
-        }
 
         let instant_context_ref = instant_context.id.clone();
         let duration_context_ref = duration_context.id.clone();
@@ -605,8 +602,7 @@ fn matches_tuple_child_ref(
 
 #[cfg(test)]
 mod tests {
-    use super::InstanceDocument;
-    use crate::TaxonomySet;
+    use super::{InstanceDocument, TaxonomySet};
 
     #[test]
     fn from_xml_parses_basic_instance() {
