@@ -64,7 +64,7 @@ fn write_empty_instance() {
 #[test]
 #[cfg_attr(not(feature = "taxonomy-test"), ignore)]
 fn generate_instance() {
-    // 1. Discover the taxonomy from the local test data
+    // Discover the taxonomy from the local test data
     let entry_point = PathBuf::from(TAXONOMY_ENTRY_POINT);
     let taxonomy = TaxonomySet::discover(
         vec![GCD_SCHEMA.to_owned(), GAAP_SCHEMA.to_owned()],
@@ -90,7 +90,7 @@ fn generate_instance() {
         ),
     ]);
 
-    // 2. Define an instant context (balance-sheet date) and a duration context (fiscal year)
+    // Define an instant context (balance-sheet date) and a duration context (fiscal year)
     let entity = EntityIdentifier {
         scheme: "http://example.com/id".to_owned(),
         value: "0000000000000".to_owned(),
@@ -111,7 +111,7 @@ fn generate_instance() {
         },
     );
 
-    // 3. Define units: monetary (EUR) and pure (for dimensionless numeric items)
+    // Define units: monetary (EUR) and pure (for dimensionless numeric items)
     let monetary_unit = Unit::new(
         UnitId::from("EUR"),
         vec![ExpandedName {
@@ -129,8 +129,8 @@ fn generate_instance() {
         vec![],
     );
 
-    // 4. Build the instance from the taxonomy.
-    let mut instance = InstanceDocument::from_taxonomy(
+    // Build the instance from the taxonomy.
+    let instance = InstanceDocument::from_taxonomy(
         &taxonomy,
         namespaces,
         instant_ctx,
@@ -138,14 +138,7 @@ fn generate_instance() {
         &[monetary_unit, pure_unit],
     );
 
-    // 5. Register namespace declarations from all discovered schemas
-    for schema in taxonomy.schemas().values() {
-        for (prefix, uri) in &schema.namespaces {
-            instance.add_namespace(prefix.clone(), uri.clone());
-        }
-    }
-
-    // 6. Validate the generated XBRL
+    // Validate the generated XBRL
     let res = instance.validate(&taxonomy);
     assert!(
         res.errors().is_empty(),
@@ -159,10 +152,9 @@ fn generate_instance() {
         res.warnings()
     );
 
-    // 7. Deserialize fixture from XML
-    let expected_instance =
-        InstanceDocument::from_file(Path::new("test_data/instances/generated_instance.xml"))
-            .unwrap();
+    // Deserialize fixture from XML
+    let fixture_path = Path::new("test_data/instances/generated_instance.xml");
+    let expected_instance = InstanceDocument::from_file(fixture_path).unwrap();
 
     let mut role_refs = instance.role_refs().to_vec();
     role_refs.sort();

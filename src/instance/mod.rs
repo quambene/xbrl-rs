@@ -23,6 +23,7 @@ use quick_xml::Writer;
 use std::{
     cmp::Ordering,
     collections::{HashMap, HashSet},
+    fs::File,
     io,
     path::Path,
 };
@@ -222,6 +223,14 @@ impl InstanceDocument {
     pub fn view<'a>(&self, taxonomy: &'a TaxonomySet) -> DocumentView<'a> {
         let item_facts = self.item_facts();
         DocumentView::build(&item_facts, taxonomy)
+    }
+
+    /// Serialize this instance to an XML file at the given path.
+    pub fn to_file(&self, path: &Path) -> Result<()> {
+        let file = File::create(path)?;
+        let mut writer = Writer::new(file);
+        self.to_xml(&mut writer)?;
+        Ok(())
     }
 
     /// Serialize this instance to an XBRL XML document.
