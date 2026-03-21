@@ -6,7 +6,7 @@
 - changed
 - removed
 
-## v0.2.0 (unrelesed)
+## v0.2.0 (2026-03-21)
 
 - added
   - Add benchmarks in `/benches`
