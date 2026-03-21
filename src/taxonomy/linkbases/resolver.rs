@@ -93,7 +93,8 @@ pub struct DefinitionArc {
 ///    3. Extract fragment (#de-gaap-ci_bs.ass.fixAss)
 ///    4. Find schema element (xs:element/@id or @name), i.e. the resolved
 ///       Concept::name
-///    5. PresentationArc::from ("{http://www.xbrl.org/2003/role/label}bs.ass.fixAss")
+///    5. PresentationArc::from
+///       ("{http://www.xbrl.de/taxonomies/de-gaap-ci/role/balanceSheet}bs.ass.fixAss")
 #[derive(Debug, Default)]
 pub struct Linkbases {
     /// Presentation arcs grouped by role URI, in the order roles were first
