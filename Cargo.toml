@@ -51,6 +51,10 @@ name = "bench_xbrl"
 harness = false
 
 [[bin]]
+name = "bench_memory"
+path = "src/bin/bench_memory.rs"
+
+[[bin]]
 name = "download_taxonomies"
 path = "src/bin/download_taxonomies.rs"
 required-features = ["download", "logger"]
