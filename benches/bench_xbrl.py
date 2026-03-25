@@ -20,8 +20,15 @@ import statistics
 import sys
 import time
 
+from arelle.ModelFormulaObject import FormulaOptions
+from arelle import Cntlr
+from arelle.ValidateXbrl import ValidateXbrl
+
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TAXONOMY_DIR = os.path.join(REPO_ROOT, "test_data", "taxonomies")
+INSTANCE_PATH = os.path.join(
+    REPO_ROOT, "test_data", "instances", "balance_sheet_v64.xml"
+)
 
 # All 6 entry points as used in a real HGB instance document.
 SCHEMA_REFS_2020 = [
@@ -54,12 +61,22 @@ SCHEMA_REFS_SINGLE_2020 = [
 ITERATIONS = 5
 
 
-def make_controller():
-    from arelle import Cntlr
+def create_controller():
 
-    cntlr = Cntlr.Cntlr(logFileName="logToStdErr")
-    cntlr.startLogging(logFileName=None)
-    return cntlr
+    controller = Cntlr.Cntlr(logFileName="logToStdErr")
+    controller.startLogging(logFileName=None)
+    return controller
+
+
+def prepare_bench():
+    """Set up the instance model once, return a closure that only measures validation."""
+    controller = create_controller()
+    opts = FormulaOptions()
+    # Disable formula validation as it is not supported by xbrl-rs yet.
+    opts.formulaAction = "none"
+    controller.modelManager.formulaOptions = opts
+    model = load_instance(controller)
+    return lambda: validate_instance(controller, model)
 
 
 def load_taxonomy_set(cntlr, schema_paths: list[str]) -> float:
@@ -72,6 +89,7 @@ def load_taxonomy_set(cntlr, schema_paths: list[str]) -> float:
     entry point sets that share schemas (de-bra and de-ins both import de-gaap-ci).
     """
     total = 0.0
+
     for path in schema_paths:
         url = "file://" + os.path.abspath(path).replace("\\", "/")
         t0 = time.perf_counter()
@@ -79,22 +97,37 @@ def load_taxonomy_set(cntlr, schema_paths: list[str]) -> float:
         total += time.perf_counter() - t0
         if model_xbrl is not None:
             cntlr.modelManager.close(model_xbrl)
+
     return total
 
 
-def run_benchmark(label: str, schema_paths: list[str], iterations: int) -> None:
-    print(f"\ntaxonomy_discovery/{label}")
+def load_instance(cntlr) -> "ModelXbrl":
+    """Load the instance document, returning the model."""
+    url = "file://" + os.path.abspath(INSTANCE_PATH).replace("\\", "/")
+    return cntlr.modelManager.load(url)
+
+
+def validate_instance(cntlr, model_xbrl) -> float:
+    """Validate a loaded instance, returning elapsed seconds."""
+    t0 = time.perf_counter()
+    validator = ValidateXbrl(model_xbrl)
+    validator.validate(model_xbrl)
+    elapsed = time.perf_counter() - t0
+    validator.close()
+    return elapsed
+
+
+def run_benchmark(label: str, bench_fn, iterations: int) -> None:
+    print(f"\n{label}")
     print(f"  {'sample':>8}   {'time':>12}")
     samples: list[float] = []
 
     # Warm-up run (not recorded) to populate the OS file cache — mirrors
     # Criterion's warm_up_time before actual measurement begins.
-    load_taxonomy_set(make_controller(), schema_paths)
+    bench_fn()
 
     for i in range(iterations):
-        # Fresh controller each iteration so Arelle's internal model cache is
-        # cleared — mirrors Rust dropping TaxonomySet at the end of each iter.
-        elapsed = load_taxonomy_set(make_controller(), schema_paths)
+        elapsed = bench_fn()
         samples.append(elapsed)
         print(f"  {i + 1:>8}   {elapsed * 1000:>10.2f} ms")
 
@@ -115,12 +148,25 @@ def main() -> int:
         )
         return 1
 
-    print("Arelle XBRL taxonomy benchmark")
+    print("Arelle XBRL benchmark")
     print(f"Taxonomy directory : {TAXONOMY_DIR}")
+    print(f"Instance document  : {INSTANCE_PATH}")
     print(f"Iterations         : {ITERATIONS}")
 
-    run_benchmark("full_dts_2020", SCHEMA_REFS_2020, ITERATIONS)
-    run_benchmark("single_dts_2020", SCHEMA_REFS_SINGLE_2020, ITERATIONS)
+    run_benchmark(
+        "taxonomy_discovery/full_dts_2020",
+        lambda: load_taxonomy_set(create_controller(), SCHEMA_REFS_2020),
+        ITERATIONS,
+    )
+    run_benchmark(
+        "taxonomy_discovery/single_dts_2020",
+        lambda: load_taxonomy_set(
+            create_controller(), SCHEMA_REFS_SINGLE_2020),
+        ITERATIONS,
+    )
+
+    run_benchmark("validate_instance", prepare_bench(), ITERATIONS)
+
     print()
     return 0
 

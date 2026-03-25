@@ -123,6 +123,20 @@ Benchmark `full_dts_2020`: 6 entry points combined into one DTS
 | Arelle  | 3851.48 ms |      1x |
 | xbrl-rs |  174.32 ms |     22x |
 
+Benchmark `validate_instance`:
+
+| Library | Mean time | Speedup |
+| ------- | --------: | ------: |
+| Arelle  | 797.31 ms |      1x |
+| xbrl-rs |   1.81 ms |    440x |
+
+Benchmark memory usage:
+
+| Library | Peak RSS | Reduction |
+| ------- | -------: | --------: |
+| Arelle  |  1748 MB |        1x |
+| xbrl-rs |    34 MB |       51x |
+
 ## References
 
 - [XBRL International](https://www.xbrl.org)
