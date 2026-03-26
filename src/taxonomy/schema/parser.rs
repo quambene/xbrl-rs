@@ -162,6 +162,81 @@ pub struct AttributeUse {
     pub required: bool,
 }
 
+/// Represents a particle in a complex type's content model, which can be either
+/// an element reference or an element declaration.
+#[derive(Debug, PartialEq, Eq)]
+pub enum Particle {
+    /// A reference to a globally defined element (from `xs:element[@ref]`).
+    ElementRef(QName),
+    /// An element declaration (from `xs:element[@name]`).
+    ElementDecl {
+        name: String,
+        type_name: Option<QName>,
+    },
+}
+
+/// Represents an `xs:anyAttribute` in a complex type's content model.
+#[derive(Debug, PartialEq, Eq)]
+pub struct AnyAttribute {
+    /// The `namespace` attribute of the `xs:anyAttribute`, which determines
+    /// which attributes are allowed.
+    pub namespace: AnyAttributeNamespace,
+}
+
+/// Represents the `namespace` attribute of an `xs:anyAttribute`.
+#[derive(Debug, PartialEq, Eq)]
+pub enum AnyAttributeNamespace {
+    /// All attributes from any namespace are allowed.
+    Any,
+    /// Only attributes from namespaces other than the target namespace are allowed.
+    Other,
+    /// Only attributes from the target namespace are allowed.
+    TargetNamespace,
+    /// Only attributes from specific namespaces are allowed (from a
+    /// whitespace-separated list in the `namespace` attribute).
+    List(Vec<String>),
+}
+
+/// Represents a `simpleContent` in a complex type, which is used for defining
+/// tuple types in XBRL.
+#[derive(Debug, PartialEq, Eq)]
+pub struct SimpleContent {
+    /// The base type of the simple content (from `xs:extension` or
+    /// `xs:restriction`).
+    pub base: QName,
+    /// The kind of derivation (extension or restriction) for this simple
+    /// content.
+    pub derivation: DerivationKind,
+    /// Attributes declared via `xs:attribute[@ref]` inside a `simpleContent` of
+    /// a tuple element.
+    pub attributes: Vec<AttributeUse>,
+}
+
+/// Represents a `complexContent` in a complex type, which is used for defining
+/// tuple types with child elements in XBRL.
+#[derive(Debug, PartialEq, Eq)]
+pub struct ComplexContent {
+    /// The base type of the complex content (from `xs:extension` or
+    /// `xs:restriction`).
+    pub base: Option<QName>,
+    /// The kind of derivation (extension or restriction) for this complex
+    /// content.
+    pub derivation: Option<DerivationKind>,
+    /// Whether this complex type is mixed (from `mixed="true"` in the
+    /// `xs:complexType`).
+    pub mixed: bool,
+    /// The compositor type for the complex content's child elements (sequence
+    /// or choice).
+    pub compositor: Option<Compositor>,
+    /// Child elements declared via `xs:element[@ref]` inside a `complexContent`
+    /// of a tuple element.
+    pub particles: Vec<Particle>,
+    /// The `xs:anyAttribute` of this complex content, if present.
+    pub any_attribute: Option<AnyAttribute>,
+    /// Regular attributes (rare in XBRL but valid).
+    pub attributes: Vec<AttributeUse>,
+}
+
 /// Represents a simple type definition (`xs:simpleType`) in the schema.
 #[derive(Debug, PartialEq, Eq)]
 pub struct SimpleType {
@@ -1038,6 +1113,11 @@ impl<R: BufRead> SchemaParser<R> {
             if attribute.key.local_name().as_ref() == b"name" {
                 let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
                 complex_type.name = Some(value.to_string());
+            }
+
+            if attribute.key.local_name().as_ref() == b"mixed" {
+                let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+                complex_type.mixed = value == "true";
             }
         }
 
@@ -2122,7 +2202,6 @@ mod tests {
         let schema = parser.parse_schema().unwrap();
 
         let complex_type = &schema.complex_types[0];
-
         assert_eq!(
             complex_type,
             &ComplexType {
