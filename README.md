@@ -105,7 +105,7 @@ uv run benches/bench_xbrl.py
 Benchmarked libraries:
 
 - [Arelle](https://pypi.org/project/arelle-release) (v2.38.13)
-- [xbrl-rs](https://crates.io/crates/xbrl-rs) (v0.1.1)
+- [xbrl-rs](https://crates.io/crates/xbrl-rs) (v0.2.0)
 
 DTS discovery for German HGB taxonomies (2020-04-01, ~50 MB of XSD/XML files).
 
