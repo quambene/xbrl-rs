@@ -172,6 +172,8 @@ pub struct SimpleType {
     pub base: Option<QName>,
     /// The enumerations of the simple type. Only relevant for simple types that
     /// are restrictions of an enumeration.
+    ///
+    /// Usually it's sufficient to support xs:enumeration facets.
     pub enumerations: Vec<String>,
 }
 
@@ -186,6 +188,8 @@ pub struct ComplexType {
     /// The kind of derivation (extension or restriction) if this complex type
     /// is derived from another type via `xs:simpleContent`.
     pub derivation: Option<DerivationKind>,
+    /// Whether this complex type is mixed (from `mixed="true"`).
+    pub mixed: bool,
     /// The compositor type for the complex type's content model (sequence or
     /// choice).
     pub compositor: Option<Compositor>,
@@ -1017,6 +1021,7 @@ impl<R: BufRead> SchemaParser<R> {
             name: None,
             base: None,
             derivation: None,
+            mixed: false,
             compositor: None,
             attributes: Vec::new(),
             children: Vec::new(),
@@ -1576,6 +1581,7 @@ mod tests {
                     name: None,
                     base: None,
                     derivation: None,
+                    mixed: false,
                     compositor: Some(Compositor::Sequence),
                     attributes: vec![],
                     children: vec![
@@ -1639,6 +1645,7 @@ mod tests {
                     name: None,
                     base: None,
                     derivation: None,
+                    mixed: false,
                     compositor: Some(Compositor::Sequence),
                     attributes: vec![],
                     children: vec![
@@ -1703,6 +1710,7 @@ mod tests {
                     name: None,
                     base: None,
                     derivation: None,
+                    mixed: false,
                     compositor: Some(Compositor::Choice),
                     attributes: vec![],
                     children: vec![
@@ -1810,6 +1818,7 @@ mod tests {
                 name: Some("emptyType".to_string()),
                 base: None,
                 derivation: None,
+                mixed: false,
                 compositor: None,
                 attributes: vec![],
                 children: vec![],
@@ -1878,6 +1887,7 @@ mod tests {
                     local_name: "decimalItemType".to_string(),
                 }),
                 derivation: Some(DerivationKind::Extension),
+                mixed: false,
                 compositor: None,
                 attributes: vec![
                     AttributeUse {
@@ -1922,6 +1932,7 @@ mod tests {
                     local_name: "decimalItemType".to_string(),
                 }),
                 derivation: Some(DerivationKind::Restriction),
+                mixed: false,
                 compositor: None,
                 attributes: vec![AttributeUse {
                     ref_name: "xbrli:unitRef".to_string(),
@@ -1967,6 +1978,7 @@ mod tests {
                 base: None,
                 derivation: None,
                 compositor: Some(Compositor::Sequence),
+                mixed: false,
                 attributes: vec![],
                 children: vec![RawTupleChild {
                     name: QName {
@@ -1978,9 +1990,9 @@ mod tests {
                 }],
             }
         );
-        let extended_type = &schema.complex_types[1];
+        let complex_type = &schema.complex_types[1];
         assert_eq!(
-            extended_type,
+            complex_type,
             &ComplexType {
                 name: Some("extendedAccountType".to_string()),
                 base: Some(QName {
@@ -1988,6 +2000,7 @@ mod tests {
                     local_name: "baseAccountType".to_string(),
                 }),
                 derivation: Some(DerivationKind::Extension),
+                mixed: false,
                 compositor: Some(Compositor::Sequence),
                 attributes: vec![AttributeUse {
                     ref_name: "currency".to_string(),
@@ -2033,13 +2046,14 @@ mod tests {
         let mut parser = SchemaParser::from_reader(xml.as_bytes());
         let schema = parser.parse_schema().unwrap();
 
-        let base_type = &schema.complex_types[0];
+        let complex_type = &schema.complex_types[0];
         assert_eq!(
-            base_type,
+            complex_type,
             &ComplexType {
                 name: Some("baseAccountType".to_string()),
                 base: None,
                 derivation: None,
+                mixed: false,
                 compositor: Some(Compositor::Sequence),
                 attributes: vec![AttributeUse {
                     ref_name: "currency".to_string(),
@@ -2075,6 +2089,7 @@ mod tests {
                     local_name: "baseAccountType".to_string(),
                 }),
                 derivation: Some(DerivationKind::Restriction),
+                mixed: false,
                 compositor: Some(Compositor::Sequence),
                 attributes: vec![AttributeUse {
                     ref_name: "currency".to_string(),
@@ -2090,5 +2105,114 @@ mod tests {
                 }],
             }
         );
+    }
+
+    #[test]
+    fn test_parse_complex_type_with_mixed_type() {
+        let xml = r#"<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                                targetNamespace="http://example.com"
+                                xmlns="http://example.com">
+                                <xs:complexType name="MixedType" mixed="true">
+                                    <xs:sequence>
+                                        <xs:element name="child" type="xs:string" />
+                                    </xs:sequence>
+                                </xs:complexType>
+                            </xs:schema>"#;
+        let mut parser = SchemaParser::from_reader(xml.as_bytes());
+        let schema = parser.parse_schema().unwrap();
+
+        let complex_type = &schema.complex_types[0];
+
+        assert_eq!(
+            complex_type,
+            &ComplexType {
+                name: Some("MixedType".to_string()),
+                base: None,
+                derivation: None,
+                mixed: true,
+                compositor: Some(Compositor::Sequence),
+                attributes: vec![],
+                children: vec![RawTupleChild {
+                    name: QName {
+                        prefix: Some(NamespacePrefix::from("xs")),
+                        local_name: "child".to_string(),
+                    },
+                    min_occurs: 1,
+                    max_occurs: Some(1),
+                }],
+            }
+        );
+    }
+
+    #[test]
+    fn test_parse_complex_type_with_any_attribute() {
+        let xml = r#"<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                                targetNamespace="http://example.com"
+                                xmlns="http://example.com">
+                                <!-- ##any -->
+                                <xs:complexType name="AnyAttrType">
+                                    <xs:sequence />
+                                    <xs:anyAttribute />
+                                </xs:complexType>
+                                <!-- specific namespace -->
+                                <xs:complexType name="SpecificAttrType">
+                                    <xs:sequence />
+                                    <xs:anyAttribute namespace="http://example.com/other" />
+                                </xs:complexType>
+                            </xs:schema>"#;
+        let mut parser = SchemaParser::from_reader(xml.as_bytes());
+        let schema = parser.parse_schema().unwrap();
+    }
+
+    #[test]
+    fn test_parse_complex_type_with_group_references() {
+        let xml = r#"<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                                targetNamespace="http://example.com"
+                                xmlns="http://example.com">
+                                <xs:group name="CommonGroup">
+                                    <xs:sequence>
+                                        <xs:element name="a" type="xs:string" />
+                                        <xs:element name="b" type="xs:string" />
+                                    </xs:sequence>
+                                </xs:group>
+                                <xs:complexType name="UsesGroup">
+                                    <xs:sequence>
+                                        <xs:group ref="CommonGroup" />
+                                    </xs:sequence>
+                                </xs:complexType>
+                            </xs:schema>"#;
+        let mut parser = SchemaParser::from_reader(xml.as_bytes());
+        let schema = parser.parse_schema().unwrap();
+    }
+
+    #[test]
+    fn test_parse_complex_type_with_anonymous_child_element() {
+        let xml = r#"<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                                targetNamespace="http://example.com"
+                                xmlns="http://example.com">
+                                <xs:complexType name="AnonymousChildrenType">
+                                    <xs:sequence>
+                                        <xs:element name="inlineChild" type="xs:string" />
+                                    </xs:sequence>
+                                </xs:complexType>
+                            </xs:schema>"#;
+        let mut parser = SchemaParser::from_reader(xml.as_bytes());
+        let schema = parser.parse_schema().unwrap();
+    }
+
+    #[test]
+    fn test_parse_complex_type_with_referenced_children() {
+        let xml = r#"<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                                targetNamespace="http://example.com"
+                                xmlns="http://example.com">
+                                <xs:element name="Child" type="xs:string" />
+                                <xs:complexType name="RefChildrenType">
+                                    <xs:sequence>
+                                        <xs:element ref="Child" />
+                                    </xs:sequence>
+                                </xs:complexType>
+                            </xs:schema>"#;
+        let mut parser = SchemaParser::from_reader(xml.as_bytes());
+        let schema = parser.parse_schema().unwrap();
     }
 }
