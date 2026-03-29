@@ -9,7 +9,8 @@
 ## v0.2.1 (unreleased)
 
 - added
-  - Make `ArcroleUri`, `ArcroleType`, `RoleType`, `XbrlType` and `Concept` public
+  - Make `ArcroleUri`, `ArcroleType`, `RoleType`, `XbrlType`, `Concept`, `Particle`, `ElementDecl`,
+    `ElementParticle`, `GroupDef`, `GroupParticle`, and `Occurrence` public
 
 ## v0.2.0 (2026-03-21)
 
