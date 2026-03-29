@@ -20,11 +20,12 @@ pub use quick_xml::{Reader as XmlReader, Writer as XmlWriter};
 #[cfg(feature = "download")]
 pub use taxonomy::TaxonomyLoader;
 pub use taxonomy::{
-    Balance, CalculationArc, DeclaredAccuracy, DefinitionArc, Label, LinkbaseLocator,
-    LinkbaseParser, PeriodType, PresentationArc, Reference, ReferencePart, SchemaParser,
-    SubstitutionGroup, TaxonomySchema, TaxonomySet,
+    ArcroleType, Balance, CalculationArc, Concept, DeclaredAccuracy, DefinitionArc, Label,
+    LinkbaseLocator, LinkbaseParser, PeriodType, PresentationArc, Reference, ReferencePart,
+    RoleType, SchemaParser, SubstitutionGroup, TaxonomySchema, TaxonomySet, XbrlType,
 };
 pub use validation::{Severity, ValidationMessage, ValidationResult};
 pub use xml::{
-    ConceptId, ExpandedName, NamespacePrefix, NamespaceUri, QName, RoleUri, SchemaRefUrl,
+    ArcroleUri, ConceptId, ExpandedName, NamespacePrefix, NamespaceUri, QName, RoleUri,
+    SchemaRefUrl,
 };

@@ -6,6 +6,11 @@
 - changed
 - removed
 
+## v0.2.1 (unreleased)
+
+- added
+  - Make `ArcroleUri`, `ArcroleType`, `RoleType`, `XbrlType` and `Concept` public
+
 ## v0.2.0 (2026-03-21)
 
 - added
