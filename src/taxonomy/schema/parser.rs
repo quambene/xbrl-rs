@@ -1838,14 +1838,9 @@ impl<R: BufRead> SchemaParser<R> {
                     "##any" => AnyAttributeNamespace::Any,
                     "##other" => AnyAttributeNamespace::Other,
                     "##targetNamespace" => AnyAttributeNamespace::TargetNamespace,
-                    other => {
-                        AnyAttributeNamespace::List(
-                            other
-                                .split_whitespace()
-                                .map(|s| s.to_string())
-                                .collect(),
-                        )
-                    }
+                    other => AnyAttributeNamespace::List(
+                        other.split_whitespace().map(|s| s.to_string()).collect(),
+                    ),
                 };
             }
         }
