@@ -11,8 +11,11 @@
 - added
   - Make `ArcroleUri`, `ArcroleType`, `RoleType`, `XbrlType`, `Concept`, `Particle`, `ElementDecl`,
     `ElementParticle`, `GroupDef`, `GroupParticle`, and `Occurrence` public
+  - Add `content_model` to `Concept`
 - changed
   - Parse `ComplexType`s recursively
+- removed
+  - Remove `tuple_children` and `compositor` from `Concept`
 
 ## v0.2.0 (2026-03-21)
 

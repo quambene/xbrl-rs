@@ -341,8 +341,7 @@ mod tests {
                 balance: None,
                 nillable: false,
                 is_abstract: false,
-                tuple_children: Vec::new(),
-                compositor: None,
+                content_model: None,
             },
             Concept {
                 name: ExpandedName::new("http://example.com".into(), "concept2".to_string()),
@@ -359,8 +358,7 @@ mod tests {
                 balance: None,
                 nillable: false,
                 is_abstract: false,
-                tuple_children: Vec::new(),
-                compositor: None,
+                content_model: None,
             },
         ]
     }

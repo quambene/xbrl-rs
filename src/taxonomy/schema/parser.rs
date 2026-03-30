@@ -262,6 +262,39 @@ pub enum Particle {
     },
 }
 
+impl Particle {
+    /// Returns all [`ElementParticle`]s reachable from this particle, flattened
+    /// across any nesting depth of sequences and choices.
+    pub fn elements(&self) -> Vec<&ElementParticle> {
+        let mut elements = Vec::new();
+        self.collect_elements(&mut elements);
+        elements
+    }
+
+    fn collect_elements<'a>(&'a self, elements: &mut Vec<&'a ElementParticle>) {
+        match self {
+            Particle::Element { element, .. } => elements.push(element),
+            Particle::Sequence { children, .. } | Particle::Choice { children, .. } => {
+                for child in children {
+                    child.collect_elements(elements);
+                }
+            }
+            Particle::Group { .. } => {}
+        }
+    }
+
+    /// Returns `true` if this particle contains an element whose local name
+    /// (for refs) or declared name (for inline declarations) matches `local_name`.
+    pub fn allows_local_name(&self, local_name: &str) -> bool {
+        self.elements()
+            .iter()
+            .any(|element_particle| match element_particle {
+                ElementParticle::Ref(qname) => qname.local_name == local_name,
+                ElementParticle::Decl(declaration) => declaration.name == local_name,
+            })
+    }
+}
+
 /// Represents a `simpleContent` in a complex type, which is used for defining
 /// tuple types in XBRL.
 #[derive(Debug, PartialEq, Eq)]
@@ -334,6 +367,30 @@ pub struct ComplexType {
     pub any_attribute: Option<AnyAttribute>,
     /// The content of the complex type.
     pub content: Option<ComplexTypeContent>,
+}
+
+impl ComplexType {
+    /// Extracts the top-level [`Particle`] from this type.
+    pub fn into_content_model(self) -> Option<Particle> {
+        match self.content? {
+            ComplexTypeContent::ComplexContent(complex_content) => complex_content.particle,
+            ComplexTypeContent::SimpleContent(_) | ComplexTypeContent::Empty => None,
+        }
+    }
+
+    /// Returns the base type [`QName`] if this type derives from another via
+    /// `simpleContent` or `complexContent` extension/restriction.
+    pub fn base_type(&self) -> Option<&QName> {
+        match self.content.as_ref()? {
+            ComplexTypeContent::SimpleContent(SimpleContent { base, .. }) => Some(base),
+            ComplexTypeContent::ComplexContent(ComplexContent { derivation, .. }) => {
+                match derivation.as_ref()? {
+                    Derivation::Extension(q) | Derivation::Restriction(q) => Some(q),
+                }
+            }
+            ComplexTypeContent::Empty => None,
+        }
+    }
 }
 
 /// A parsed XML element from the schema (xs:element).

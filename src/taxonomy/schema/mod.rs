@@ -6,10 +6,13 @@ use crate::{
     ExpandedName, NamespacePrefix, NamespaceUri, RoleUri, XbrlError, instance::Decimals,
     taxonomy::schema::parser::CyclesAllowed, xml::ArcroleUri,
 };
-pub use parser::{Compositor, LinkbaseRef, SchemaImport, SchemaInclude, SchemaParser};
+pub use parser::{
+    ElementDecl, ElementParticle, GroupDef, GroupParticle, LinkbaseRef, Occurrence, Particle,
+    SchemaImport, SchemaInclude, SchemaParser,
+};
 #[cfg(test)]
 pub use resolver::BaseSubstitutionGroup;
-pub use resolver::{Concept, MaxOccurs, SubstitutionGroup, TupleChild, XbrlType};
+pub use resolver::{Concept, SubstitutionGroup, XbrlType};
 use std::{
     collections::HashMap,
     fs::File,
@@ -205,8 +208,7 @@ mod tests {
             is_abstract: false,
             period_type,
             balance,
-            tuple_children: Vec::new(),
-            compositor: None,
+            content_model: None,
         }
     }
 
@@ -398,8 +400,7 @@ mod tests {
                 is_abstract: false,
                 period_type: Some(PeriodType::Instant),
                 balance: Some(Balance::Debit),
-                tuple_children: Vec::new(),
-                compositor: None,
+                content_model: None,
             }],
         };
 
