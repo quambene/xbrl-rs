@@ -213,6 +213,17 @@ pub enum ElementParticle {
     Decl(ElementDecl),
 }
 
+impl ElementParticle {
+    /// Returns the local name of the element: the `ref` local name for
+    /// references, or the declared `name` for inline declarations.
+    pub fn local_name(&self) -> &str {
+        match self {
+            ElementParticle::Ref(qname) => &qname.local_name,
+            ElementParticle::Decl(declaration) => &declaration.name,
+        }
+    }
+}
+
 /// Represents a group definition in a complex type's content model.
 #[derive(Debug, PartialEq, Eq)]
 pub struct GroupDef {

@@ -5,7 +5,7 @@ use super::{Severity, ValidationResult, value::PreparedFactValues};
 use crate::{
     DeclaredAccuracy, ExpandedName, Fact, InstanceDocument, ItemFact, Period, TaxonomySet,
     TupleFact, Unit,
-    taxonomy::{Compositor, Concept, MaxOccurs, PeriodType, TupleChild, XbrlType},
+    taxonomy::{Concept, ElementParticle, Particle, PeriodType, XbrlType},
 };
 use rust_decimal::Decimal;
 use std::{
@@ -402,6 +402,9 @@ fn validate_fact(
     }
 }
 
+/// Validates a tuple fact against its concept definition, checking that the
+/// fact conforms to the concept's content model.
+
 fn validate_tuple_fact<'a>(
     fact: &TupleFact,
     parent_tuple: Option<&'a Concept>,
@@ -462,17 +465,19 @@ fn validate_tuple_fact<'a>(
     Some(concept)
 }
 
+/// Validates that a child concept is allowed under a parent tuple according to
+/// the tuple's content model.
 fn validate_tuple_child(
     child_concept: &Concept,
     parent_tuple: &Concept,
     taxonomy: &TaxonomySet,
     result: &mut ValidationResult,
 ) {
-    if parent_tuple.tuple_children.is_empty() {
+    let Some(model) = &parent_tuple.content_model else {
         return;
-    }
+    };
 
-    if tuple_allows_child(parent_tuple, &child_concept.name, taxonomy) {
+    if particle_allows_concept(model, &child_concept.name, taxonomy) {
         return;
     }
 
@@ -488,17 +493,8 @@ fn validate_tuple_child(
     );
 }
 
-fn tuple_allows_child(
-    parent_tuple: &Concept,
-    child_concept_name: &ExpandedName,
-    taxonomy: &TaxonomySet,
-) -> bool {
-    parent_tuple
-        .tuple_children
-        .iter()
-        .any(|child_ref| tuple_child_ref_matches_concept(child_ref, child_concept_name, taxonomy))
-}
-
+/// Validates that a tuple fact contains required children according to its
+/// concept's content model.
 fn validate_required_tuple_children(
     fact: &TupleFact,
     concept: &Concept,
@@ -510,87 +506,107 @@ fn validate_required_tuple_children(
         return;
     }
 
-    // For xs:choice compositors, any one of the declared children satisfies
-    // the content model. Per-child minOccurs/maxOccurs checks don't apply
-    // in the same way as for xs:sequence.
-    if concept.compositor == Some(Compositor::Choice) {
+    let Some(model) = &concept.content_model else {
         return;
-    }
+    };
 
-    for child_ref in &concept.tuple_children {
-        let count = fact
-            .children()
-            .iter()
-            .filter(|child| {
-                tuple_child_ref_matches_concept(child_ref, child.concept_name(), taxonomy)
-            })
-            .count() as u32;
+    validate_particle_children(model, fact, &concept.name.local_name, taxonomy, result);
+}
 
-        if count < child_ref.min_occurs {
-            result.add(
-                Severity::Error,
-                "schema.tuple_missing_required_child",
-                format!(
-                    "Tuple '{}' requires at least {} occurrence(s) of child '{}' but found {}",
-                    fact.concept_name(),
-                    child_ref.min_occurs,
-                    child_ref.name.local_name,
-                    count
-                ),
-                Some(fact.concept_name().to_string()),
-                None,
-            );
+/// Recursively validates occurrence constraints for element particles in a
+/// sequence. Choice particles are skipped (any one branch satisfies the model).
+fn validate_particle_children(
+    particle: &Particle,
+    fact: &TupleFact,
+    tuple_name: &str,
+    taxonomy: &TaxonomySet,
+    result: &mut ValidationResult,
+) {
+    match particle {
+        Particle::Sequence { children, .. } => {
+            for child in children {
+                validate_particle_children(child, fact, tuple_name, taxonomy, result);
+            }
         }
+        // For xs:choice, any one alternative satisfies; skip per-child checks.
+        Particle::Choice { .. } => {}
+        Particle::Element { element, occurs } => {
+            let allowed_local = element.local_name();
+            let count = fact
+                .children()
+                .iter()
+                .filter(|fact| {
+                    element_particle_matches_concept(element, fact.concept_name(), taxonomy)
+                })
+                .count() as u32;
 
-        let has_ambiguous_choice_default =
-            child_ref.min_occurs == 0 && matches!(child_ref.max_occurs, MaxOccurs::Bounded(1));
+            if count < occurs.min {
+                result.add(
+                    Severity::Error,
+                    "schema.tuple_missing_required_child",
+                    format!(
+                        "Tuple '{}' requires at least {} occurrence(s) of child '{}' but found {}",
+                        tuple_name, occurs.min, allowed_local, count
+                    ),
+                    Some(tuple_name.to_string()),
+                    None,
+                );
+            }
 
-        if !has_ambiguous_choice_default
-            && let MaxOccurs::Bounded(max_occurs) = child_ref.max_occurs
-            && count > max_occurs
-        {
-            result.add(
-                Severity::Error,
-                "schema.tuple_child_not_allowed",
-                format!(
-                    "Tuple '{}' allows at most {} occurrence(s) of child '{}' but found {}",
-                    fact.concept_name(),
-                    max_occurs,
-                    child_ref.name.local_name,
-                    count
-                ),
-                Some(fact.concept_name().to_string()),
-                None,
-            );
+            if let Some(max) = occurs.max {
+                if count > max {
+                    result.add(
+                        Severity::Error,
+                        "schema.tuple_child_not_allowed",
+                        format!(
+                            "Tuple '{}' allows at most {} occurrence(s) of child '{}' but found {}",
+                            tuple_name, max, allowed_local, count
+                        ),
+                        Some(tuple_name.to_string()),
+                        None,
+                    );
+                }
+            }
         }
+        Particle::Group { .. } => {}
     }
 }
 
-/// Check if a tuple child reference matches a given concept, considering direct
-/// matches and substitution group relationships.
-fn tuple_child_ref_matches_concept(
-    child_ref: &TupleChild,
+/// Returns `true` if any element particle in `model` matches `child_name`,
+/// considering substitution groups.
+fn particle_allows_concept(
+    model: &Particle,
+    child_name: &ExpandedName,
+    taxonomy: &TaxonomySet,
+) -> bool {
+    model.elements().iter().any(|element_particle| {
+        element_particle_matches_concept(element_particle, child_name, taxonomy)
+    })
+}
+
+/// Returns `true` if `element_particle` matches the given concept name, either
+/// directly or through the substitution group chain.
+fn element_particle_matches_concept(
+    element_particle: &ElementParticle,
     child_concept_name: &ExpandedName,
     taxonomy: &TaxonomySet,
 ) -> bool {
+    let allowed_local = element_particle.local_name();
+
+    if child_concept_name.local_name == allowed_local {
+        return true;
+    }
+
+    // Walk substitution group chain.
     let Some(child_concept) = taxonomy.find_concept(child_concept_name) else {
         return false;
     };
 
-    let allowed_local = &child_ref.name.local_name;
-
-    // Direct match
-    if &child_concept.name.local_name == allowed_local {
-        return true;
-    }
-
-    // Walk substitution group chain: if the child substitutes for the declared
-    // child ref (directly or transitively), it is allowed.
     let mut current = &child_concept.substitution_group.original;
     let mut seen = HashSet::new();
 
     while seen.insert(current) {
-        if &current.local_name == allowed_local {
+        if current.local_name == allowed_local {
             return true;
         }
         let Some(parent) = taxonomy.find_concept(current) else {
