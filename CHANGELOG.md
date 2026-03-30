@@ -8,11 +8,14 @@
 
 ## v0.2.1 (unreleased)
 
+- fixed
+  - Fix conformance tests `TupleGroupCounterExample` and `TupleChoiceExample`
 - added
   - Make `ArcroleUri`, `ArcroleType`, `RoleType`, `XbrlType`, `Concept`, `Particle`, `ElementDecl`,
     `ElementParticle`, `GroupDef`, `GroupParticle`, and `Occurrence` public
   - Add `content_model` to `Concept`
-  - Parse `xs:group` elements
+  - Parse `xs:group` and `xs:choice` elements in schema files
+  - Write failed conformance tests to csv file
 - changed
   - Parse `ComplexType`s recursively
 - removed

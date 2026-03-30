@@ -76,10 +76,10 @@ fn parse_suite_index(path: &Path) -> Vec<String> {
     loop {
         buf.clear();
         match reader.read_event_into(&mut buf) {
-            Ok(Event::Empty(e)) | Ok(Event::Start(e)) => {
-                let local = e.name().local_name();
+            Ok(Event::Empty(event)) | Ok(Event::Start(event)) => {
+                let local = event.name().local_name();
                 if local.as_ref() == b"testcase" {
-                    for attr in e.attributes().flatten() {
+                    for attr in event.attributes().flatten() {
                         if attr.key.local_name().as_ref() == b"uri"
                             && let Ok(uri) = str::from_utf8(attr.value.as_ref())
                         {
@@ -105,9 +105,9 @@ fn parse_testcase(path: &Path) -> Result<TestCase, String> {
     let mut reader = Reader::from_reader(BufReader::new(file));
     reader.config_mut().trim_text(true);
 
-    let mut tc_name = path
+    let mut testcase_name = path
         .file_stem()
-        .map(|s| s.to_string_lossy().to_string())
+        .map(|stem| stem.to_string_lossy().into_owned())
         .unwrap_or_default();
     let mut variations: Vec<Variation> = Vec::new();
 
@@ -128,8 +128,8 @@ fn parse_testcase(path: &Path) -> Result<TestCase, String> {
 
                 match local.as_ref() {
                     b"testcase" => {
-                        if let Some(n) = attrs.get("name") {
-                            tc_name = n.clone();
+                        if let Some(name) = attrs.get("name") {
+                            testcase_name = name.clone();
                         }
                     }
                     b"variation" => {
@@ -176,20 +176,21 @@ fn parse_testcase(path: &Path) -> Result<TestCase, String> {
                             Some("valid") => Expected::Valid,
                             _ => Expected::Invalid,
                         };
-                        if let Some(ref mut v) = current_var {
-                            v.expected = expected;
+                        if let Some(ref mut variation) = current_var {
+                            variation.expected = expected;
                         }
                     }
                     _ => {}
                 }
             }
             Ok(Event::Text(e)) => {
-                if let (Some(kind), Some(var)) = (current_file_kind.take(), &mut current_var) {
+                if let (Some(kind), Some(variation)) = (current_file_kind.take(), &mut current_var)
+                {
                     if in_data {
                         if let Ok(text) = str::from_utf8(e.as_ref()).map(str::trim)
                             && !text.is_empty()
                         {
-                            var.data_files.push(DataFile {
+                            variation.data_files.push(DataFile {
                                 kind,
                                 path: text.to_string(),
                                 read_me_first: current_read_me_first,
@@ -205,8 +206,8 @@ fn parse_testcase(path: &Path) -> Result<TestCase, String> {
                 let local = e.name().local_name();
                 match local.as_ref() {
                     b"variation" => {
-                        if let Some(v) = current_var.take() {
-                            variations.push(v);
+                        if let Some(variation) = current_var.take() {
+                            variations.push(variation);
                         }
                     }
                     b"data" => {
@@ -227,7 +228,7 @@ fn parse_testcase(path: &Path) -> Result<TestCase, String> {
     }
 
     Ok(TestCase {
-        name: tc_name,
+        name: testcase_name,
         path: path.to_path_buf(),
         variations,
     })
@@ -300,12 +301,12 @@ fn run_instance_variation(variation: &Variation, base_dir: &Path) -> Outcome {
     let instance_file = variation
         .data_files
         .iter()
-        .find(|f| f.kind == FileKind::Instance && f.read_me_first)
+        .find(|file| file.kind == FileKind::Instance && file.read_me_first)
         .or_else(|| {
             variation
                 .data_files
                 .iter()
-                .find(|f| f.kind == FileKind::Instance)
+                .find(|file| file.kind == FileKind::Instance)
         });
 
     let Some(instance_file) = instance_file else {
@@ -332,10 +333,10 @@ fn run_instance_variation(variation: &Variation, base_dir: &Path) -> Outcome {
     let mut schema_refs: Vec<String> = instance
         .schema_refs()
         .iter()
-        .map(|s| {
+        .map(|schema_refs| {
             // If the schema ref looks like a relative path (no scheme), keep it;
             // otherwise use as-is so strip_prefix in TaxonomySet works.
-            s.to_string()
+            schema_refs.to_string()
         })
         .collect();
     for xsd in &xsd_refs {
@@ -373,16 +374,16 @@ fn run_instance_variation(variation: &Variation, base_dir: &Path) -> Outcome {
 ///    for the full taxonomy-discovery check (the XSD's `linkbaseRef` causes
 ///    the linkbase to be loaded transitively).
 fn run_linkbase_variation(variation: &Variation, base_dir: &Path) -> Outcome {
-    let lb_file = variation
+    let linkbase_file = variation
         .data_files
         .iter()
-        .find(|f| f.kind == FileKind::Linkbase && f.read_me_first);
+        .find(|file| file.kind == FileKind::Linkbase && file.read_me_first);
 
-    let Some(lb_file) = lb_file else {
+    let Some(linkbase_file) = linkbase_file else {
         return Outcome::Skipped;
     };
 
-    let lb_path = base_dir.join(&lb_file.path);
+    let lb_path = base_dir.join(&linkbase_file.path);
 
     // Open and parse the linkbase, then validate every locator href.
     let locators = match File::open(&lb_path) {
@@ -405,7 +406,10 @@ fn run_linkbase_variation(variation: &Variation, base_dir: &Path) -> Outcome {
     // (The XSD typically carries a linkbaseRef that points back to the primary
     // linkbase, so this also exercises loading the linkbase through the normal
     // taxonomy-discovery path.)
-    let has_xsd = variation.data_files.iter().any(|f| f.kind == FileKind::Xsd);
+    let has_xsd = variation
+        .data_files
+        .iter()
+        .any(|file| file.kind == FileKind::Xsd);
     if has_xsd {
         run_schema_variation(variation, base_dir)
     } else {
@@ -419,8 +423,8 @@ fn run_schema_variation(variation: &Variation, base_dir: &Path) -> Outcome {
     let schema_refs: Vec<String> = variation
         .data_files
         .iter()
-        .filter(|f| f.kind == FileKind::Xsd)
-        .map(|f| f.path.clone())
+        .filter(|file| file.kind == FileKind::Xsd)
+        .map(|file| file.path.clone())
         .collect();
 
     if schema_refs.is_empty() {
@@ -480,6 +484,8 @@ fn conformance_suite() {
     let mut cat_skip: HashMap<String, usize> = HashMap::new();
 
     let mut failures: Vec<String> = Vec::new();
+    // Structured failure rows for CSV: (category, testcase, variation_id, variation_name, expected, got)
+    let mut failure_rows: Vec<(String, String, String, String, String, String)> = Vec::new();
 
     for testcase in &testcases {
         let category = category(testcase);
@@ -500,11 +506,24 @@ fn conformance_suite() {
                 ref outcome if *outcome == expected_outcome => {
                     *cat_pass.entry(category.clone()).or_default() += 1;
                 }
-                _ => {
+                ref outcome => {
                     *cat_fail.entry(category.clone()).or_default() += 1;
                     failures.push(format!(
                         "  [{category} / {} / {} {}] expected={:?}, got={:?}",
                         testcase.name, variation.id, variation.name, variation.expected, outcome
+                    ));
+                    let testcase_file_stem = testcase
+                        .path
+                        .file_stem()
+                        .map(|stem| stem.to_string_lossy().into_owned())
+                        .unwrap_or_default();
+                    failure_rows.push((
+                        category.clone(),
+                        testcase_file_stem,
+                        variation.id.clone(),
+                        variation.name.clone(),
+                        format!("{:?}", variation.expected),
+                        format!("{outcome:?}"),
                     ));
                 }
             }
@@ -554,8 +573,28 @@ fn conformance_suite() {
         }
     }
 
+    // Write failures CSV.
+    let failures_path = Path::new("test_data/conformance/failures.csv");
+    failure_rows.sort_by(|a, b| {
+        a.0.cmp(&b.0)
+            .then_with(|| a.1.cmp(&b.1))
+            .then_with(|| a.2.cmp(&b.2))
+    });
+
+    if let Ok(mut file) = File::create(failures_path) {
+        writeln!(
+            file,
+            "category;testcase;variation_id;variation_name;expected;got"
+        )
+        .unwrap();
+        for (category, testcase, vid, vname, expected, got) in &failure_rows {
+            writeln!(file, "{category};{testcase};{vid};{vname};{expected};{got}").unwrap();
+        }
+        println!("Failures written to {}", failures_path.display());
+    }
+
     // Write summary CSV.
-    let csv_path = Path::new("test_data/conformance_results.csv");
+    let csv_path = Path::new("test_data/conformance/results.csv");
 
     if let Ok(mut csv) = File::create(csv_path) {
         writeln!(csv, "category,passed,failed,skipped,total").unwrap();
