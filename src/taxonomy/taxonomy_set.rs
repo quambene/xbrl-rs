@@ -265,9 +265,7 @@ impl TaxonomySet {
                     && concept
                         .content_model
                         .as_ref()
-                        .map(|model| {
-                            model.allows_local_name(&element.name.local_name)
-                        })
+                        .map(|model| model.allows_local_name(&element.name.local_name))
                         .unwrap_or(false)
             })
     }

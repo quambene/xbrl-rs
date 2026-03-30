@@ -1479,15 +1479,13 @@ impl<R: BufRead> SchemaParser<R> {
         match start.local_name().as_ref() {
             b"sequence" => Ok(Particle::Sequence { children, occurs }),
             b"choice" => Ok(Particle::Choice { children, occurs }),
-            _ => {
-                return Err(XbrlError::InvalidSchemaDocument {
-                    path: self.path.clone(),
-                    reason: format!(
-                        "unexpected compositor tag: {}",
-                        String::from_utf8_lossy(start.local_name().as_ref())
-                    ),
-                });
-            }
+            _ => Err(XbrlError::InvalidSchemaDocument {
+                path: self.path.clone(),
+                reason: format!(
+                    "unexpected compositor tag: {}",
+                    String::from_utf8_lossy(start.local_name().as_ref())
+                ),
+            }),
         }
     }
 
@@ -1764,6 +1762,7 @@ impl<R: BufRead> SchemaParser<R> {
     /// Parses the body of an `xs:extension` or `xs:restriction` inside
     /// `xs:complexContent`, collecting the optional particle, attributes, and
     /// `anyAttribute`. Returns when the matching closing tag is consumed.
+    #[allow(clippy::type_complexity)]
     fn parse_complex_derivation(
         &mut self,
         end_tag: &[u8],
@@ -1834,20 +1833,18 @@ impl<R: BufRead> SchemaParser<R> {
 
             if attribute.key.local_name().as_ref() == b"namespace" {
                 let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+
                 namespace = match value.as_ref() {
                     "##any" => AnyAttributeNamespace::Any,
                     "##other" => AnyAttributeNamespace::Other,
                     "##targetNamespace" => AnyAttributeNamespace::TargetNamespace,
                     other => {
-                        let namespaces = other
-                            .split_whitespace()
-                            .map(|s| s.to_string())
-                            .collect::<Vec<_>>();
-                        if namespaces.len() == 1 {
-                            AnyAttributeNamespace::List(namespaces)
-                        } else {
-                            AnyAttributeNamespace::List(namespaces)
-                        }
+                        AnyAttributeNamespace::List(
+                            other
+                                .split_whitespace()
+                                .map(|s| s.to_string())
+                                .collect(),
+                        )
                     }
                 };
             }

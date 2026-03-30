@@ -404,7 +404,6 @@ fn validate_fact(
 
 /// Validates a tuple fact against its concept definition, checking that the
 /// fact conforms to the concept's content model.
-
 fn validate_tuple_fact<'a>(
     fact: &TupleFact,
     parent_tuple: Option<&'a Concept>,
@@ -553,19 +552,19 @@ fn validate_particle_children(
                 );
             }
 
-            if let Some(max) = occurs.max {
-                if count > max {
-                    result.add(
-                        Severity::Error,
-                        "schema.tuple_child_not_allowed",
-                        format!(
-                            "Tuple '{}' allows at most {} occurrence(s) of child '{}' but found {}",
-                            tuple_name, max, allowed_local, count
-                        ),
-                        Some(tuple_name.to_string()),
-                        None,
-                    );
-                }
+            if let Some(max) = occurs.max
+                && count > max
+            {
+                result.add(
+                    Severity::Error,
+                    "schema.tuple_child_not_allowed",
+                    format!(
+                        "Tuple '{}' allows at most {} occurrence(s) of child '{}' but found {}",
+                        tuple_name, max, allowed_local, count
+                    ),
+                    Some(tuple_name.to_string()),
+                    None,
+                );
             }
         }
         Particle::Group { .. } => {}
