@@ -11,6 +11,8 @@
 - added
   - Make `ArcroleUri`, `ArcroleType`, `RoleType`, `XbrlType`, `Concept`, `Particle`, `ElementDecl`,
     `ElementParticle`, `GroupDef`, `GroupParticle`, and `Occurrence` public
+- changed
+  - Parse `ComplexType`s recursively
 
 ## v0.2.0 (2026-03-21)
 

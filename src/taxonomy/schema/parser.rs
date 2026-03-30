@@ -19,23 +19,22 @@ use std::{
 /// an XBRL schema's root `xs:schema` element.
 #[derive(Debug, PartialEq, Eq, Default)]
 pub enum FormDefault {
+    /// Elements or attributes must be qualified with the target namespace to be
+    /// valid.
     Qualified,
+    /// Elements or attributes can be unqualified (no namespace) to be valid.
+    /// This is the default in XBRL taxonomies.
     #[default]
     Unqualified,
 }
 
-/// The kind of derivation in a `simpleContent` extension or restriction.
+/// The kind of derivation in a `simpleContent`.
 #[derive(Debug, PartialEq, Eq)]
 pub enum DerivationKind {
+    /// Derivation by extension (from `xs:extension`).
     Extension,
+    /// Derivation by restriction (from `xs:restriction`).
     Restriction,
-}
-
-/// The compositor type for a complex type's content model (sequence or choice).
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Compositor {
-    Sequence,
-    Choice,
 }
 
 /// The allowed cycle direction for an arcrole (`cyclesAllowed` attribute).
@@ -139,20 +138,6 @@ pub struct RawArcroleType {
     pub cycles_allowed: Option<CyclesAllowed>,
 }
 
-/// A child element of a tuple (`xs:element[@ref]` inside an inline
-/// `xs:complexType`).
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct RawTupleChild {
-    /// The QName of the referenced element.
-    pub name: QName,
-    /// The minimum number of occurrences of this child element (from
-    /// `minOccurs`).
-    pub min_occurs: u32,
-    /// The maximum number of occurrences of this child element (from
-    /// `maxOccurs`).
-    pub max_occurs: Option<u32>,
-}
-
 /// Represents an attribute use in a `simpleContent` extension or restriction.
 #[derive(Debug, PartialEq, Eq)]
 pub struct AttributeUse {
@@ -160,19 +145,6 @@ pub struct AttributeUse {
     pub ref_name: String,
     /// Whether this attribute is required (use="required").
     pub required: bool,
-}
-
-/// Represents a particle in a complex type's content model, which can be either
-/// an element reference or an element declaration.
-#[derive(Debug, PartialEq, Eq)]
-pub enum Particle {
-    /// A reference to a globally defined element (from `xs:element[@ref]`).
-    ElementRef(QName),
-    /// An element declaration (from `xs:element[@name]`).
-    ElementDecl {
-        name: String,
-        type_name: Option<QName>,
-    },
 }
 
 /// Represents an `xs:anyAttribute` in a complex type's content model.
@@ -197,6 +169,99 @@ pub enum AnyAttributeNamespace {
     List(Vec<String>),
 }
 
+/// Represents the occurence constraints for a
+/// particle in a complex type's content model.
+#[derive(Debug, PartialEq, Eq)]
+pub struct Occurrence {
+    /// The minimum number of occurrences (from `minOccurs`).
+    pub min: u32,
+    /// The maximum number of occurrences (from `maxOccurs`). None means
+    /// unbounded.
+    pub max: Option<u32>,
+}
+
+/// Represents the derivation method (extension or restriction) for a
+/// `complexContent` in a complex type.
+#[derive(Debug, PartialEq, Eq)]
+pub enum Derivation {
+    /// Derivation by extension (from `xs:extension`).
+    Extension(QName),
+    /// Derivation by restriction (from `xs:restriction`).
+    Restriction(QName),
+}
+
+/// Represents an element declaration in the schema, which can be either a
+/// global element or an inline element declaration inside a compositor.
+#[derive(Debug, PartialEq, Eq)]
+pub struct ElementDecl {
+    /// The name of the element.
+    pub name: String,
+    /// The type of the element, if specified.
+    pub type_name: Option<QName>,
+    /// The inline complex type of the element, if specified.
+    pub inline_type: Option<Box<ComplexType>>,
+}
+
+/// Represents an element particle in a complex type's content model.
+#[derive(Debug, PartialEq, Eq)]
+pub enum ElementParticle {
+    /// A reference to a globally defined element (from `xs:element[@ref]`).
+    Ref(QName),
+    /// An inline element declaration (from `xs:element` inside a compositor).
+    /// This is used in complex content of tuple elements in older XBRL
+    /// taxonomies that don't use `complexContent` for tuples.
+    Decl(ElementDecl),
+}
+
+/// Represents a group definition in a complex type's content model.
+#[derive(Debug, PartialEq, Eq)]
+pub struct GroupDef {
+    /// The name of the group (from `xs:group[@name]`). This is optional because
+    /// XBRL allows anonymous groups defined via `xs:group` inside compositors.
+    pub name: Option<QName>,
+    /// The particle that this group wraps (sequence, choice, or another group).
+    pub particle: Box<Particle>,
+}
+
+/// Represents a group particle in a complex type's content model.
+#[derive(Debug, PartialEq, Eq)]
+pub enum GroupParticle {
+    /// A reference to a globally defined group (from `xs:group[@ref]`).
+    Ref(QName),
+    /// An inline group definition (from `xs:group` inside a compositor).
+    Def(GroupDef),
+}
+
+/// Represents a particle in a complex type's content model.
+///
+/// A particle is a building block of a complex type's content model, which can
+/// be an element, a sequence, a choice, or a group.
+#[derive(Debug, PartialEq, Eq)]
+pub enum Particle {
+    /// An element, which can be either a reference to a globally defined
+    /// element or an inline element declaration.
+    Element {
+        element: ElementParticle,
+        occurs: Occurrence,
+    },
+    /// A sequence compositor, which contains a list of child particles.
+    Sequence {
+        children: Vec<Particle>,
+        occurs: Occurrence,
+    },
+    /// A choice compositor, which contains a list of child particles.
+    Choice {
+        children: Vec<Particle>,
+        occurs: Occurrence,
+    },
+    /// A group reference or definition, which can be either a reference to a
+    /// globally defined group or an inline group definition.
+    Group {
+        group: GroupParticle,
+        occurs: Occurrence,
+    },
+}
+
 /// Represents a `simpleContent` in a complex type, which is used for defining
 /// tuple types in XBRL.
 #[derive(Debug, PartialEq, Eq)]
@@ -207,34 +272,18 @@ pub struct SimpleContent {
     /// The kind of derivation (extension or restriction) for this simple
     /// content.
     pub derivation: DerivationKind,
-    /// Attributes declared via `xs:attribute[@ref]` inside a `simpleContent` of
-    /// a tuple element.
-    pub attributes: Vec<AttributeUse>,
 }
-
 /// Represents a `complexContent` in a complex type, which is used for defining
 /// tuple types with child elements in XBRL.
 #[derive(Debug, PartialEq, Eq)]
 pub struct ComplexContent {
-    /// The base type of the complex content (from `xs:extension` or
-    /// `xs:restriction`).
-    pub base: Option<QName>,
     /// The kind of derivation (extension or restriction) for this complex
     /// content.
-    pub derivation: Option<DerivationKind>,
-    /// Whether this complex type is mixed (from `mixed="true"` in the
-    /// `xs:complexType`).
-    pub mixed: bool,
-    /// The compositor type for the complex content's child elements (sequence
-    /// or choice).
-    pub compositor: Option<Compositor>,
-    /// Child elements declared via `xs:element[@ref]` inside a `complexContent`
-    /// of a tuple element.
-    pub particles: Vec<Particle>,
-    /// The `xs:anyAttribute` of this complex content, if present.
-    pub any_attribute: Option<AnyAttribute>,
-    /// Regular attributes (rare in XBRL but valid).
-    pub attributes: Vec<AttributeUse>,
+    pub derivation: Option<Derivation>,
+    /// The content model particle, if any. `None` means the particle is
+    /// inherited from the base type (extension/restriction with no inline
+    /// particle).
+    pub particle: Option<Particle>,
 }
 
 /// Represents a simple type definition (`xs:simpleType`) in the schema.
@@ -252,28 +301,39 @@ pub struct SimpleType {
     pub enumerations: Vec<String>,
 }
 
+/// Represents a complex type definition (`xs:complexType`) in the schema, which
+/// can be used for both item and tuple elements in XBRL.
+#[derive(Debug, PartialEq, Eq)]
+pub enum ComplexTypeContent {
+    /// A `simpleContent` is used for tuple types that only have attributes and
+    /// no child elements.
+    SimpleContent(SimpleContent),
+    /// A `complexContent` is used for tuple types that have child elements, and
+    /// can also have attributes.
+    ///
+    /// In XML Schema, this may be defined either via `<complexContent>` or
+    /// implicitly by directly containing a particle (`sequence`, `choice`,
+    /// `all`). Both forms are treated uniformly.
+    ComplexContent(ComplexContent),
+    /// An empty complex type has no explicit content. This is used for tuple
+    /// types that have no attributes and no child elements.
+    Empty,
+}
+
 /// Represents a complex type definition (`xs:complexType`) in the schema.
 #[derive(Debug, PartialEq, Eq)]
 pub struct ComplexType {
     /// The name of the complex type.
     pub name: Option<String>,
-    /// The base type of the complex type (from `xs:extension` or
-    /// `xs:restriction`).
-    pub base: Option<QName>,
-    /// The kind of derivation (extension or restriction) if this complex type
-    /// is derived from another type via `xs:simpleContent`.
-    pub derivation: Option<DerivationKind>,
-    /// Whether this complex type is mixed (from `mixed="true"`).
+    /// Whether this complex type is mixed (from `mixed="true"` in the
+    /// `xs:complexType`).
     pub mixed: bool,
-    /// The compositor type for the complex type's content model (sequence or
-    /// choice).
-    pub compositor: Option<Compositor>,
-    /// Attributes declared via `xs:attribute[@ref]` inside an
-    /// `xs:simpleContent` of a tuple element.
+    /// Attributes defined on this type via `xs:attribute` elements.
     pub attributes: Vec<AttributeUse>,
-    /// Child elements declared via `xs:element[@ref]` inside an inline
-    /// `xs:complexType` of a tuple element.
-    pub children: Vec<RawTupleChild>,
+    /// The `xs:anyAttribute` of this complex content, if present.
+    pub any_attribute: Option<AnyAttribute>,
+    /// The content of the complex type.
+    pub content: Option<ComplexTypeContent>,
 }
 
 /// A parsed XML element from the schema (xs:element).
@@ -433,6 +493,11 @@ impl<R: BufRead> SchemaParser<R> {
                             schema.complex_types.push(complex_type);
                         }
                         b"annotation" => self.parse_annotation(&mut schema)?,
+                        b"group" => {
+                            // xs:group definitions at the schema level are
+                            // skipped; group refs inside compositors are parsed.
+                            self.skip_until(b"group")?;
+                        }
                         b"redefine" => {
                             return Err(XbrlError::InvalidSchemaDocument {
                                 path: self.path.clone(),
@@ -892,6 +957,32 @@ impl<R: BufRead> SchemaParser<R> {
         Ok(())
     }
 
+    /// Skips all events until (and including) the closing tag with `end_tag`
+    /// local name.
+    fn skip_until(&mut self, end_tag: &[u8]) -> Result<(), XbrlError> {
+        let mut buf = Vec::new();
+        let mut depth = 1usize;
+
+        loop {
+            match self.reader.read_event_into(&mut buf)? {
+                Event::Start(_) => depth += 1,
+                Event::End(ref event) => {
+                    depth -= 1;
+
+                    if depth == 0 {
+                        debug_assert_eq!(event.local_name().as_ref(), end_tag);
+                        break;
+                    }
+                }
+                Event::Eof => break,
+                _ => {}
+            }
+            buf.clear();
+        }
+
+        Ok(())
+    }
+
     /// Parses an `xs:element` element, which can be either an item or a tuple
     /// depending on the `substitutionGroup` attribute. If `has_children` is
     /// true, also looks for an inline `xs:complexType` child.
@@ -1094,12 +1185,10 @@ impl<R: BufRead> SchemaParser<R> {
         let mut buf = Vec::new();
         let mut complex_type = ComplexType {
             name: None,
-            base: None,
-            derivation: None,
             mixed: false,
-            compositor: None,
             attributes: Vec::new(),
-            children: Vec::new(),
+            any_attribute: None,
+            content: None,
         };
 
         for attribute in start.attributes() {
@@ -1121,112 +1210,194 @@ impl<R: BufRead> SchemaParser<R> {
             }
         }
 
-        loop {
-            match self.reader.read_event_into(&mut buf)? {
-                Event::Start(ref event) | Event::Empty(ref event) => {
-                    match event.local_name().as_ref() {
-                        b"simpleContent" => {
-                            self.parse_simple_content(&mut complex_type)?;
-                        }
-                        b"complexContent" => {
-                            self.parse_complex_content(&mut complex_type)?;
-                        }
-                        b"sequence" => {
-                            let tuple_children = self.parse_sequence()?;
-                            complex_type.children.extend(tuple_children);
-                            complex_type.compositor = Some(Compositor::Sequence);
-                        }
-                        b"choice" => {
-                            let tuple_children = self.parse_sequence()?;
-                            complex_type.children.extend(tuple_children);
-                            complex_type.compositor = Some(Compositor::Choice);
-                        }
-                        b"attribute" => {
-                            let attribute = self.parse_attribute(event)?;
-                            complex_type.attributes.push(attribute);
-                        }
-                        b"restriction" => {
-                            return Err(XbrlError::InvalidSchemaDocument {
-                                path: self.path.clone(),
-                                reason: "restriction is only allowed inside simpleContent or complexContent"
-                                    .to_string(),
-                            });
-                        }
-                        b"extension" => {
-                            return Err(XbrlError::InvalidSchemaDocument {
-                                path: self.path.clone(),
-                                reason: "extension is only allowed inside simpleContent or complexContent"
-                                    .to_string(),
-                            });
-                        }
+        // Element appearing directly in the complexType body (not inside
+        // simpleContent or complexContent).
+        let mut direct_particle: Option<Particle> = None;
 
-                        _ => {
-                            // ignore unknown tags inside complexType
-                        }
-                    }
+        loop {
+            let (event, has_body) = match self.reader.read_event_into(&mut buf)? {
+                Event::Start(event) => (event, true),
+                Event::Empty(event) => (event, false),
+                Event::End(ref event) if event.name() == start.name() => break,
+                Event::Eof => break,
+                _ => {
+                    buf.clear();
+                    continue;
                 }
-                Event::End(ref event) if event.name().as_ref() == start.name().as_ref() => {
+            };
+
+            match event.local_name().as_ref() {
+                b"sequence" | b"choice" if has_body => {
+                    direct_particle = Some(self.parse_particle(&event)?);
+                }
+                b"sequence" => {
+                    let occurs = self.parse_occurs(&event)?;
+                    direct_particle = Some(Particle::Sequence {
+                        children: vec![],
+                        occurs,
+                    });
+                }
+                b"choice" => {
+                    let occurs = self.parse_occurs(&event)?;
+                    direct_particle = Some(Particle::Choice {
+                        children: vec![],
+                        occurs,
+                    });
+                }
+                b"simpleContent" => {
+                    if direct_particle.is_some() {
+                        return Err(XbrlError::InvalidSchemaDocument {
+                            path: self.path.clone(),
+                            reason: "simpleContent cannot appear alongside a direct particle"
+                                .to_string(),
+                        });
+                    }
+
+                    self.parse_simple_content(&mut complex_type)?;
+                    // simpleContent must be the only content of a complexType,
+                    // so we break the loop after parsing it.
                     break;
                 }
-                Event::Eof => break,
+                b"complexContent" => {
+                    if direct_particle.is_some() {
+                        return Err(XbrlError::InvalidSchemaDocument {
+                            path: self.path.clone(),
+                            reason: "complexContent cannot appear alongside a direct particle"
+                                .to_string(),
+                        });
+                    }
+
+                    self.parse_complex_content(&mut complex_type, &event)?;
+                    // complexContent must be the only content of a complexType, so we
+                    break;
+                }
+
+                b"attribute" => {
+                    complex_type.attributes.push(self.parse_attribute(&event)?);
+                }
+                b"anyAttribute" => {
+                    let any_attribute = Some(self.parse_any_attribute(&event)?);
+
+                    if complex_type.any_attribute.is_some() {
+                        return Err(XbrlError::InvalidSchemaDocument {
+                            path: self.path.clone(),
+                            reason: "only one anyAttribute is allowed per complexType".to_string(),
+                        });
+                    }
+
+                    complex_type.any_attribute = any_attribute;
+                }
+                b"restriction" => {
+                    return Err(XbrlError::InvalidSchemaDocument {
+                        path: self.path.clone(),
+                        reason:
+                            "restriction is only allowed inside simpleContent or complexContent"
+                                .to_string(),
+                    });
+                }
+                b"extension" => {
+                    return Err(XbrlError::InvalidSchemaDocument {
+                        path: self.path.clone(),
+                        reason: "extension is only allowed inside simpleContent or complexContent"
+                            .to_string(),
+                    });
+                }
                 _ => {}
             }
 
             buf.clear();
+        }
+
+        // Build content from direct-body elements if simpleContent/complexContent
+        // didn't already set it.
+        if complex_type.content.is_none() {
+            complex_type.content = direct_particle.map(|particle| {
+                ComplexTypeContent::ComplexContent(ComplexContent {
+                    derivation: None,
+                    particle: Some(particle),
+                })
+            });
         }
 
         Ok(complex_type)
     }
 
-    /// Parses an `xs:sequence` element.
-    fn parse_sequence(&mut self) -> Result<Vec<RawTupleChild>, XbrlError> {
-        let mut buf = Vec::new();
+    /// Parses `minOccurs`/`maxOccurs` attributes from a start tag.
+    fn parse_occurs(&self, start: &BytesStart) -> Result<Occurrence, XbrlError> {
+        let mut min = 1u32;
+        let mut max = Some(1u32);
+
+        for attribute in start.attributes() {
+            let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                path: self.path.clone(),
+                position: self.reader.buffer_position(),
+                element: None,
+                source: err.into(),
+            })?;
+            let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+            match attribute.key.local_name().as_ref() {
+                b"minOccurs" => min = xml::parse_u32(&value)?,
+                b"maxOccurs" => {
+                    max = if value == "unbounded" {
+                        None
+                    } else {
+                        Some(xml::parse_u32(&value)?)
+                    };
+                }
+                _ => {}
+            }
+        }
+
+        Ok(Occurrence { min, max })
+    }
+
+    /// Parses an `xs:sequence` or `xs:choice` element into a recursive
+    /// [`Particle`] tree. `start` is the opening tag (used to determine the
+    /// compositor kind and to recognise the matching closing tag).
+    fn parse_particle(&mut self, start: &BytesStart) -> Result<Particle, XbrlError> {
+        let occurs = self.parse_occurs(start)?;
         let mut children = Vec::new();
+        let mut buf = Vec::new();
 
         loop {
             match self.reader.read_event_into(&mut buf)? {
-                Event::Start(ref event) | Event::Empty(ref event)
-                    if event.local_name().as_ref() == b"element" =>
-                {
-                    let mut ref_name = None;
-                    let mut min_occurs = 1;
-                    let mut max_occurs = Some(1);
-
-                    for attribute in event.attributes() {
-                        let attribute = attribute.map_err(|err| XbrlError::XmlParse {
-                            path: self.path.clone(),
-                            position: self.reader.buffer_position(),
-                            element: Some("sequence".to_string()),
-                            source: err.into(),
-                        })?;
-                        let local_name = attribute.key.local_name();
-                        let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
-
-                        match local_name.as_ref() {
-                            b"ref" => ref_name = Some(xml::parse_qname(&value)),
-                            b"minOccurs" => min_occurs = xml::parse_u32(&value)?,
-                            b"maxOccurs" => {
-                                max_occurs = if value == "unbounded" {
-                                    None
-                                } else {
-                                    Some(xml::parse_u32(&value)?)
-                                }
-                            }
-                            _ => {}
-                        }
+                Event::Start(ref event) => match event.local_name().as_ref() {
+                    b"element" => {
+                        children.push(self.parse_element_particle(event, false)?);
                     }
-
-                    if let Some(name) = ref_name {
-                        children.push(RawTupleChild {
-                            name,
-                            min_occurs,
-                            max_occurs,
+                    b"sequence" | b"choice" => {
+                        children.push(self.parse_particle(event)?);
+                    }
+                    b"group" => {
+                        children.push(self.parse_group_particle(event)?);
+                    }
+                    _ => {}
+                },
+                Event::Empty(ref event) => match event.local_name().as_ref() {
+                    b"element" => {
+                        children.push(self.parse_element_particle(event, true)?);
+                    }
+                    b"sequence" => {
+                        let nested_occurs = self.parse_occurs(event)?;
+                        children.push(Particle::Sequence {
+                            children: vec![],
+                            occurs: nested_occurs,
                         });
                     }
-                }
-
+                    b"choice" => {
+                        let nested_occurs = self.parse_occurs(event)?;
+                        children.push(Particle::Choice {
+                            children: vec![],
+                            occurs: nested_occurs,
+                        });
+                    }
+                    b"group" => {
+                        children.push(self.parse_group_particle(event)?);
+                    }
+                    _ => {}
+                },
                 Event::End(ref event)
-                    if matches!(event.local_name().as_ref(), b"sequence" | b"choice") =>
+                    if event.local_name().as_ref() == start.local_name().as_ref() =>
                 {
                     break;
                 }
@@ -1237,7 +1408,121 @@ impl<R: BufRead> SchemaParser<R> {
             buf.clear();
         }
 
-        Ok(children)
+        match start.local_name().as_ref() {
+            b"sequence" => Ok(Particle::Sequence { children, occurs }),
+            b"choice" => Ok(Particle::Choice { children, occurs }),
+            _ => {
+                return Err(XbrlError::InvalidSchemaDocument {
+                    path: self.path.clone(),
+                    reason: format!(
+                        "unexpected compositor tag: {}",
+                        String::from_utf8_lossy(start.local_name().as_ref())
+                    ),
+                });
+            }
+        }
+    }
+
+    /// Parses an `xs:element` inside a compositor (sequence or choice).
+    /// `is_empty` indicates whether the event was an `Empty` (self-closing)
+    /// tag.
+    fn parse_element_particle(
+        &mut self,
+        start: &BytesStart,
+        is_empty: bool,
+    ) -> Result<Particle, XbrlError> {
+        let occurs = self.parse_occurs(start)?;
+        let mut ref_name: Option<QName> = None;
+        let mut decl_name: Option<String> = None;
+        let mut type_name: Option<QName> = None;
+
+        for attribute in start.attributes() {
+            let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                path: self.path.clone(),
+                position: self.reader.buffer_position(),
+                element: Some("element".to_string()),
+                source: err.into(),
+            })?;
+            let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+            match attribute.key.local_name().as_ref() {
+                b"ref" => ref_name = Some(xml::parse_qname(&value)),
+                b"name" => decl_name = Some(value.to_string()),
+                b"type" => type_name = Some(xml::parse_qname(&value)),
+                _ => {}
+            }
+        }
+
+        if let Some(qname) = ref_name {
+            // xs:element[@ref] carries only ref/minOccurs/maxOccurs; any child
+            // content (e.g. xs:annotation) is irrelevant for XBRL parsing.
+            if !is_empty {
+                self.skip_until(b"element")?;
+            }
+            return Ok(Particle::Element {
+                element: ElementParticle::Ref(qname),
+                occurs,
+            });
+        }
+
+        // Inline element declaration.
+        let name = decl_name.unwrap_or_default();
+        let mut inline_type: Option<Box<ComplexType>> = None;
+
+        if !is_empty {
+            // Read child events to find an optional inline xs:complexType.
+            let mut buf = Vec::new();
+            loop {
+                match self.reader.read_event_into(&mut buf)? {
+                    Event::Start(ref event) if event.local_name().as_ref() == b"complexType" => {
+                        inline_type = Some(Box::new(self.parse_complex_type(event)?));
+                    }
+                    Event::End(ref event) if event.local_name().as_ref() == b"element" => {
+                        break;
+                    }
+                    Event::Eof => break,
+                    _ => {}
+                }
+                buf.clear();
+            }
+        }
+
+        Ok(Particle::Element {
+            element: ElementParticle::Decl(ElementDecl {
+                name,
+                type_name,
+                inline_type,
+            }),
+            occurs,
+        })
+    }
+
+    /// Parses an `xs:group` reference inside a compositor.
+    fn parse_group_particle(&mut self, start: &BytesStart) -> Result<Particle, XbrlError> {
+        let occurs = self.parse_occurs(start)?;
+        let mut ref_name: Option<QName> = None;
+
+        for attribute in start.attributes() {
+            let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                path: self.path.clone(),
+                position: self.reader.buffer_position(),
+                element: Some("group".to_string()),
+                source: err.into(),
+            })?;
+            let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+            if attribute.key.local_name().as_ref() == b"ref" {
+                ref_name = Some(xml::parse_qname(&value));
+            }
+        }
+
+        Ok(Particle::Group {
+            group: GroupParticle::Ref(ref_name.ok_or_else(|| {
+                XbrlError::InvalidSchemaDocument {
+                    path: self.path.clone(),
+                    reason: "xs:group inside a compositor requires a ref attribute".to_string(),
+                }
+            })?),
+            occurs,
+        })
     }
 
     /// Parses an `xs:simpleContent` element.
@@ -1246,17 +1531,42 @@ impl<R: BufRead> SchemaParser<R> {
 
         loop {
             match self.reader.read_event_into(&mut buf)? {
-                Event::Start(ref event) => match event.local_name().as_ref() {
-                    b"extension" => {
-                        self.parse_derivation(event, complex_type)?;
-                        complex_type.derivation = Some(DerivationKind::Extension);
+                Event::Start(ref event)
+                    if matches!(event.local_name().as_ref(), b"extension" | b"restriction") =>
+                {
+                    let derivation = if event.local_name().as_ref() == b"extension" {
+                        DerivationKind::Extension
+                    } else {
+                        DerivationKind::Restriction
+                    };
+
+                    let mut base: Option<QName> = None;
+                    for attribute in event.attributes() {
+                        let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                            path: self.path.clone(),
+                            position: self.reader.buffer_position(),
+                            element: Some("simpleContent extension/restriction".to_string()),
+                            source: err.into(),
+                        })?;
+
+                        if attribute.key.local_name().as_ref() == b"base" {
+                            let value =
+                                attribute.decode_and_unescape_value(self.reader.decoder())?;
+                            base = Some(xml::parse_qname(&value));
+                        }
                     }
-                    b"restriction" => {
-                        self.parse_derivation(event, complex_type)?;
-                        complex_type.derivation = Some(DerivationKind::Restriction);
+
+                    if let Some(base) = base {
+                        complex_type.content =
+                            Some(ComplexTypeContent::SimpleContent(SimpleContent {
+                                base,
+                                derivation,
+                            }));
                     }
-                    _ => {}
-                },
+
+                    complex_type.attributes =
+                        self.parse_attributes_until(event.local_name().as_ref())?;
+                }
 
                 Event::End(ref event) if event.local_name().as_ref() == b"simpleContent" => {
                     break;
@@ -1272,23 +1582,102 @@ impl<R: BufRead> SchemaParser<R> {
         Ok(())
     }
 
+    /// Reads `<xs:attribute>` elements until the closing tag `end_tag`,
+    /// returning a vector of `AttributeUse`.
+    fn parse_attributes_until(&mut self, end_tag: &[u8]) -> Result<Vec<AttributeUse>, XbrlError> {
+        let mut buf = Vec::new();
+        let mut attributes = Vec::new();
+
+        loop {
+            match self.reader.read_event_into(&mut buf)? {
+                Event::Start(ref event) | Event::Empty(ref event)
+                    if event.local_name().as_ref() == b"attribute" =>
+                {
+                    attributes.push(self.parse_attribute(event)?);
+                }
+                Event::End(ref event) if event.local_name().as_ref() == end_tag => {
+                    break;
+                }
+                Event::Eof => {
+                    return Err(XbrlError::ParseError {
+                        expected: "end tag while parsing attributes",
+                        value: "EOF reached".to_string(),
+                    });
+                }
+                _ => {}
+            }
+            buf.clear();
+        }
+
+        Ok(attributes)
+    }
+
     /// Parses an `xs:complexContent` element.
-    fn parse_complex_content(&mut self, complex_type: &mut ComplexType) -> Result<(), XbrlError> {
+    /// `start` is the `<xs:complexContent>` tag, used to read its `mixed`
+    /// attribute and to recognise the matching closing tag.
+    fn parse_complex_content(
+        &mut self,
+        complex_type: &mut ComplexType,
+        start: &BytesStart,
+    ) -> Result<(), XbrlError> {
+        for attribute in start.attributes() {
+            let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                path: self.path.clone(),
+                position: self.reader.buffer_position(),
+                element: Some("complexContent".to_string()),
+                source: err.into(),
+            })?;
+            if attribute.key.local_name().as_ref() == b"mixed" {
+                let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+                complex_type.mixed = value == "true";
+            }
+        }
+
         let mut buf = Vec::new();
 
         loop {
             match self.reader.read_event_into(&mut buf)? {
-                Event::Start(ref event) => match event.local_name().as_ref() {
-                    b"extension" => {
-                        self.parse_derivation(event, complex_type)?;
-                        complex_type.derivation = Some(DerivationKind::Extension);
+                Event::Start(ref event)
+                    if matches!(event.local_name().as_ref(), b"extension" | b"restriction") =>
+                {
+                    let derivation_kind = match event.local_name().as_ref() {
+                        b"extension" => DerivationKind::Extension,
+                        b"restriction" => DerivationKind::Restriction,
+                        _ => unreachable!(),
+                    };
+                    let mut base: Option<QName> = None;
+
+                    for attribute in event.attributes() {
+                        let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                            path: self.path.clone(),
+                            position: self.reader.buffer_position(),
+                            element: Some("complexContent extension/restriction".to_string()),
+                            source: err.into(),
+                        })?;
+
+                        if attribute.key.local_name().as_ref() == b"base" {
+                            let value =
+                                attribute.decode_and_unescape_value(self.reader.decoder())?;
+                            base = Some(xml::parse_qname(&value));
+                        }
                     }
-                    b"restriction" => {
-                        self.parse_derivation(event, complex_type)?;
-                        complex_type.derivation = Some(DerivationKind::Restriction);
-                    }
-                    _ => {}
-                },
+
+                    let tag_name = event.local_name();
+                    let tag = tag_name.as_ref();
+                    let (particle, attributes, any_attribute) =
+                        self.parse_complex_derivation(tag)?;
+
+                    complex_type.attributes.extend(attributes);
+                    complex_type.any_attribute = any_attribute;
+                    complex_type.content =
+                        Some(ComplexTypeContent::ComplexContent(ComplexContent {
+                            derivation: base.map(|base| match derivation_kind {
+                                DerivationKind::Extension => Derivation::Extension(base),
+                                DerivationKind::Restriction => Derivation::Restriction(base),
+                            }),
+                            particle,
+                        }));
+                }
 
                 Event::End(ref event) if event.local_name().as_ref() == b"complexContent" => {
                     break;
@@ -1304,56 +1693,55 @@ impl<R: BufRead> SchemaParser<R> {
         Ok(())
     }
 
-    /// Parses an `xs:extension` or `xs:restriction` element inside
-    /// `xs:simpleContent` or `xs:complexContent`.
-    fn parse_derivation(
+    /// Parses the body of an `xs:extension` or `xs:restriction` inside
+    /// `xs:complexContent`, collecting the optional particle, attributes, and
+    /// `anyAttribute`. Returns when the matching closing tag is consumed.
+    fn parse_complex_derivation(
         &mut self,
-        start: &BytesStart,
-        complex_type: &mut ComplexType,
-    ) -> Result<(), XbrlError> {
+        end_tag: &[u8],
+    ) -> Result<(Option<Particle>, Vec<AttributeUse>, Option<AnyAttribute>), XbrlError> {
         let mut buf = Vec::new();
-
-        // Parse base attribute
-        for attribute in start.attributes() {
-            let attribute = attribute.map_err(|err| XbrlError::XmlParse {
-                path: self.path.clone(),
-                position: self.reader.buffer_position(),
-                element: Some("extension or restriction".to_string()),
-                source: err.into(),
-            })?;
-
-            if attribute.key.local_name().as_ref() == b"base" {
-                let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
-                complex_type.base = Some(xml::parse_qname(&value));
-            }
-        }
+        let mut particle: Option<Particle> = None;
+        let mut attributes = Vec::new();
+        let mut any_attribute: Option<AnyAttribute> = None;
 
         loop {
             match self.reader.read_event_into(&mut buf)? {
-                Event::Start(ref event) | Event::Empty(ref event) => {
-                    match event.local_name().as_ref() {
-                        b"attribute" => {
-                            let attribute = self.parse_attribute(event)?;
-                            complex_type.attributes.push(attribute);
-                        }
-                        b"sequence" => {
-                            let children = self.parse_sequence()?;
-                            complex_type.children.extend(children);
-                            complex_type.compositor = Some(Compositor::Sequence);
-                        }
-                        b"choice" => {
-                            let children = self.parse_sequence()?;
-                            complex_type.children.extend(children);
-                            complex_type.compositor = Some(Compositor::Choice);
-                        }
-                        _ => {}
+                Event::Start(ref event) => match event.local_name().as_ref() {
+                    b"sequence" | b"choice" => {
+                        particle = Some(self.parse_particle(event)?);
                     }
-                }
-
-                Event::End(ref event) if event.name().as_ref() == start.name().as_ref() => {
+                    b"attribute" => {
+                        attributes.push(self.parse_attribute(event)?);
+                    }
+                    _ => {}
+                },
+                Event::Empty(ref event) => match event.local_name().as_ref() {
+                    b"sequence" => {
+                        let occurs = self.parse_occurs(event)?;
+                        particle = Some(Particle::Sequence {
+                            children: vec![],
+                            occurs,
+                        });
+                    }
+                    b"choice" => {
+                        let occurs = self.parse_occurs(event)?;
+                        particle = Some(Particle::Choice {
+                            children: vec![],
+                            occurs,
+                        });
+                    }
+                    b"attribute" => {
+                        attributes.push(self.parse_attribute(event)?);
+                    }
+                    b"anyAttribute" => {
+                        any_attribute = Some(self.parse_any_attribute(event)?);
+                    }
+                    _ => {}
+                },
+                Event::End(ref event) if event.local_name().as_ref() == end_tag => {
                     break;
                 }
-
                 Event::Eof => break,
                 _ => {}
             }
@@ -1361,7 +1749,43 @@ impl<R: BufRead> SchemaParser<R> {
             buf.clear();
         }
 
-        Ok(())
+        Ok((particle, attributes, any_attribute))
+    }
+
+    /// Parses an `xs:anyAttribute` element.
+    fn parse_any_attribute(&self, start: &BytesStart) -> Result<AnyAttribute, XbrlError> {
+        let mut namespace = AnyAttributeNamespace::Any;
+
+        for attribute in start.attributes() {
+            let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                path: self.path.clone(),
+                position: self.reader.buffer_position(),
+                element: Some("anyAttribute".to_string()),
+                source: err.into(),
+            })?;
+
+            if attribute.key.local_name().as_ref() == b"namespace" {
+                let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+                namespace = match value.as_ref() {
+                    "##any" => AnyAttributeNamespace::Any,
+                    "##other" => AnyAttributeNamespace::Other,
+                    "##targetNamespace" => AnyAttributeNamespace::TargetNamespace,
+                    other => {
+                        let namespaces = other
+                            .split_whitespace()
+                            .map(|s| s.to_string())
+                            .collect::<Vec<_>>();
+                        if namespaces.len() == 1 {
+                            AnyAttributeNamespace::List(namespaces)
+                        } else {
+                            AnyAttributeNamespace::List(namespaces)
+                        }
+                    }
+                };
+            }
+        }
+
+        Ok(AnyAttribute { namespace })
     }
 
     /// Parses an `xs:attribute` element inside `xs:simpleContent`.
@@ -1659,29 +2083,40 @@ mod tests {
                 balance: None,
                 complex_type: Some(ComplexType {
                     name: None,
-                    base: None,
-                    derivation: None,
                     mixed: false,
-                    compositor: Some(Compositor::Sequence),
                     attributes: vec![],
-                    children: vec![
-                        RawTupleChild {
-                            name: QName {
-                                prefix: Some(NamespacePrefix::from("my")),
-                                local_name: "city".to_string(),
+                    any_attribute: None,
+                    content: Some(ComplexTypeContent::ComplexContent(ComplexContent {
+                        derivation: None,
+                        particle: Some(Particle::Sequence {
+                            children: vec![
+                                Particle::Element {
+                                    element: ElementParticle::Ref(QName {
+                                        prefix: Some(NamespacePrefix::from("my")),
+                                        local_name: "city".to_string(),
+                                    }),
+                                    occurs: Occurrence {
+                                        min: 1,
+                                        max: Some(1)
+                                    },
+                                },
+                                Particle::Element {
+                                    element: ElementParticle::Ref(QName {
+                                        prefix: Some(NamespacePrefix::from("my")),
+                                        local_name: "country".to_string(),
+                                    }),
+                                    occurs: Occurrence {
+                                        min: 0,
+                                        max: Some(1)
+                                    },
+                                },
+                            ],
+                            occurs: Occurrence {
+                                min: 1,
+                                max: Some(1)
                             },
-                            min_occurs: 1,
-                            max_occurs: Some(1),
-                        },
-                        RawTupleChild {
-                            name: QName {
-                                prefix: Some(NamespacePrefix::from("my")),
-                                local_name: "country".to_string(),
-                            },
-                            min_occurs: 0,
-                            max_occurs: Some(1),
-                        },
-                    ],
+                        }),
+                    })),
                 }),
             }
         );
@@ -1723,29 +2158,37 @@ mod tests {
                 balance: None,
                 complex_type: Some(ComplexType {
                     name: None,
-                    base: None,
-                    derivation: None,
                     mixed: false,
-                    compositor: Some(Compositor::Sequence),
                     attributes: vec![],
-                    children: vec![
-                        RawTupleChild {
-                            name: QName {
-                                prefix: Some(NamespacePrefix::from("my")),
-                                local_name: "itemA".to_string(),
+                    any_attribute: None,
+                    content: Some(ComplexTypeContent::ComplexContent(ComplexContent {
+                        derivation: None,
+                        particle: Some(Particle::Sequence {
+                            children: vec![
+                                Particle::Element {
+                                    element: ElementParticle::Ref(QName {
+                                        prefix: Some(NamespacePrefix::from("my")),
+                                        local_name: "itemA".to_string(),
+                                    }),
+                                    occurs: Occurrence {
+                                        min: 2,
+                                        max: Some(2)
+                                    },
+                                },
+                                Particle::Element {
+                                    element: ElementParticle::Ref(QName {
+                                        prefix: Some(NamespacePrefix::from("my")),
+                                        local_name: "itemB".to_string(),
+                                    }),
+                                    occurs: Occurrence { min: 0, max: None },
+                                },
+                            ],
+                            occurs: Occurrence {
+                                min: 1,
+                                max: Some(1)
                             },
-                            min_occurs: 2,
-                            max_occurs: Some(2),
-                        },
-                        RawTupleChild {
-                            name: QName {
-                                prefix: Some(NamespacePrefix::from("my")),
-                                local_name: "itemB".to_string(),
-                            },
-                            min_occurs: 0,
-                            max_occurs: None,
-                        },
-                    ],
+                        }),
+                    })),
                 }),
             }
         );
@@ -1788,29 +2231,136 @@ mod tests {
                 balance: None,
                 complex_type: Some(ComplexType {
                     name: None,
-                    base: None,
-                    derivation: None,
                     mixed: false,
-                    compositor: Some(Compositor::Choice),
                     attributes: vec![],
-                    children: vec![
-                        RawTupleChild {
-                            name: QName {
-                                prefix: Some(NamespacePrefix::from("my")),
-                                local_name: "optA".to_string(),
+                    any_attribute: None,
+                    content: Some(ComplexTypeContent::ComplexContent(ComplexContent {
+                        derivation: None,
+                        particle: Some(Particle::Choice {
+                            children: vec![
+                                Particle::Element {
+                                    element: ElementParticle::Ref(QName {
+                                        prefix: Some(NamespacePrefix::from("my")),
+                                        local_name: "optA".to_string(),
+                                    }),
+                                    occurs: Occurrence {
+                                        min: 1,
+                                        max: Some(1)
+                                    },
+                                },
+                                Particle::Element {
+                                    element: ElementParticle::Ref(QName {
+                                        prefix: Some(NamespacePrefix::from("my")),
+                                        local_name: "optB".to_string(),
+                                    }),
+                                    occurs: Occurrence {
+                                        min: 1,
+                                        max: Some(1)
+                                    },
+                                },
+                            ],
+                            occurs: Occurrence {
+                                min: 1,
+                                max: Some(1)
                             },
-                            min_occurs: 1,
-                            max_occurs: Some(1),
-                        },
-                        RawTupleChild {
-                            name: QName {
-                                prefix: Some(NamespacePrefix::from("my")),
-                                local_name: "optB".to_string(),
+                        }),
+                    })),
+                }),
+            }
+        );
+    }
+
+    #[test]
+    fn test_parse_element_particle_with_inline_complex_type() {
+        let xml = r#"<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                                targetNamespace="http://example.com"
+                                xmlns:my="http://example.com"
+                                xmlns:xbrli="http://www.xbrl.org/2003/instance">
+                                <xs:element name="AddressTuple" substitutionGroup="xbrli:tuple">
+                                    <xs:complexType>
+                                        <xs:sequence>
+                                            <xs:element name="street">
+                                                <xs:complexType>
+                                                    <xs:sequence>
+                                                        <xs:element ref="my:line1" />
+                                                    </xs:sequence>
+                                                </xs:complexType>
+                                            </xs:element>
+                                        </xs:sequence>
+                                    </xs:complexType>
+                                </xs:element>
+                            </xs:schema>"#;
+        let mut parser = SchemaParser::from_reader(xml.as_bytes());
+        let schema = parser.parse_schema().unwrap();
+
+        let element = &schema.elements[0];
+        assert_eq!(
+            element,
+            &Element {
+                name: "AddressTuple".to_string(),
+                id: None,
+                type_name: None,
+                substitution_group: Some(QName {
+                    prefix: Some(NamespacePrefix::from("xbrli")),
+                    local_name: "tuple".to_string(),
+                }),
+                is_nillable: false,
+                is_abstract: false,
+                period_type: None,
+                balance: None,
+                complex_type: Some(ComplexType {
+                    name: None,
+                    mixed: false,
+                    attributes: vec![],
+                    any_attribute: None,
+                    content: Some(ComplexTypeContent::ComplexContent(ComplexContent {
+                        derivation: None,
+                        particle: Some(Particle::Sequence {
+                            children: vec![Particle::Element {
+                                element: ElementParticle::Decl(ElementDecl {
+                                    name: "street".to_string(),
+                                    type_name: None,
+                                    inline_type: Some(Box::new(ComplexType {
+                                        name: None,
+                                        mixed: false,
+                                        attributes: vec![],
+                                        any_attribute: None,
+                                        content: Some(ComplexTypeContent::ComplexContent(
+                                            ComplexContent {
+                                                derivation: None,
+                                                particle: Some(Particle::Sequence {
+                                                    children: vec![Particle::Element {
+                                                        element: ElementParticle::Ref(QName {
+                                                            prefix: Some(NamespacePrefix::from(
+                                                                "my"
+                                                            )),
+                                                            local_name: "line1".to_string(),
+                                                        }),
+                                                        occurs: Occurrence {
+                                                            min: 1,
+                                                            max: Some(1)
+                                                        },
+                                                    }],
+                                                    occurs: Occurrence {
+                                                        min: 1,
+                                                        max: Some(1)
+                                                    },
+                                                }),
+                                            }
+                                        )),
+                                    })),
+                                }),
+                                occurs: Occurrence {
+                                    min: 1,
+                                    max: Some(1)
+                                },
+                            }],
+                            occurs: Occurrence {
+                                min: 1,
+                                max: Some(1)
                             },
-                            min_occurs: 1,
-                            max_occurs: Some(1),
-                        },
-                    ],
+                        }),
+                    })),
                 }),
             }
         );
@@ -1896,12 +2446,10 @@ mod tests {
             complex_type,
             &ComplexType {
                 name: Some("emptyType".to_string()),
-                base: None,
-                derivation: None,
                 mixed: false,
-                compositor: None,
                 attributes: vec![],
-                children: vec![],
+                any_attribute: None,
+                content: None,
             }
         );
     }
@@ -1962,13 +2510,7 @@ mod tests {
             complex_type,
             &ComplexType {
                 name: Some("monetaryItemType".to_string()),
-                base: Some(QName {
-                    prefix: Some(NamespacePrefix::from("xbrli")),
-                    local_name: "decimalItemType".to_string(),
-                }),
-                derivation: Some(DerivationKind::Extension),
                 mixed: false,
-                compositor: None,
                 attributes: vec![
                     AttributeUse {
                         ref_name: "xbrli:unitRef".to_string(),
@@ -1979,7 +2521,14 @@ mod tests {
                         required: false,
                     },
                 ],
-                children: vec![],
+                any_attribute: None,
+                content: Some(ComplexTypeContent::SimpleContent(SimpleContent {
+                    base: QName {
+                        prefix: Some(NamespacePrefix::from("xbrli")),
+                        local_name: "decimalItemType".to_string(),
+                    },
+                    derivation: DerivationKind::Extension,
+                })),
             }
         );
     }
@@ -2007,18 +2556,19 @@ mod tests {
             complex_type,
             &ComplexType {
                 name: Some("restrictedDecimal".to_string()),
-                base: Some(QName {
-                    prefix: Some(NamespacePrefix::from("xbrli")),
-                    local_name: "decimalItemType".to_string(),
-                }),
-                derivation: Some(DerivationKind::Restriction),
                 mixed: false,
-                compositor: None,
                 attributes: vec![AttributeUse {
                     ref_name: "xbrli:unitRef".to_string(),
                     required: true,
-                },],
-                children: vec![],
+                }],
+                any_attribute: None,
+                content: Some(ComplexTypeContent::SimpleContent(SimpleContent {
+                    base: QName {
+                        prefix: Some(NamespacePrefix::from("xbrli")),
+                        local_name: "decimalItemType".to_string(),
+                    },
+                    derivation: DerivationKind::Restriction,
+                })),
             }
         );
     }
@@ -2055,19 +2605,28 @@ mod tests {
             base_type,
             &ComplexType {
                 name: Some("baseAccountType".to_string()),
-                base: None,
-                derivation: None,
-                compositor: Some(Compositor::Sequence),
                 mixed: false,
                 attributes: vec![],
-                children: vec![RawTupleChild {
-                    name: QName {
-                        prefix: Some(NamespacePrefix::from("xs")),
-                        local_name: "name".to_string(),
-                    },
-                    min_occurs: 1,
-                    max_occurs: Some(1),
-                }],
+                any_attribute: None,
+                content: Some(ComplexTypeContent::ComplexContent(ComplexContent {
+                    derivation: None,
+                    particle: Some(Particle::Sequence {
+                        children: vec![Particle::Element {
+                            element: ElementParticle::Ref(QName {
+                                prefix: Some(NamespacePrefix::from("xs")),
+                                local_name: "name".to_string(),
+                            }),
+                            occurs: Occurrence {
+                                min: 1,
+                                max: Some(1)
+                            },
+                        }],
+                        occurs: Occurrence {
+                            min: 1,
+                            max: Some(1)
+                        },
+                    }),
+                })),
             }
         );
         let complex_type = &schema.complex_types[1];
@@ -2075,25 +2634,34 @@ mod tests {
             complex_type,
             &ComplexType {
                 name: Some("extendedAccountType".to_string()),
-                base: Some(QName {
-                    prefix: None,
-                    local_name: "baseAccountType".to_string(),
-                }),
-                derivation: Some(DerivationKind::Extension),
                 mixed: false,
-                compositor: Some(Compositor::Sequence),
                 attributes: vec![AttributeUse {
                     ref_name: "currency".to_string(),
                     required: false,
                 }],
-                children: vec![RawTupleChild {
-                    name: QName {
-                        prefix: Some(NamespacePrefix::from("xs")),
-                        local_name: "balance".to_string(),
-                    },
-                    min_occurs: 1,
-                    max_occurs: Some(1),
-                }],
+                any_attribute: None,
+                content: Some(ComplexTypeContent::ComplexContent(ComplexContent {
+                    derivation: Some(Derivation::Extension(QName {
+                        prefix: None,
+                        local_name: "baseAccountType".to_string(),
+                    })),
+                    particle: Some(Particle::Sequence {
+                        children: vec![Particle::Element {
+                            element: ElementParticle::Ref(QName {
+                                prefix: Some(NamespacePrefix::from("xs")),
+                                local_name: "balance".to_string(),
+                            }),
+                            occurs: Occurrence {
+                                min: 1,
+                                max: Some(1)
+                            },
+                        }],
+                        occurs: Occurrence {
+                            min: 1,
+                            max: Some(1)
+                        },
+                    }),
+                })),
             }
         );
     }
@@ -2131,32 +2699,43 @@ mod tests {
             complex_type,
             &ComplexType {
                 name: Some("baseAccountType".to_string()),
-                base: None,
-                derivation: None,
                 mixed: false,
-                compositor: Some(Compositor::Sequence),
                 attributes: vec![AttributeUse {
                     ref_name: "currency".to_string(),
                     required: false,
                 }],
-                children: vec![
-                    RawTupleChild {
-                        name: QName {
-                            prefix: Some(NamespacePrefix::from("xs")),
-                            local_name: "name".to_string(),
+                any_attribute: None,
+                content: Some(ComplexTypeContent::ComplexContent(ComplexContent {
+                    derivation: None,
+                    particle: Some(Particle::Sequence {
+                        children: vec![
+                            Particle::Element {
+                                element: ElementParticle::Ref(QName {
+                                    prefix: Some(NamespacePrefix::from("xs")),
+                                    local_name: "name".to_string(),
+                                }),
+                                occurs: Occurrence {
+                                    min: 1,
+                                    max: Some(1)
+                                },
+                            },
+                            Particle::Element {
+                                element: ElementParticle::Ref(QName {
+                                    prefix: Some(NamespacePrefix::from("xs")),
+                                    local_name: "balance".to_string(),
+                                }),
+                                occurs: Occurrence {
+                                    min: 1,
+                                    max: Some(1)
+                                },
+                            },
+                        ],
+                        occurs: Occurrence {
+                            min: 1,
+                            max: Some(1)
                         },
-                        min_occurs: 1,
-                        max_occurs: Some(1),
-                    },
-                    RawTupleChild {
-                        name: QName {
-                            prefix: Some(NamespacePrefix::from("xs")),
-                            local_name: "balance".to_string(),
-                        },
-                        min_occurs: 1,
-                        max_occurs: Some(1),
-                    },
-                ],
+                    }),
+                })),
             }
         );
         let restricted_type = &schema.complex_types[1];
@@ -2164,25 +2743,34 @@ mod tests {
             restricted_type,
             &ComplexType {
                 name: Some("restrictedAccountType".to_string()),
-                base: Some(QName {
-                    prefix: None,
-                    local_name: "baseAccountType".to_string(),
-                }),
-                derivation: Some(DerivationKind::Restriction),
                 mixed: false,
-                compositor: Some(Compositor::Sequence),
                 attributes: vec![AttributeUse {
                     ref_name: "currency".to_string(),
                     required: true,
                 }],
-                children: vec![RawTupleChild {
-                    name: QName {
-                        prefix: Some(NamespacePrefix::from("xs")),
-                        local_name: "name".to_string(),
-                    },
-                    min_occurs: 1,
-                    max_occurs: Some(1),
-                }],
+                any_attribute: None,
+                content: Some(ComplexTypeContent::ComplexContent(ComplexContent {
+                    derivation: Some(Derivation::Restriction(QName {
+                        prefix: None,
+                        local_name: "baseAccountType".to_string(),
+                    })),
+                    particle: Some(Particle::Sequence {
+                        children: vec![Particle::Element {
+                            element: ElementParticle::Ref(QName {
+                                prefix: Some(NamespacePrefix::from("xs")),
+                                local_name: "name".to_string(),
+                            }),
+                            occurs: Occurrence {
+                                min: 1,
+                                max: Some(1)
+                            },
+                        }],
+                        occurs: Occurrence {
+                            min: 1,
+                            max: Some(1)
+                        },
+                    }),
+                })),
             }
         );
     }
@@ -2206,19 +2794,32 @@ mod tests {
             complex_type,
             &ComplexType {
                 name: Some("MixedType".to_string()),
-                base: None,
-                derivation: None,
                 mixed: true,
-                compositor: Some(Compositor::Sequence),
                 attributes: vec![],
-                children: vec![RawTupleChild {
-                    name: QName {
-                        prefix: Some(NamespacePrefix::from("xs")),
-                        local_name: "child".to_string(),
-                    },
-                    min_occurs: 1,
-                    max_occurs: Some(1),
-                }],
+                any_attribute: None,
+                content: Some(ComplexTypeContent::ComplexContent(ComplexContent {
+                    derivation: None,
+                    particle: Some(Particle::Sequence {
+                        children: vec![Particle::Element {
+                            element: ElementParticle::Decl(ElementDecl {
+                                name: "child".to_string(),
+                                type_name: Some(QName {
+                                    prefix: Some(NamespacePrefix::from("xs")),
+                                    local_name: "string".to_string(),
+                                }),
+                                inline_type: None,
+                            }),
+                            occurs: Occurrence {
+                                min: 1,
+                                max: Some(1)
+                            },
+                        }],
+                        occurs: Occurrence {
+                            min: 1,
+                            max: Some(1)
+                        },
+                    }),
+                })),
             }
         );
     }
@@ -2241,6 +2842,29 @@ mod tests {
                             </xs:schema>"#;
         let mut parser = SchemaParser::from_reader(xml.as_bytes());
         let schema = parser.parse_schema().unwrap();
+
+        let complex_type = &schema.complex_types[0];
+        assert_eq!(
+            complex_type,
+            &ComplexType {
+                name: Some("AnyAttrType".to_string()),
+                mixed: false,
+                attributes: vec![],
+                any_attribute: Some(AnyAttribute {
+                    namespace: AnyAttributeNamespace::Any,
+                }),
+                content: Some(ComplexTypeContent::ComplexContent(ComplexContent {
+                    derivation: None,
+                    particle: Some(Particle::Sequence {
+                        children: vec![],
+                        occurs: Occurrence {
+                            min: 1,
+                            max: Some(1)
+                        },
+                    }),
+                })),
+            }
+        );
     }
 
     #[test]
@@ -2262,6 +2886,36 @@ mod tests {
                             </xs:schema>"#;
         let mut parser = SchemaParser::from_reader(xml.as_bytes());
         let schema = parser.parse_schema().unwrap();
+
+        let complex_type = &schema.complex_types[0];
+        assert_eq!(
+            complex_type,
+            &ComplexType {
+                name: Some("UsesGroup".to_string()),
+                mixed: false,
+                attributes: vec![],
+                any_attribute: None,
+                content: Some(ComplexTypeContent::ComplexContent(ComplexContent {
+                    derivation: None,
+                    particle: Some(Particle::Sequence {
+                        children: vec![Particle::Group {
+                            group: GroupParticle::Ref(QName {
+                                prefix: None,
+                                local_name: "CommonGroup".to_string()
+                            }),
+                            occurs: Occurrence {
+                                min: 1,
+                                max: Some(1)
+                            }
+                        }],
+                        occurs: Occurrence {
+                            min: 1,
+                            max: Some(1)
+                        },
+                    }),
+                })),
+            }
+        );
     }
 
     #[test]
@@ -2277,6 +2931,40 @@ mod tests {
                             </xs:schema>"#;
         let mut parser = SchemaParser::from_reader(xml.as_bytes());
         let schema = parser.parse_schema().unwrap();
+
+        let complex_type = &schema.complex_types[0];
+        assert_eq!(
+            complex_type,
+            &ComplexType {
+                name: Some("AnonymousChildrenType".to_string()),
+                mixed: false,
+                attributes: vec![],
+                any_attribute: None,
+                content: Some(ComplexTypeContent::ComplexContent(ComplexContent {
+                    derivation: None,
+                    particle: Some(Particle::Sequence {
+                        children: vec![Particle::Element {
+                            element: ElementParticle::Decl(ElementDecl {
+                                name: "inlineChild".to_string(),
+                                type_name: Some(QName {
+                                    prefix: Some(NamespacePrefix::from("xs")),
+                                    local_name: "string".to_string(),
+                                }),
+                                inline_type: None,
+                            }),
+                            occurs: Occurrence {
+                                min: 1,
+                                max: Some(1)
+                            },
+                        }],
+                        occurs: Occurrence {
+                            min: 1,
+                            max: Some(1)
+                        },
+                    }),
+                })),
+            }
+        );
     }
 
     #[test]
@@ -2293,5 +2981,84 @@ mod tests {
                             </xs:schema>"#;
         let mut parser = SchemaParser::from_reader(xml.as_bytes());
         let schema = parser.parse_schema().unwrap();
+
+        let complex_type = &schema.complex_types[0];
+        assert_eq!(
+            complex_type,
+            &ComplexType {
+                name: Some("RefChildrenType".to_string()),
+                mixed: false,
+                attributes: vec![],
+                any_attribute: None,
+                content: Some(ComplexTypeContent::ComplexContent(ComplexContent {
+                    derivation: None,
+                    particle: Some(Particle::Sequence {
+                        children: vec![Particle::Element {
+                            element: ElementParticle::Ref(QName {
+                                prefix: None,
+                                local_name: "Child".to_string(),
+                            }),
+                            occurs: Occurrence {
+                                min: 1,
+                                max: Some(1)
+                            },
+                        }],
+                        occurs: Occurrence {
+                            min: 1,
+                            max: Some(1)
+                        },
+                    }),
+                })),
+            }
+        );
+    }
+
+    #[test]
+    fn test_parse_complex_type_with_direct_sequence_and_attribute() {
+        let xml = r#"<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                                targetNamespace="http://example.com"
+                                xmlns="http://example.com">
+                                <xs:complexType name="SequenceWithAttr">
+                                    <xs:sequence>
+                                        <xs:element ref="child" />
+                                    </xs:sequence>
+                                    <xs:attribute ref="lang" />
+                                </xs:complexType>
+                            </xs:schema>"#;
+        let mut parser = SchemaParser::from_reader(xml.as_bytes());
+        let schema = parser.parse_schema().unwrap();
+
+        let complex_type = &schema.complex_types[0];
+        assert_eq!(
+            complex_type,
+            &ComplexType {
+                name: Some("SequenceWithAttr".to_string()),
+                mixed: false,
+                attributes: vec![AttributeUse {
+                    ref_name: "lang".to_string(),
+                    required: false,
+                }],
+                any_attribute: None,
+                content: Some(ComplexTypeContent::ComplexContent(ComplexContent {
+                    derivation: None,
+                    particle: Some(Particle::Sequence {
+                        children: vec![Particle::Element {
+                            element: ElementParticle::Ref(QName {
+                                prefix: None,
+                                local_name: "child".to_string(),
+                            }),
+                            occurs: Occurrence {
+                                min: 1,
+                                max: Some(1)
+                            },
+                        }],
+                        occurs: Occurrence {
+                            min: 1,
+                            max: Some(1)
+                        },
+                    }),
+                })),
+            }
+        );
     }
 }
