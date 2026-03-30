@@ -12,6 +12,7 @@
   - Make `ArcroleUri`, `ArcroleType`, `RoleType`, `XbrlType`, `Concept`, `Particle`, `ElementDecl`,
     `ElementParticle`, `GroupDef`, `GroupParticle`, and `Occurrence` public
   - Add `content_model` to `Concept`
+  - Parse `xs:group` elements
 - changed
   - Parse `ComplexType`s recursively
 - removed
