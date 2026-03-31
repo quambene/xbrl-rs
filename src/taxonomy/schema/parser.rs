@@ -29,11 +29,29 @@ pub enum FormDefault {
 }
 
 /// The kind of derivation in a `simpleContent`.
+///
+/// For example, `xbrli:monetaryItemType` derives from `decimalItemType`.
 #[derive(Debug, PartialEq, Eq)]
 pub enum DerivationKind {
-    /// Derivation by extension (from `xs:extension`).
+    /// Derivation by extending the base type (from `xs:extension`).
+    ///
+    /// For example an attribute is added to a string type:
+    ///
+    /// ```xml
+    /// <xs:extension base="xs:string">
+    ///   <xs:attribute name="lang" type="xs:string"/>
+    /// </xs:extension>
+    /// ```
     Extension,
-    /// Derivation by restriction (from `xs:restriction`).
+    /// Derivation by restricting the base type (from `xs:restriction`).
+    ///
+    /// For example string is limit to max 10 characters:
+    ///
+    /// ```xml
+    /// <xs:restriction base="xs:string">
+    ///   <xs:maxLength value="10"/>
+    /// </xs:restriction>
+    /// ```
     Restriction,
 }
 
