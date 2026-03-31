@@ -263,9 +263,10 @@ impl TaxonomySet {
             .find(|concept| {
                 concept.is_tuple()
                     && concept
-                        .tuple_children
-                        .iter()
-                        .any(|tuple_child| tuple_child.name.local_name == element.name.local_name)
+                        .content_model
+                        .as_ref()
+                        .map(|model| model.allows_local_name(&element.name.local_name))
+                        .unwrap_or(false)
             })
     }
 

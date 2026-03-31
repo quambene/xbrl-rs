@@ -1,0 +1,188 @@
+category;testcase;variation_id;variation_name;expected;got
+100-schema;103-type;V-1;ComplexContentCounterExample;Invalid;Valid
+100-schema;104-tuple;V-10;TupleXBRLAttributeCounterExample;Invalid;Valid
+100-schema;104-tuple;V-10c;TupleXBRLAttributeCounterExample;Invalid;Valid
+100-schema;104-tuple;V-10d1;TupleXBRLAttributeCounterExample;Invalid;Valid
+100-schema;104-tuple;V-10d2;TupleXBRLAttributeCounterExample;Invalid;Valid
+100-schema;104-tuple;V-12;TupleMixedCounterExample;Invalid;Valid
+100-schema;104-tuple;V-17;TupleAnonymousCounterExample;Invalid;Valid
+100-schema;114-lax-validation-testcase;V-01;v01-passes-undefined-stuff;Valid;Invalid
+100-schema;115-ArcroleAndRoleRefs-testcase;V-02;115-02 duplicate roleRef elements in definition linkbase;Invalid;Valid
+100-schema;115-ArcroleAndRoleRefs-testcase;V-04;115-04 duplicate arcroleRef elements in definition linkbase;Invalid;Valid
+100-schema;160-UsedOn;V-08;160-08-UsedOnSEquality-valid;Valid;Invalid
+100-schema;161-Appinfo;V-01;161-01-roleType-id-missing;Valid;Invalid
+100-schema;161-Appinfo;V-05;161-05-roleType-uri-notabsolute;Valid;Invalid
+200-linkbase;201-linkref;V-03;LinkbaseRefXMLBase;Valid;Invalid
+200-linkbase;201-linkref;V-04;LinkbaseRefLabelCounterExample;Invalid;Valid
+200-linkbase;201-linkref;V-06;LinkbaseRefDefinitionCounterExample;Invalid;Valid
+200-linkbase;201-linkref;V-07;LinkbaseRefPresentationCounterExample;Invalid;Valid
+200-linkbase;201-linkref;V-08;LinkbaseRefCalculationCounterExample;Invalid;Valid
+200-linkbase;202-xlinkLocator;V-02c;Locator href with unresolvable fragment (non-existent ID);Invalid;Valid
+200-linkbase;202-xlinkLocator;V-02d;Locator href with unresolvable fragment (invalid element scheme XPointer);Invalid;Valid
+200-linkbase;202-xlinkLocator;V-03;XML Base Processing;Valid;Invalid
+200-linkbase;202-xlinkLocator;V-03a;XML Base Processing-a;Valid;Invalid
+200-linkbase;202-xlinkLocator;V-03b;XML Base Processing-b;Valid;Invalid
+200-linkbase;202-xlinkLocator;V-03d;XML Base Processing-d;Valid;Invalid
+200-linkbase;202-xlinkLocator;V-03e;XML Base Processing-e;Valid;Invalid
+200-linkbase;202-xlinkLocator;V-05;element scheme locators;Valid;Invalid
+200-linkbase;202-xlinkLocator;V-09;valid element scheme locators;Valid;Invalid
+200-linkbase;202-xlinkLocator;V-10;several valid element scheme locators;Valid;Invalid
+200-linkbase;202-xlinkLocator;V-13;valid element scheme simple link to a linkbase;Valid;Invalid
+200-linkbase;202-xlinkLocator;V-14;invalid custom locator in labelLink;Invalid;Valid
+200-linkbase;202-xlinkLocator;V-15;invalid custom locator in referenceLink;Invalid;Valid
+200-linkbase;202-xlinkLocator;V-16;invalid custom locator in presentationLink;Invalid;Valid
+200-linkbase;202-xlinkLocator;V-17;invalid custom locator in calculationLink;Invalid;Valid
+200-linkbase;202-xlinkLocator;V-18;invalid custom locator in definitionLink;Invalid;Valid
+200-linkbase;204-arcCycles;V-18;general-special Directed Cycles;Invalid;Valid
+200-linkbase;204-arcCycles;V-21;general-special with Directed Cycles with Overriding Arcs;Invalid;Valid
+200-linkbase;204-arcCycles;V-24;essence-alias Directed Cycles - invalid;Invalid;Valid
+200-linkbase;204-arcCycles;V-30;base set arc element test - invalid;Invalid;Valid
+200-linkbase;204-arcCycles;V-32;base set XDT arc element test - valid;Invalid;Valid
+200-linkbase;204-arcCycles;V-6;parent-child Directed Cycles;Invalid;Valid
+200-linkbase;204-arcCycles;V-8;parent-child with Cycles with Overriding Arcs;Invalid;Valid
+200-linkbase;205-roleDeclared;V-1;Taxonomy defined linkbaseRef role;Valid;Invalid
+200-linkbase;205-roleDeclared;V-12;A roleRef URI must match role type definition URI;Invalid;Valid
+200-linkbase;205-roleDeclared;V-3;Taxonomy defined label role;Valid;Invalid
+200-linkbase;205-roleDeclared;V-4;Taxonomy defined reference role;Valid;Invalid
+200-linkbase;205-roleDeclared;V-5;Taxonomy defined linkbaseRef role used on the wrong element;Valid;Invalid
+200-linkbase;205-roleDeclared;V-6;Undefined role used on a linkbaseRef element;Valid;Invalid
+200-linkbase;205-roleDeclared;V-7;A role defined twice for linkbaseRef - valid,  role is schema equal;Valid;Invalid
+200-linkbase;205-roleDeclared;V-9;Role defined for use on the wrong element;Invalid;Valid
+200-linkbase;206-arcDeclared;V-2;Delcared arc role used on wrong arc;Invalid;Valid
+200-linkbase;206-arcDeclared;V-3;Arc role URI on arcroleREf does not match the URI on arcroleType;Invalid;Valid
+200-linkbase;206-arcDeclared;V-4;Arc role used but not delcared, no corresponding arcroleRef;Invalid;Valid
+200-linkbase;206-arcDeclared;V-5;Duplicate arc role declaration;Invalid;Valid
+200-linkbase;206-arcDeclared;V-7;Same arc role declared in separate schemas, declarations are not equivalent;Invalid;Valid
+200-linkbase;206-arcDeclared;V-9;Delcared arc role mismatch;Invalid;Valid
+200-linkbase;207-arcDeclaredCycles;V-10;Declared unidrected cyles with directed cycles through extension;Invalid;Valid
+200-linkbase;207-arcDeclaredCycles;V-14;Declared no cycles, with two parents sharing two children;Invalid;Valid
+200-linkbase;207-arcDeclaredCycles;V-2;No declared arc cyles with undirected cycles exist;Invalid;Valid
+200-linkbase;207-arcDeclaredCycles;V-3;No declared arc cyles with directed cycles exist;Invalid;Valid
+200-linkbase;207-arcDeclaredCycles;V-4;No declared arc cyles with undirected cycles through extension;Invalid;Valid
+200-linkbase;207-arcDeclaredCycles;V-8;Declared undirected declared arc cyles with directed cycles;Invalid;Valid
+200-linkbase;208-balance;V-03;Item credit, Summation credit, weight -1;Invalid;Valid
+200-linkbase;208-balance;V-03_11;Item credit, Summation credit, weight -1, calc 1.1;Invalid;Valid
+200-linkbase;208-balance;V-04;Item debit, Summation credit, weight +1;Invalid;Valid
+200-linkbase;208-balance;V-04_11;Item debit, Summation credit, weight +1, calc 1.1;Invalid;Valid
+200-linkbase;208-balance;V-06;Item credit, Summation debit, weight +1;Invalid;Valid
+200-linkbase;208-balance;V-09;Item debit, Summation debit, weight -1;Invalid;Valid
+200-linkbase;210-relationshipEquivalence;V-1;Two calculation arcs are equivalent.;Valid;Invalid
+200-linkbase;210-relationshipEquivalence;V-3;Two calculation arcs are equivalent (default order).;Valid;Invalid
+200-linkbase;210-relationshipEquivalence;V-4;Two calculation arcs are equivalent in any order they appear in a linkbase.;Valid;Invalid
+200-linkbase;210-relationshipEquivalence;V-5;Two calculation arcs are equivalent in any order they appear in a linkbase.;Valid;Invalid
+200-linkbase;211-Testcase-sEqualUsedOn;V-03;NonSEqualUsedOnSamePrefixDifferentNamespaces;Valid;Invalid
+200-linkbase;213-SummationItemArcEndpoints;V-02;Summation side of arc not numeric;Invalid;Valid
+200-linkbase;213-SummationItemArcEndpoints;V-03;Item side of arc not numeric;Invalid;Valid
+200-linkbase;214-lax-validation-testcase;V-02;v02-label-invalid-xmlspace-attribute;Invalid;Valid
+200-linkbase;214-lax-validation-testcase;V-04;v04-label-invalid-xml-lang-attribute;Invalid;Valid
+200-linkbase;215-ArcroleAndRoleRefs-testcase;V-01;215-01 duplicate roleRef elements in calculation linkbase;Invalid;Valid
+200-linkbase;215-ArcroleAndRoleRefs-testcase;V-02;215-02 duplicate roleRef elements in definition linkbase;Invalid;Valid
+200-linkbase;215-ArcroleAndRoleRefs-testcase;V-04;215-04 duplicate roleRef elements in presentation linkbase;Invalid;Valid
+200-linkbase;215-ArcroleAndRoleRefs-testcase;V-05;215-05 duplicate roleRef elements in reference linkbase;Invalid;Valid
+200-linkbase;215-ArcroleAndRoleRefs-testcase;V-06;215-06 duplicate arcroleRef elements in calculation linkbase;Invalid;Valid
+200-linkbase;215-ArcroleAndRoleRefs-testcase;V-07;215-07 duplicate arcroleRef elements in definition linkbase;Invalid;Valid
+200-linkbase;215-ArcroleAndRoleRefs-testcase;V-09;215-09 duplicate arcroleRef elements in presentation linkbase;Invalid;Valid
+200-linkbase;215-ArcroleAndRoleRefs-testcase;V-10;215-10 duplicate arcroleRef elements in reference linkbase;Invalid;Valid
+200-linkbase;216-label-validation-testcase;V-04;v02-label-lang-missing;Invalid;Valid
+200-linkbase;220-NonStandardArcsAndTypes;V-04;220-04-StandardArcWithUnreferencedArcrole.xsd;Invalid;Valid
+200-linkbase;221-StandardRoles;V-02;221-02-StandardRolesInvalidStandardLinkRole;Invalid;Valid
+200-linkbase;221-StandardRoles;V-03;221-03-StandardRolesInvalidStandardLabelRole;Invalid;Valid
+200-linkbase;221-StandardRoles;V-05;221-05-StandardRolesInvalidStandardReferenceRole;Invalid;Valid
+200-linkbase;231-SyntacticallyEqualArcsThatAreNotEquivalentArcs;V-02;231-02-ArcsAreNotEqualButTheyLookAsEqual.xbrl;Valid;Invalid
+200-linkbase;291-inferArcOverride;V-08;A label linkbase arc overrides from an item to another item;Invalid;Valid
+200-linkbase;291-inferArcOverride;V-10;Two reference linkbases with no overrides combine;Valid;Invalid
+200-linkbase;291-inferArcOverride;V-11;A reference linkbase arc overrides another;Valid;Invalid
+200-linkbase;291-inferArcOverride;V-15;A reference linkbase arc overrides but different role referenceLink;Valid;Invalid
+200-linkbase;291-inferArcOverride;V-3;A label linkbase arc overrides another and inserts a substitute arc between the same concept and label;Invalid;Valid
+200-linkbase;291-inferArcOverride;V-7;A label linkbase arc overrides with no prohibited value.;Invalid;Valid
+200-linkbase;292-Embeddedlinkbaseinthexsd;V-03;292-03-Embeddedlinkbaseinthexsd.xsd;Invalid;Valid
+200-linkbase;preferredLabel;V-2;pref02;Invalid;Valid
+200-linkbase;preferredLabel;V-3;pref03;Invalid;Valid
+200-linkbase;preferredLabel;V-5;pref05;Invalid;Valid
+300-instance;301-idScope;V-10;FootnoteFromOutOfScope;Invalid;Valid
+300-instance;301-idScope;V-11;FootnoteToOutOfScope;Invalid;Valid
+300-instance;301-idScope;V-12;FootnoteLocOutOfScope;Invalid;Valid
+300-instance;301-idScope;V-14;FootnoteFromResource;Invalid;Valid
+300-instance;301-idScope;V-15;FootnoteToLoc;Invalid;Valid
+300-instance;302-context;V-02;SegmentNamespaceInvalid;Invalid;Valid
+300-instance;302-context;V-04;ScenarioNamespaceInvalid;Invalid;Valid
+300-instance;302-context;V-05;SegmentSubstitutionInvalid;Invalid;Valid
+300-instance;302-context;V-06;ScenarioSubstitutionInvalid;Invalid;Valid
+300-instance;304-unitOfMeasure;V-01;monetaryItemType has monetary units (using the standard ISO namespace prefix);Valid;Invalid
+300-instance;304-unitOfMeasure;V-02;monetaryItemType has monetary units (using a non-standard ISO namespace prefix);Valid;Invalid
+300-instance;304-unitOfMeasure;V-03;monetaryItemType derivation has monetary units;Valid;Invalid
+300-instance;304-unitOfMeasure;V-04;An element with a type derived by restriction from monetaryItemType has monetary units (using a non-standard ISO namespace prefix);Valid;Invalid
+300-instance;304-unitOfMeasure;V-05;non monetaryItemType has monetary units;Valid;Invalid
+300-instance;304-unitOfMeasure;V-10;Units for pure numbers;Valid;Invalid
+300-instance;304-unitOfMeasure;V-12;Units for pure numbers - counterexample - the namespace string is incorrect;Valid;Invalid
+300-instance;304-unitOfMeasure;V-12a;Units for pure numbers - counterexample - the namespace string is incorrect;Valid;Invalid
+300-instance;306-required;V-3;RequiredDefinitionValid-TupleItemInvalid;Invalid;Valid
+300-instance;307-schemaRef;V-3;SchemaRefXMLBase;Invalid;Valid
+300-instance;309-FootnoteRoles-testcase;V-02;309-03 invalid but standard footnote role;Invalid;Valid
+300-instance;309-FootnoteRoles-testcase;V-04;309-04 use of standard label role on footnote;Invalid;Valid
+300-instance;309-FootnoteRoles-testcase;V-07;309-07 use of link role on unreferenced footnote resource;Invalid;Valid
+300-instance;311-footnotes-testcase;V-02;311-02 valid footnote lang on ancestor;Valid;Invalid
+300-instance;311-footnotes-testcase;V-03;311-03 valid footnote lang on link element;Valid;Invalid
+300-instance;314-lax-validation-testcase;V-01;v01-undefined element and attributes are permitted;Valid;Invalid
+300-instance;320-CalculationBinding;V-07;320-07-BindCalculationInferPrecision-instance.xbrl;Invalid;Valid
+300-instance;320-CalculationBinding;V-23;320-23-BindCalculationInferPrecision-instance.xbrl;Valid;Invalid
+300-instance;320-CalculationBinding;V-24;320-24-BindCalculationInferPrecision-instance.xbrl;Valid;Invalid
+300-instance;320-CalculationBinding;V-26;320-26-BindCalculationInferPrecision-instance.xbrl;Valid;Invalid
+300-instance;321-internationalization;V-01;v01-SpanishCharactersInLocalPartOfQNames;Valid;Invalid
+300-instance;322-XmlXbrlInteraction;V-00;v00-DecimalDefaulted-Consistent;Valid;Invalid
+300-instance;322-XmlXbrlInteraction;V-02;v00-PrecisionDefaulted-Consistent;Valid;Invalid
+300-instance;322-XmlXbrlInteraction;V-04;v00-DecimalFixed-Consistent;Valid;Invalid
+300-instance;322-XmlXbrlInteraction;V-05;v01-PrecisionDefaulted-Consistent;Valid;Invalid
+300-instance;330-s-equal-testcase;V-01;v01-s-equal-by-identical-contextRef;Valid;Invalid
+300-instance;330-s-equal-testcase;V-08;v08-s-equal-with-scenario-sub-element-attributes-reordered;Valid;Invalid
+300-instance;330-s-equal-testcase;V-12;v12-s-equal-with-different-number-lexical-scaling;Valid;Invalid
+300-instance;330-s-equal-testcase;V-13;v13-s-equal-with-number-signing;Valid;Invalid
+300-instance;330-s-equal-testcase;V-14;v14-s-equal-with-INF-doubles;Valid;Invalid
+300-instance;330-s-equal-testcase;V-17;v17-s-equal-with-booleans;Valid;Invalid
+300-instance;330-s-equal-testcase;V-81;v81-s-equal-instant-date-vs-dateTime;Valid;Invalid
+300-instance;330-s-equal-testcase;V-84;v84s-equal-instant-midnights;Valid;Invalid
+300-instance;330-s-equal-testcase;V-85;v85-s-equal-instant-midnights-rev;Valid;Invalid
+300-instance;330-s-equal-testcase;V-86;v86-s-equal-instant-midnights-feb28-nonleap-yr;Valid;Invalid
+300-instance;330-s-equal-testcase;V-87;v87-s-equal-instant-date-vs-dateTime-feb29-leap-yr;Valid;Invalid
+300-instance;330-s-equal-testcase;V-88;v88-s-equal-instant-date-vs-dateTime-2100-02-28-nonleap-yr;Valid;Invalid
+300-instance;330-s-equal-testcase;V-89;v89-s-equal-start-date-vs-dateTime;Valid;Invalid
+300-instance;330-s-equal-testcase;V-91;v91-s-equal-start-dateTime-midnights;Valid;Invalid
+300-instance;330-s-equal-testcase;V-92;v92-s-equal-end-date-vs-dateTime;Valid;Invalid
+300-instance;330-s-equal-testcase;V-94;v94-s-equal-end-dateTime-midnights;Valid;Invalid
+300-instance;331-equivalentRelationships-testcase;V-02;v02-base-case-simple-equivalence;Valid;Invalid
+300-instance;331-equivalentRelationships-testcase;V-04;v04-extra-xmlns-but-equivalent;Valid;Invalid
+300-instance;331-equivalentRelationships-testcase;V-05;v05-extra-xlink-attr-but-equivalent;Valid;Invalid
+300-instance;331-equivalentRelationships-testcase;V-10;v10-decimal-attr-equivalence;Valid;Invalid
+300-instance;331-equivalentRelationships-testcase;V-11;v11-double-attr-equivalence;Valid;Invalid
+300-instance;331-equivalentRelationships-testcase;V-13;v13-bool-attr-equivalence;Valid;Invalid
+300-instance;392-inferEssenceAlias;V-12;EssenceAliasDifferentType;Invalid;Valid
+300-instance;392-inferEssenceAlias;V-13;EssenceAliasDifferentPeriodType;Invalid;Valid
+300-instance;392-inferEssenceAlias;V-15;EssenceAliasNonNumericInValid;Invalid;Valid
+300-instance;392-inferEssenceAlias;V-17;EssenceAliasNonNumericTupleInValid;Invalid;Valid
+300-instance;392-inferEssenceAlias;V-6;EssenceAliasInvalid;Invalid;Valid
+300-instance;392-inferEssenceAlias;V-8;EssenceAliasDifferentScopeInValid;Invalid;Valid
+300-instance;395-inferNumericConsistency;V-3;InferCalculatedValueConsistencyWithDefaultContributorValid;Valid;Invalid
+300-instance;395-inferNumericConsistency;V-4;InferCalculatedValueConsistencyWithDefaultContributorMissingInvalid;Invalid;Valid
+300-instance;395-inferNumericConsistency;V-6;InferCalculatedValueConsistencyWithDefaultScenarioMissingInvalid;Invalid;Valid
+300-instance;395-inferNumericConsistency;V-8;InferCalculatedValueConsistencyWithScenarioAttributeMissingInvalid;Invalid;Valid
+300-instance;397-Testcase-SummationItem;V-00;ConsistentInstance;Valid;Invalid
+300-instance;397-Testcase-SummationItem;V-09;OneContributingInconsistent;Invalid;Valid
+300-instance;397-Testcase-SummationItem;V-11;DuplicateSummationItems;Valid;Invalid
+300-instance;397-Testcase-SummationItem;V-12;DuplicateContributingItems;Valid;Invalid
+300-instance;397-Testcase-SummationItem;V-14;SeparateTuplesConsistent;Valid;Invalid
+300-instance;397-Testcase-SummationItem;V-15;ContributingWithinTuples;Invalid;Valid
+300-instance;397-Testcase-SummationItem;V-16;MultiLevelBinding;Invalid;Valid
+300-instance;397-Testcase-SummationItem;V-18;InconsistentCountdown;Invalid;Valid
+300-instance;397-Testcase-SummationItem;V-22;TopAndTupleInconsistent;Invalid;Valid
+300-instance;397-Testcase-SummationItem;V-25;PrecisionZeroRoundDown;Invalid;Valid
+300-instance;397-Testcase-SummationItem;V-28;PrecisionDifferentScales;Valid;Invalid
+400-misc;400-nestedElements;v05;400-05 single nested linkbase;Invalid;Valid
+400-misc;400-nestedElements;v06;400-06 multiple nested linkbases;Invalid;Valid
+400-misc;401-datatypes;v401-05;401-05 Regex escape characters;Invalid;Valid
+400-misc;402-xml-namespaces;V402-01;402-01-namespace-definitions-and-redefinitions;Valid;Invalid
+arc-duplication;arc-duplication-testcase;V-04;XLink Arc Duplication tests;Invalid;Valid
+arc-duplication;arc-duplication-testcase;V-04a;XLink Label Counterexample, Presentation LB with attributes;Invalid;Valid
+arc-duplication;arc-duplication-testcase;V-04b;XLink Label Counterexample, Label LB with attributes;Invalid;Valid
+arc-duplication;arc-duplication-testcase;V-04c;XLink Label Counterexample, custom arc duplicated;Invalid;Valid
+uniqueParticleAttribution;uniqueParticleAttribution-testcase;V-03;v03-UPA-schema-validation-test;Invalid;Valid
+uniqueParticleAttribution;uniqueParticleAttribution-testcase;V-06;v06-UPA-schema-validation-test;Invalid;Valid

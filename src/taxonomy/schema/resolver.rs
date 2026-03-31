@@ -1,7 +1,13 @@
-use super::parser::{ComplexType, Compositor, Element, RawSchema, SimpleType};
+use super::parser::{Particle, RawSchema, SimpleType};
 use crate::{
     Balance, ExpandedName, NamespacePrefix, NamespaceUri, PeriodType, TaxonomySchema, XbrlError,
-    taxonomy::{RoleType, schema::ArcroleType},
+    taxonomy::{
+        RoleType,
+        schema::{
+            ArcroleType,
+            parser::{ComplexType, Element},
+        },
+    },
     xml::QName,
 };
 use std::collections::{HashMap, HashSet};
@@ -85,28 +91,6 @@ impl SubstitutionGroup {
     }
 }
 
-/// Maximum occurrences of a child element in a tuple's content model.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum MaxOccurs {
-    /// A finite upper bound (e.g., `maxOccurs="1"`).
-    Bounded(u32),
-    /// No upper bound (`maxOccurs="unbounded"`).
-    Unbounded,
-}
-
-/// A child element reference declared inside a tuple's `xs:complexType`.
-#[derive(Debug, Clone, PartialEq)]
-pub struct TupleChild {
-    /// The qualified name of the referenced element (e.g., `"my:street"`).
-    pub name: QName,
-    /// Minimum occurrences from the `minOccurs` attribute; defaults to `1` per
-    /// the XSD spec.
-    pub min_occurs: u32,
-    /// Maximum occurrences from the `maxOccurs` attribute; defaults to
-    /// `MaxOccurs::Bounded(1)` per the XSD spec.
-    pub max_occurs: MaxOccurs,
-}
-
 /// An XBRL concept defined in the taxonomy schema.
 ///
 /// A `Concept` represents a reportable item or tuple as defined by the
@@ -144,13 +128,10 @@ pub struct Concept {
     pub nillable: bool,
     /// Whether this element is abstract.
     pub is_abstract: bool,
-    /// For tuple elements: the child elements declared via `xs:element[@ref]`
-    /// inside the tuple's inline `xs:complexType`. Empty for non-tuple
-    /// elements.
-    pub tuple_children: Vec<TupleChild>,
-    /// The compositor of the tuple's content model (`xs:sequence` or
-    /// `xs:choice`). `None` for non-tuple elements.
-    pub compositor: Option<Compositor>,
+    /// For tuple elements: the full content model from the inline
+    /// `xs:complexType`. `None` for non-tuple elements or tuples with no
+    /// explicit content model.
+    pub content_model: Option<Particle>,
 }
 
 impl Concept {
@@ -304,24 +285,9 @@ pub fn resolve_concepts(
                 }
                 None => XbrlType::Complex(element.name.clone()),
             };
-            let compositor = element
+            let content_model = element
                 .complex_type
-                .as_ref()
-                .and_then(|complex_type| complex_type.compositor.clone());
-            let tuple_children = element
-                .complex_type
-                .map(|complex_type| complex_type.children)
-                .unwrap_or_default()
-                .into_iter()
-                .map(|child| TupleChild {
-                    name: child.name,
-                    min_occurs: child.min_occurs,
-                    max_occurs: match child.max_occurs {
-                        Some(n) => MaxOccurs::Bounded(n),
-                        None => MaxOccurs::Unbounded,
-                    },
-                })
-                .collect();
+                .and_then(ComplexType::into_content_model);
 
             Ok(Concept {
                 id: element.id.clone(),
@@ -332,8 +298,7 @@ pub fn resolve_concepts(
                 balance: element.balance,
                 nillable: element.is_nillable,
                 is_abstract: element.is_abstract,
-                tuple_children,
-                compositor,
+                content_model,
             })
         })
         .collect::<Result<Vec<_>, _>>()
@@ -513,8 +478,8 @@ fn walk_complex_type_chain(
     let mut seen = HashSet::new();
 
     while seen.insert(current) {
-        let ct = complex_types.get(current)?;
-        let base_qname = ct.base.as_ref()?;
+        let complex_type = complex_types.get(current)?;
+        let base_qname = complex_type.base_type()?;
 
         if let Some(known) = match_known_type(&base_qname.local_name) {
             return Some(known);
@@ -562,7 +527,12 @@ fn heuristic_type(local_name: &str) -> XbrlType {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{NamespacePrefix, NamespaceUri, taxonomy::schema::parser::FormDefault};
+    use crate::{
+        NamespacePrefix, NamespaceUri,
+        taxonomy::schema::parser::{
+            ComplexTypeContent, DerivationKind, FormDefault, SimpleContent,
+        },
+    };
     use std::collections::HashMap;
 
     fn empty_schema() -> RawSchema {
@@ -856,22 +826,26 @@ mod tests {
         let mut raw_schema = empty_schema();
         raw_schema.complex_types.push(ComplexType {
             name: Some("myComplexBase".to_owned()),
-            base: Some(monetary_type()),
-            derivation: None,
-            compositor: None,
+            mixed: false,
             attributes: vec![],
-            children: vec![],
+            any_attribute: None,
+            content: Some(ComplexTypeContent::SimpleContent(SimpleContent {
+                base: monetary_type(),
+                derivation: DerivationKind::Extension,
+            })),
         });
         raw_schema.complex_types.push(ComplexType {
             name: Some("myComplexDerived".to_owned()),
-            base: Some(QName {
-                prefix: None,
-                local_name: "myComplexBase".to_owned(),
-            }),
-            derivation: None,
-            compositor: None,
+            mixed: false,
             attributes: vec![],
-            children: vec![],
+            any_attribute: None,
+            content: Some(ComplexTypeContent::SimpleContent(SimpleContent {
+                base: QName {
+                    prefix: None,
+                    local_name: "myComplexBase".to_owned(),
+                },
+                derivation: DerivationKind::Extension,
+            })),
         });
         raw_schema.elements.push(Element {
             name: "MoneyElement".to_owned(),

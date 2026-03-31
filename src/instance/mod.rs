@@ -12,7 +12,7 @@ mod writer;
 use crate::{
     ExpandedName, NamespacePrefix, NamespaceUri, PresentationArc, TaxonomySet,
     error::Result,
-    taxonomy::{Concept, PeriodType, TupleChild},
+    taxonomy::{Concept, ElementParticle, Particle, PeriodType},
     validation::{self, ValidationResult},
 };
 pub use context::{Context, ContextId, EntityIdentifier, Period};
@@ -598,45 +598,58 @@ fn unit_ref_for_concept(concept: &Concept, units: &[Unit]) -> Option<String> {
 
 /// Returns `true` if `child_element` is a valid schema child of `parent_element`.
 ///
-/// A child is allowed when `parent_element.tuple_children` is empty (no explicit
+/// A child is allowed when `parent_element.content_model` is `None` (no explicit
 /// content model) or when the child's element name or substitution-group ancestry
-/// matches one of the declared `xs:element ref` entries.
+/// matches an element particle in the content model.
 fn item_allowed_in_tuple(
     parent_element: &Concept,
     child_element: &Concept,
     taxonomy: &TaxonomySet,
 ) -> bool {
-    if parent_element.tuple_children.is_empty() {
+    let Some(model) = &parent_element.content_model else {
         return true;
-    }
-    parent_element
-        .tuple_children
-        .iter()
-        .any(|child_ref| matches_tuple_child_ref(child_ref, child_element, taxonomy))
+    };
+    matches_particle_model(model, child_element, taxonomy)
 }
 
-/// Returns `true` if `child_element` satisfies the `child_ref` constraint, either
-/// by a direct name match or via its substitution-group ancestry chain.
-fn matches_tuple_child_ref(
-    child_ref: &TupleChild,
+/// Returns `true` if `child_element` satisfies any element particle in `model`,
+/// either by a direct name match or via substitution-group ancestry.
+fn matches_particle_model(
+    model: &Particle,
     child_element: &Concept,
     taxonomy: &TaxonomySet,
 ) -> bool {
-    let allowed_local = &child_ref.name.local_name;
+    model
+        .elements()
+        .iter()
+        .any(|element_particle| matches_element_particle(element_particle, child_element, taxonomy))
+}
 
-    if &child_element.name.local_name == allowed_local {
+/// Returns `true` if `child_element` satisfies the element particle, either
+/// by a direct name match or via its substitution-group ancestry chain.
+fn matches_element_particle(
+    element_particle: &ElementParticle,
+    child_element: &Concept,
+    taxonomy: &TaxonomySet,
+) -> bool {
+    let allowed_local = match element_particle {
+        ElementParticle::Ref(qname) => qname.local_name.as_str(),
+        ElementParticle::Decl(declaration) => declaration.name.as_str(),
+    };
+
+    if child_element.name.local_name == allowed_local {
         return true;
     }
 
     // Walk the substitution group ancestry: if the child's substitution group
-    // (or any ancestor in the chain) matches the declared child ref, the
+    // (or any ancestor in the chain) matches the declared element particle, the
     // element is a valid substitute.
     let mut current = child_element;
 
     loop {
         let parent_substitution_group = &current.substitution_group.original;
 
-        if &parent_substitution_group.local_name == allowed_local {
+        if parent_substitution_group.local_name == allowed_local {
             return true;
         }
 
