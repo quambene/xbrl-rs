@@ -2,12 +2,12 @@ use std::{
     fs,
     path::{Path, PathBuf},
 };
-use xbrl_rs::{DocumentView, InstanceDocument, ItemFact, TaxonomySet, TreeNode};
+use xbrl_rs::{
+    DocumentView, InstanceDocument, ItemFact, ROLE_LABEL, ROLE_TERSE, TaxonomySet, TreeNode,
+};
 
 const TAXONOMY_ENTRY_POINT: &str = "test_data/taxonomies";
 const LANG: &str = "en";
-const ROLE_TERSE: &str = "http://www.xbrl.org/2003/role/terseLabel";
-const ROLE_LABEL: &str = "http://www.xbrl.org/2003/role/label";
 
 /// Render a deterministic CSV snapshot of the instance view.
 pub fn render_view(view: &DocumentView, item_facts: &[&ItemFact], lang: &str) -> String {

@@ -12,7 +12,8 @@
   - Fix conformance tests `TupleGroupCounterExample` and `TupleChoiceExample`
 - added
   - Make `ArcroleUri`, `ArcroleType`, `RoleType`, `XbrlType`, `Concept`, `Particle`, `ElementDecl`,
-    `ElementParticle`, `GroupDef`, `GroupParticle`, and `Occurrence` public
+    `ElementParticle`, `GroupDef`, `GroupParticle`, `Occurrence`, `ROLE_TERSE`,
+    and `ROLE_LABEL` public
   - Add `content_model` to `Concept`
   - Parse `xs:group` and `xs:choice` elements in schema files
   - Write failed conformance tests to csv file

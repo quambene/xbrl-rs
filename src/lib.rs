@@ -30,3 +30,6 @@ pub use xml::{
     ArcroleUri, ConceptId, ExpandedName, NamespacePrefix, NamespaceUri, QName, RoleUri,
     SchemaRefUrl,
 };
+
+pub const ROLE_TERSE: &str = "http://www.xbrl.org/2003/role/terseLabel";
+pub const ROLE_LABEL: &str = "http://www.xbrl.org/2003/role/label";
