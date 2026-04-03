@@ -222,7 +222,7 @@ impl InstanceDocument {
     where
         R: io::BufRead,
     {
-        let mut parser = InstanceParser::new(reader);
+        let mut parser = InstanceParser::new(reader, None, false);
         let instance = parser.parse_instance()?;
         let doc = resolver::resolve_instance(instance)?;
         Ok(doc)

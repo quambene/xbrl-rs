@@ -16,6 +16,7 @@
   - Add `content_model` to `Concept`
   - Parse `xs:group` and `xs:choice` elements in schema files
   - Write failed conformance tests to csv file
+  - Support non-xbrl root in instance documents
 - changed
   - Parse `ComplexType`s recursively
 - removed

@@ -193,11 +193,13 @@ impl RawInstance {
 
 /// The parser for XBRL instance documents.
 pub struct InstanceParser<R> {
+    /// The XML reader for the instance document.
+    reader: Reader<R>,
     /// Path of the currently parsed instance file if available. Used for error
     /// reporting.
     path: Option<PathBuf>,
-    /// The XML reader for the instance document.
-    reader: Reader<R>,
+    /// Flag to indicate if the root element is an XBRL instance element.
+    is_xbrl_root: bool,
 }
 
 impl InstanceParser<BufReader<File>> {
@@ -213,14 +215,27 @@ impl InstanceParser<BufReader<File>> {
         Ok(Self {
             path: Some(path.to_path_buf()),
             reader,
+            is_xbrl_root: false,
         })
     }
 }
 
 impl<R: BufRead> InstanceParser<R> {
     /// Creates a new `InstanceParser` with the given reader and file path.
-    pub fn new(reader: Reader<R>) -> Self {
-        Self { path: None, reader }
+    pub fn new(reader: Reader<R>, path: Option<PathBuf>, is_xbrl_root: bool) -> Self {
+        Self {
+            reader,
+            path,
+            is_xbrl_root,
+        }
+    }
+
+    /// Sets whether the parser enforces `<xbrli:xbrl>` as the document root.
+    /// When `true`, any element encountered before `<xbrli:xbrl>` is an error.
+    /// When `false` (default), non-XBRL wrapper elements are silently skipped.
+    pub fn xbrl_root(mut self, is_xbrl_root: bool) -> Self {
+        self.is_xbrl_root = is_xbrl_root;
+        self
     }
 
     /// Creates a new `InstanceParser` from the given reader.
@@ -228,7 +243,7 @@ impl<R: BufRead> InstanceParser<R> {
         let mut reader = Reader::from_reader(reader);
         reader.config_mut().trim_text_start = true;
         reader.config_mut().trim_text_end = true;
-        Self::new(reader)
+        Self::new(reader, None, false)
     }
 
     /// Parses an XBRL instance document from the reader. Path is used for error
@@ -250,6 +265,14 @@ impl<R: BufRead> InstanceParser<R> {
                             has_instance_root = true;
                             self.parse_instance_root(&mut instance, attributes)?;
                         }
+                        _ if !has_instance_root => {
+                            if self.is_xbrl_root {
+                                return Err(XbrlError::InvalidInstanceDocument {
+                                    path: self.path.clone(),
+                                    reason: "expected <xbrli:xbrl> as root element".to_string(),
+                                });
+                            }
+                        }
                         b"schemaRef" => self.parse_schema_ref(&mut instance, attributes)?,
                         b"roleRef" => self.parse_role_ref(&mut instance, attributes)?,
                         b"arcroleRef" => self.parse_arcrole_ref(&mut instance, attributes)?,
@@ -270,6 +293,14 @@ impl<R: BufRead> InstanceParser<R> {
                         b"xbrl" => {
                             has_instance_root = true;
                             self.parse_instance_root(&mut instance, attributes)?;
+                        }
+                        _ if !has_instance_root => {
+                            if self.is_xbrl_root {
+                                return Err(XbrlError::InvalidInstanceDocument {
+                                    path: self.path.clone(),
+                                    reason: "expected <xbrli:xbrl> as root element".to_string(),
+                                });
+                            }
                         }
                         b"schemaRef" => self.parse_schema_ref(&mut instance, attributes)?,
                         b"roleRef" => self.parse_role_ref(&mut instance, attributes)?,
@@ -1174,9 +1205,36 @@ mod tests {
                                 </xbrli:xbrl>
                             </root>"#;
         let mut parser = InstanceParser::from_reader(xml.as_bytes());
+        let instance = parser.parse_instance().unwrap();
+
+        assert_eq!(instance.namespaces.len(), 2);
+        assert_eq!(
+            instance
+                .namespaces
+                .get(&NamespacePrefix::from("xbrli"))
+                .unwrap(),
+            &NamespaceUri::from("http://www.xbrl.org/2003/instance")
+        );
+        assert_eq!(
+            instance
+                .namespaces
+                .get(&NamespacePrefix::from("ifrs"))
+                .unwrap(),
+            &NamespaceUri::from("http://xbrl.ifrs.org/taxonomy/2023")
+        );
+    }
+
+    #[test]
+    fn test_parse_non_instance_root_strict() {
+        let xml = r#"<root>
+                                <xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance"
+                                    xmlns:ifrs="http://xbrl.ifrs.org/taxonomy/2023">
+                                </xbrli:xbrl>
+                            </root>"#;
+        let mut parser = InstanceParser::from_reader(xml.as_bytes()).xbrl_root(true);
         let res = parser.parse_instance();
 
-        assert_matches!(res, Err(XbrlError::InvalidInstanceDocument { reason, .. }) if reason == "missing <xbrli:xbrl> root element");
+        assert_matches!(res, Err(XbrlError::InvalidInstanceDocument { reason, .. }) if reason == "expected <xbrli:xbrl> as root element");
     }
 
     #[test]
