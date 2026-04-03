@@ -7,14 +7,11 @@
 //!     cargo run --example print_facts
 
 use std::path::{Path, PathBuf};
-use xbrl_rs::{InstanceDocument, ItemFact, TaxonomySet, TreeNode};
+use xbrl_rs::{InstanceDocument, ItemFact, ROLE_LABEL, ROLE_TERSE, TaxonomySet, TreeNode};
 
 const INSTANCE_PATH: &str = "test_data/instances/balance_sheet_v64.xml";
 const TAXONOMY_ENTRY_POINT: &str = "test_data/taxonomies";
 const LANG: &str = "en";
-
-const ROLE_TERSE: &str = "http://www.xbrl.org/2003/role/terseLabel";
-const ROLE_LABEL: &str = "http://www.xbrl.org/2003/role/label";
 
 fn truncate(s: &str, max: usize) -> String {
     if s.len() <= max {
