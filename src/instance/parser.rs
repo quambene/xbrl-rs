@@ -1167,6 +1167,19 @@ mod tests {
     use std::str::FromStr;
 
     #[test]
+    fn test_parse_non_instance_root() {
+        let xml = r#"<root>
+                                <xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance"
+                                    xmlns:ifrs="http://xbrl.ifrs.org/taxonomy/2023">
+                                </xbrli:xbrl>
+                            </root>"#;
+        let mut parser = InstanceParser::from_reader(xml.as_bytes());
+        let res = parser.parse_instance();
+
+        assert_matches!(res, Err(XbrlError::InvalidInstanceDocument { reason, .. }) if reason == "missing <xbrli:xbrl> root element");
+    }
+
+    #[test]
     fn test_parse_instance_root() {
         let xml = r#"<xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance"
                             xmlns:ifrs="http://xbrl.ifrs.org/taxonomy/2023">
