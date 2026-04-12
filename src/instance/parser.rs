@@ -207,7 +207,6 @@ impl InstanceParser<BufReader<File>> {
     pub fn from_file(path: &Path) -> Result<Self, XbrlError> {
         let file = File::open(path).map_err(|err| XbrlError::FileOpen {
             path: path.to_path_buf(),
-            context: "opening file".to_string(),
             source: err,
         })?;
         let reader = Reader::from_reader(BufReader::new(file));

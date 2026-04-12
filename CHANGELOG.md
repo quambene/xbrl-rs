@@ -6,7 +6,7 @@
 - changed
 - removed
 
-## v0.2.1 (unreleased)
+## v0.3.0 (unreleased)
 
 - fixed
   - Fix conformance tests `TupleGroupCounterExample` and `TupleChoiceExample`
@@ -22,6 +22,7 @@
   - Parse `ComplexType`s recursively
 - removed
   - Remove `tuple_children` and `compositor` from `Concept`
+  - Remove `context` for `XbrlError::FileOpen` and `XbrlError::FileRead`
 
 ## v0.2.0 (2026-03-21)
 

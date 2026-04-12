@@ -46,19 +46,17 @@ pub enum XbrlError {
     },
 
     /// Error opening file
-    #[error("Failed to open {context}: {}", path.display())]
+    #[error("Failed to open file: {}", path.display())]
     FileOpen {
         path: PathBuf,
-        context: String,
         #[source]
         source: io::Error,
     },
 
     /// Error reading file
-    #[error("Failed to read {context}: {}", path.display())]
+    #[error("Failed to read file: {}", path.display())]
     FileRead {
         path: PathBuf,
-        context: String,
         #[source]
         source: io::Error,
     },

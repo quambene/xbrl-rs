@@ -84,7 +84,6 @@ impl TaxonomySet {
         let canonical_entry_point =
             fs::canonicalize(&entry_point).map_err(|err| XbrlError::FileRead {
                 path: entry_point.clone(),
-                context: "entry point".to_string(),
                 source: err,
             })?;
 
@@ -107,7 +106,6 @@ impl TaxonomySet {
                     if !resolved.exists() {
                         return Err(XbrlError::FileRead {
                             path: resolved,
-                            context: "linkbase referenced from schema".to_string(),
                             source: io::Error::new(
                                 io::ErrorKind::NotFound,
                                 "referenced linkbase file does not exist",
@@ -117,7 +115,6 @@ impl TaxonomySet {
                     let canonical =
                         fs::canonicalize(&resolved).map_err(|err| XbrlError::FileRead {
                             path: resolved.clone(),
-                            context: "linkbase referenced from schema".to_string(),
                             source: err,
                         })?;
                     linkbase_set.insert(canonical);
