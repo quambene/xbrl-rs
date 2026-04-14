@@ -122,15 +122,7 @@ impl TaxonomyLoader {
             }
 
             if is_schema_url(&url) {
-                let mut schema_reader = match open_xml_reader(&local_path) {
-                    Ok(reader) => reader,
-                    Err(err) => {
-                        warn!("Failed opening schema file {}: {err}", local_path.display());
-                        continue;
-                    }
-                };
-
-                let schema = match TaxonomySchema::from_xml(&local_path, &mut schema_reader) {
+                let schema = match TaxonomySchema::from_file(&local_path) {
                     Ok(schema) => schema,
                     Err(err) => {
                         warn!(
@@ -154,10 +146,6 @@ impl TaxonomyLoader {
 
                 for linkbase_ref in &schema.linkbase_refs {
                     enqueue_http_reference(&url, &linkbase_ref.href, &mut queue);
-                }
-
-                for schema_location in &schema.schema_location_refs {
-                    enqueue_http_reference(&url, schema_location, &mut queue);
                 }
             } else {
                 let mut reader = match open_xml_reader(&local_path) {
