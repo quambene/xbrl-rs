@@ -195,7 +195,7 @@ impl InstanceDocument {
     /// contains a wrapper around it.
     pub fn from_file(path: &Path) -> Result<Self> {
         let mut parser = InstanceParser::from_file(path)?;
-        let instance = parser.parse_instance()?;
+        let instance = parser.parse()?;
         let doc = resolver::resolve_instance(instance)?;
         Ok(doc)
     }
@@ -209,7 +209,7 @@ impl InstanceDocument {
         R: io::BufRead,
     {
         let mut parser = InstanceParser::from_reader(reader);
-        let instance = parser.parse_instance()?;
+        let instance = parser.parse()?;
         let doc = resolver::resolve_instance(instance)?;
         Ok(doc)
     }
@@ -223,7 +223,7 @@ impl InstanceDocument {
         R: io::BufRead,
     {
         let mut parser = InstanceParser::new(reader, None, false);
-        let instance = parser.parse_instance()?;
+        let instance = parser.parse()?;
         let doc = resolver::resolve_instance(instance)?;
         Ok(doc)
     }
