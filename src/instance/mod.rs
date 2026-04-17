@@ -29,6 +29,7 @@ use std::{
 };
 pub use unit::{Unit, UnitId};
 pub use view::{DocumentView, SectionView, TreeNode};
+pub use writer::InstanceWriter;
 
 /// Represents a complete XBRL instance document
 #[derive(Debug, Default)]
@@ -195,7 +196,7 @@ impl InstanceDocument {
     /// contains a wrapper around it.
     pub fn from_file(path: &Path) -> Result<Self> {
         let mut parser = InstanceParser::from_file(path)?;
-        let instance = parser.parse_instance()?;
+        let instance = parser.parse()?;
         let doc = resolver::resolve_instance(instance)?;
         Ok(doc)
     }
@@ -209,7 +210,7 @@ impl InstanceDocument {
         R: io::BufRead,
     {
         let mut parser = InstanceParser::from_reader(reader);
-        let instance = parser.parse_instance()?;
+        let instance = parser.parse()?;
         let doc = resolver::resolve_instance(instance)?;
         Ok(doc)
     }
@@ -223,7 +224,7 @@ impl InstanceDocument {
         R: io::BufRead,
     {
         let mut parser = InstanceParser::new(reader, None, false);
-        let instance = parser.parse_instance()?;
+        let instance = parser.parse()?;
         let doc = resolver::resolve_instance(instance)?;
         Ok(doc)
     }
@@ -251,16 +252,8 @@ impl InstanceDocument {
     where
         W: io::Write,
     {
-        let mut writer = Writer::new(writer);
-        writer::write_xml(&mut writer, self)
-    }
-
-    /// Serialize this instance to an XBRL XML document using an XML writer.
-    pub fn to_xml_writer<W>(&self, writer: &mut Writer<W>) -> Result<()>
-    where
-        W: io::Write,
-    {
-        writer::write_xml(writer, self)
+        let mut writer = InstanceWriter::new(Writer::new(writer), false);
+        writer.write(self)
     }
 
     /// Add a schema reference (xlink:href from a link:schemaRef element)

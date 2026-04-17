@@ -247,7 +247,7 @@ impl<R: BufRead> InstanceParser<R> {
 
     /// Parses an XBRL instance document from the reader. Path is used for error
     /// reporting.
-    pub fn parse_instance(&mut self) -> Result<RawInstance, XbrlError> {
+    pub fn parse(&mut self) -> Result<RawInstance, XbrlError> {
         let mut instance = RawInstance::default();
         let mut has_instance_root = false;
         let mut buf = Vec::new();
@@ -1204,7 +1204,7 @@ mod tests {
                                 </xbrli:xbrl>
                             </root>"#;
         let mut parser = InstanceParser::from_reader(xml.as_bytes());
-        let instance = parser.parse_instance().unwrap();
+        let instance = parser.parse().unwrap();
 
         assert_eq!(instance.namespaces.len(), 2);
         assert_eq!(
@@ -1231,7 +1231,7 @@ mod tests {
                                 </xbrli:xbrl>
                             </root>"#;
         let mut parser = InstanceParser::from_reader(xml.as_bytes()).xbrl_root(true);
-        let res = parser.parse_instance();
+        let res = parser.parse();
 
         assert_matches!(res, Err(XbrlError::InvalidInstanceDocument { reason, .. }) if reason == "expected <xbrli:xbrl> as root element");
     }
@@ -1242,7 +1242,7 @@ mod tests {
                             xmlns:ifrs="http://xbrl.ifrs.org/taxonomy/2023">
                         </xbrli:xbrl>"#;
         let mut parser = InstanceParser::from_reader(xml.as_bytes());
-        let instance = parser.parse_instance().unwrap();
+        let instance = parser.parse().unwrap();
 
         assert_eq!(instance.namespaces.len(), 2);
         assert_eq!(
@@ -1268,7 +1268,7 @@ mod tests {
                             <link:schemaRef xlink:href="ifrs.xsd" />
                         </xbrli:xbrl>"#;
         let mut parser = InstanceParser::from_reader(xml.as_bytes());
-        let instance = parser.parse_instance().unwrap();
+        let instance = parser.parse().unwrap();
 
         assert_eq!(instance.schema_refs.len(), 1);
         assert_eq!(instance.schema_refs[0].href, "ifrs.xsd");
@@ -1281,7 +1281,7 @@ mod tests {
                             <link:roleRef roleURI="http://example.com/role" xlink:href="role.xml" />
                         </xbrli:xbrl>"#;
         let mut parser = InstanceParser::from_reader(xml.as_bytes());
-        let instance = parser.parse_instance().unwrap();
+        let instance = parser.parse().unwrap();
 
         assert_eq!(instance.role_refs.len(), 1);
         assert_eq!(instance.role_refs[0].role_uri, "http://example.com/role");
@@ -1295,7 +1295,7 @@ mod tests {
                             <link:arcroleRef arcroleURI="http://example.com/arcrole" xlink:href="arcrole.xml" />
                         </xbrli:xbrl>"#;
         let mut parser = InstanceParser::from_reader(xml.as_bytes());
-        let instance = parser.parse_instance().unwrap();
+        let instance = parser.parse().unwrap();
 
         assert_eq!(instance.arcrole_refs.len(), 1);
         assert_eq!(
@@ -1331,7 +1331,7 @@ mod tests {
                                 </context>
                             </xbrli:xbrl>"#;
         let mut parser = InstanceParser::from_reader(xml.as_bytes());
-        let instance = parser.parse_instance().unwrap();
+        let instance = parser.parse().unwrap();
 
         assert_eq!(instance.contexts.len(), 1);
         let context = &instance.contexts[0];
@@ -1365,7 +1365,7 @@ mod tests {
                             </unit>
                         </xbrli:xbrl>"#;
         let mut parser = InstanceParser::from_reader(xml.as_bytes());
-        let instance = parser.parse_instance().unwrap();
+        let instance = parser.parse().unwrap();
 
         assert_eq!(instance.units.len(), 1);
         let unit = &instance.units[0];
@@ -1395,7 +1395,7 @@ mod tests {
                                 </xbrli:unit>
                             </xbrli:xbrl>"#;
         let mut parser = InstanceParser::from_reader(xml.as_bytes());
-        let instance = parser.parse_instance().unwrap();
+        let instance = parser.parse().unwrap();
 
         assert_eq!(instance.units.len(), 1);
         let unit = &instance.units[0];
@@ -1418,7 +1418,7 @@ mod tests {
                             </ifrs:Revenue>
                         </xbrli:xbrl>"#;
         let mut parser = InstanceParser::from_reader(xml.as_bytes());
-        let instance = parser.parse_instance().unwrap();
+        let instance = parser.parse().unwrap();
 
         assert_eq!(instance.facts.len(), 1);
         let fact = &instance.facts[0];
@@ -1442,7 +1442,7 @@ mod tests {
                                 </t:Address>
                             </xbrli:xbrl>"#;
         let mut parser = InstanceParser::from_reader(xml.as_bytes());
-        let instance = parser.parse_instance().unwrap();
+        let instance = parser.parse().unwrap();
 
         assert_eq!(instance.facts.len(), 1);
         let fact = &instance.facts[0];
@@ -1475,7 +1475,7 @@ mod tests {
                                 </t:Outer>
                             </xbrli:xbrl>"#;
         let mut parser = InstanceParser::from_reader(xml.as_bytes());
-        let instance = parser.parse_instance().unwrap();
+        let instance = parser.parse().unwrap();
 
         assert_eq!(instance.facts.len(), 1);
         let fact = &instance.facts[0];
@@ -1506,7 +1506,7 @@ mod tests {
                             <ifrs:Revenue contextRef="c1" xsi:nil="true" />
                         </xbrli:xbrl>"#;
         let mut parser = InstanceParser::from_reader(xml.as_bytes());
-        let instance = parser.parse_instance().unwrap();
+        let instance = parser.parse().unwrap();
 
         assert_eq!(instance.facts.len(), 1);
         match &instance.facts[0] {
@@ -1528,7 +1528,7 @@ mod tests {
                             <t:Address xsi:nil="true" />
                         </xbrli:xbrl>"#;
         let mut parser = InstanceParser::from_reader(xml.as_bytes());
-        let instance = parser.parse_instance().unwrap();
+        let instance = parser.parse().unwrap();
 
         assert_eq!(instance.facts.len(), 1);
         match &instance.facts[0] {
@@ -1554,7 +1554,7 @@ mod tests {
                             </link:footnoteLink>
                         </xbrli:xbrl>"##;
         let mut parser = InstanceParser::from_reader(xml.as_bytes());
-        let instance = parser.parse_instance().unwrap();
+        let instance = parser.parse().unwrap();
 
         assert_eq!(instance.footnote_links.len(), 1);
         let footnote_link = &instance.footnote_links[0];
@@ -1600,7 +1600,7 @@ mod tests {
                             </ifrs:Revenue>
                         </xbrli:xbrl>"#;
         let mut parser = InstanceParser::from_reader(xml.as_bytes());
-        let instance = parser.parse_instance().unwrap();
+        let instance = parser.parse().unwrap();
 
         assert_eq!(instance.contexts.len(), 1);
         assert_eq!(instance.units.len(), 1);

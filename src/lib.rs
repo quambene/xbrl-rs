@@ -13,8 +13,8 @@ mod xml;
 pub use error::{LinkbaseType, Result, XbrlError};
 pub use instance::{
     Context, ContextId, Decimals, DocumentView, EntityIdentifier, Fact, FootnoteArc, FootnoteLink,
-    FootnoteLocator, FootnoteResource, InstanceDocument, InstanceParser, ItemFact, Period,
-    SectionView, TreeNode, TupleFact, Unit, UnitId,
+    FootnoteLocator, FootnoteResource, InstanceDocument, InstanceParser, InstanceWriter, ItemFact,
+    Period, SectionView, TreeNode, TupleFact, Unit, UnitId,
 };
 pub use quick_xml::{Reader as XmlReader, Writer as XmlWriter};
 #[cfg(feature = "download")]

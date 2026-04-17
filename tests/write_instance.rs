@@ -5,8 +5,8 @@ use std::{
     str::FromStr,
 };
 use xbrl_rs::{
-    Context, ContextId, EntityIdentifier, ExpandedName, InstanceDocument, NamespacePrefix,
-    NamespaceUri, Period, TaxonomySet, Unit, UnitId, XmlWriter,
+    Context, ContextId, EntityIdentifier, ExpandedName, InstanceDocument, InstanceWriter,
+    NamespacePrefix, NamespaceUri, Period, TaxonomySet, Unit, UnitId, XmlWriter,
 };
 
 const TAXONOMY_ENTRY_POINT: &str = "test_data/taxonomies";
@@ -51,8 +51,9 @@ fn write_empty_instance() {
     let res = instance.validate(&taxonomy);
     assert!(res.is_valid());
 
-    let mut writer = XmlWriter::new(Vec::new());
-    instance.to_xml_writer(&mut writer).unwrap();
+    let mut writer = InstanceWriter::new(XmlWriter::new(Vec::new()), false);
+
+    writer.write(&instance).unwrap();
     let xml = String::from_utf8(writer.into_inner()).unwrap();
 
     // Parse the generated XML

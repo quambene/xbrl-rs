@@ -19,11 +19,16 @@
   - Parse `xs:group` and `xs:choice` elements in schema files
   - Write failed conformance tests to csv file
   - Support non-xbrl root in instance documents
+  - Add `InstanceWriter`
 - changed
   - Parse `ComplexType`s recursively
+  - Rename `InstanceParser::parse_instance` to `InstanceParser::parse`
+  - Rename `LinkbaseParser::parse_linkbase` to `InstanceParser::parse`
+  - Rename `SchemaParser::parse_schema` to `SchemaParser::parse`
 - removed
   - Remove `tuple_children` and `compositor` from `Concept`
   - Remove `context` for `XbrlError::FileOpen` and `XbrlError::FileRead`
+  - Remove `InstanceDocument::to_xml_writer`
 
 ## v0.2.0 (2026-03-21)
 

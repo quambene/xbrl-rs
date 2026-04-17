@@ -126,7 +126,7 @@ impl TaxonomySchema {
         })?;
         let reader = BufReader::new(file);
         let mut parser = SchemaParser::from_reader(reader);
-        let raw_schema = parser.parse_schema()?;
+        let raw_schema = parser.parse()?;
         let schema = resolver::resolve_schema(raw_schema)?;
         Ok(schema)
     }
@@ -134,7 +134,7 @@ impl TaxonomySchema {
     /// Parse a taxonomy schema from an XML reader without semantic validation.
     pub fn from_reader_unchecked<R: io::BufRead>(reader: R) -> Result<Self, XbrlError> {
         let mut parser = SchemaParser::from_reader(reader);
-        let raw_schema = parser.parse_schema()?;
+        let raw_schema = parser.parse()?;
         let schema = resolver::resolve_schema(raw_schema)?;
         Ok(schema)
     }

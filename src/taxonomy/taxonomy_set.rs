@@ -153,7 +153,7 @@ impl TaxonomySet {
 
         for path in &linkbase_paths {
             let mut parser = LinkbaseParser::from_file(path)?;
-            parser.parse_linkbase(&mut linkbases)?;
+            parser.parse(&mut linkbases)?;
         }
 
         let concepts_by_id = schemas
