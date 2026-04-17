@@ -520,7 +520,7 @@ impl<R: BufRead> SchemaParser<R> {
 
     /// Parses an XBRL schema document from the reader. Path is used for error
     /// reporting.
-    pub fn parse_schema(&mut self) -> Result<RawSchema, XbrlError> {
+    pub fn parse(&mut self) -> Result<RawSchema, XbrlError> {
         let mut schema = RawSchema {
             target_namespace: None,
             namespaces: HashMap::new(),
@@ -1907,7 +1907,7 @@ mod tests {
     fn test_parse_schema_root_invalid() {
         let xml = r#"<root/>"#;
         let mut parser = SchemaParser::from_reader(xml.as_bytes());
-        let result = parser.parse_schema();
+        let result = parser.parse();
 
         assert_matches!(result, Err(XbrlError::InvalidSchemaDocument { reason, .. }) if reason == "root is not allowed in taxonomy schemas");
     }
@@ -1919,7 +1919,7 @@ mod tests {
                             namespace="http://www.xbrl.org/2003/instance"
                             schemaLocation="http://www.xbrl.org/2003/xbrl-instance-2003-12-31.xsd" />"#;
         let mut parser = SchemaParser::from_reader(xml.as_bytes());
-        let result = parser.parse_schema();
+        let result = parser.parse();
 
         assert_matches!(result, Err(XbrlError::InvalidSchemaDocument { reason, .. }) if reason == "missing <schema> root element");
     }
@@ -1933,7 +1933,7 @@ mod tests {
                                 elementFormDefault="qualified">
                             </xsd:schema>"#;
         let mut parser = SchemaParser::from_reader(xml.as_bytes());
-        let schema = parser.parse_schema().unwrap();
+        let schema = parser.parse().unwrap();
 
         assert_matches!(schema.element_form_default, FormDefault::Qualified);
         assert_matches!(schema.attribute_form_default, FormDefault::Unqualified);
@@ -1962,7 +1962,7 @@ mod tests {
                                     schemaLocation="http://www.xbrl.org/2003/xbrl-instance-2003-12-31.xsd" />
                             </xsd:schema>"#;
         let mut parser = SchemaParser::from_reader(xml.as_bytes());
-        let schema = parser.parse_schema().unwrap();
+        let schema = parser.parse().unwrap();
 
         let imports = &schema.imports;
         assert!(imports.len() == 1);
@@ -1982,7 +1982,7 @@ mod tests {
                                 <xs:include schemaLocation="test.xsd" />
                             </xs:schema>"#;
         let mut parser = SchemaParser::from_reader(xml.as_bytes());
-        let schema = parser.parse_schema().unwrap();
+        let schema = parser.parse().unwrap();
 
         let includes = &schema.includes;
         assert!(includes.len() == 1);
@@ -2007,7 +2007,7 @@ mod tests {
                             </xs:annotation>
                         </xs:schema>"#;
         let mut parser = SchemaParser::from_reader(xml.as_bytes());
-        let schema = parser.parse_schema().unwrap();
+        let schema = parser.parse().unwrap();
 
         assert_eq!(schema.linkbase_refs.len(), 1);
         let linkbase_ref = &schema.linkbase_refs[0];
@@ -2040,7 +2040,7 @@ mod tests {
                             </xs:annotation>
                         </xs:schema>"#;
         let mut parser = SchemaParser::from_reader(xml.as_bytes());
-        let schema = parser.parse_schema().unwrap();
+        let schema = parser.parse().unwrap();
 
         assert_eq!(schema.role_types.len(), 1);
         let role_type = &schema.role_types[0];
@@ -2070,7 +2070,7 @@ mod tests {
                             </xs:annotation>
                         </xs:schema>"#;
         let mut parser = SchemaParser::from_reader(xml.as_bytes());
-        let schema = parser.parse_schema().unwrap();
+        let schema = parser.parse().unwrap();
 
         assert_eq!(schema.arcrole_types.len(), 1);
         let arcrole_type = &schema.arcrole_types[0];
@@ -2097,7 +2097,7 @@ mod tests {
                                     nillable="true" />
                             </xsd:schema>"#;
         let mut parser = SchemaParser::from_reader(xml.as_bytes());
-        let schema = parser.parse_schema().unwrap();
+        let schema = parser.parse().unwrap();
 
         assert_eq!(schema.elements.len(), 1);
         let element = &schema.elements[0];
@@ -2140,7 +2140,7 @@ mod tests {
                             </xs:element>
                         </xsd:schema>"#;
         let mut parser = SchemaParser::from_reader(xml.as_bytes());
-        let mut schema = parser.parse_schema().unwrap();
+        let mut schema = parser.parse().unwrap();
 
         assert_eq!(schema.elements.len(), 1);
         let element = schema.elements.remove(0);
@@ -2215,7 +2215,7 @@ mod tests {
                             </xs:element>
                         </xs:schema>"#;
         let mut parser = SchemaParser::from_reader(xml.as_bytes());
-        let mut schema = parser.parse_schema().unwrap();
+        let mut schema = parser.parse().unwrap();
 
         assert_eq!(schema.elements.len(), 1);
         let element = schema.elements.remove(0);
@@ -2288,7 +2288,7 @@ mod tests {
                             </xs:element>
                         </xs:schema>"#;
         let mut parser = SchemaParser::from_reader(xml.as_bytes());
-        let mut schema = parser.parse_schema().unwrap();
+        let mut schema = parser.parse().unwrap();
 
         assert_eq!(schema.elements.len(), 1);
         let element = schema.elements.remove(0);
@@ -2368,7 +2368,7 @@ mod tests {
                                 </xs:element>
                             </xs:schema>"#;
         let mut parser = SchemaParser::from_reader(xml.as_bytes());
-        let schema = parser.parse_schema().unwrap();
+        let schema = parser.parse().unwrap();
 
         let element = &schema.elements[0];
         assert_eq!(
@@ -2457,7 +2457,7 @@ mod tests {
                                 </xs:simpleType>
                             </xs:schema>"#;
         let mut parser = SchemaParser::from_reader(xml.as_bytes());
-        let schema = parser.parse_schema().unwrap();
+        let schema = parser.parse().unwrap();
 
         assert_eq!(schema.simple_types.len(), 1);
         let simple_type = &schema.simple_types[0];
@@ -2487,7 +2487,7 @@ mod tests {
                                 </xs:simpleType>
                             </xs:schema>"#;
         let mut parser = SchemaParser::from_reader(xml.as_bytes());
-        let schema = parser.parse_schema().unwrap();
+        let schema = parser.parse().unwrap();
 
         assert_eq!(schema.simple_types.len(), 1);
         let simple_type = &schema.simple_types[0];
@@ -2515,7 +2515,7 @@ mod tests {
                         </xs:complexType>
                         </xs:schema>"#;
         let mut parser = SchemaParser::from_reader(xml.as_bytes());
-        let schema = parser.parse_schema().unwrap();
+        let schema = parser.parse().unwrap();
 
         assert_eq!(schema.complex_types.len(), 1);
         let complex_type = &schema.complex_types[0];
@@ -2542,7 +2542,7 @@ mod tests {
                             </xs:complexType>
                         </xs:schema>"#;
         let mut parser = SchemaParser::from_reader(xml.as_bytes());
-        let res = parser.parse_schema();
+        let res = parser.parse();
 
         assert_matches!(res, Err(XbrlError::InvalidSchemaDocument { .. }));
     }
@@ -2558,7 +2558,7 @@ mod tests {
                             </xs:complexType>
                         </xs:schema>"#;
         let mut parser = SchemaParser::from_reader(xml.as_bytes());
-        let res = parser.parse_schema();
+        let res = parser.parse();
 
         assert_matches!(res, Err(XbrlError::InvalidSchemaDocument { .. }));
     }
@@ -2579,7 +2579,7 @@ mod tests {
                             </xs:complexType>
                         </xs:schema>"#;
         let mut parser = SchemaParser::from_reader(xml.as_bytes());
-        let schema = parser.parse_schema().unwrap();
+        let schema = parser.parse().unwrap();
 
         assert_eq!(schema.complex_types.len(), 1);
         let complex_type = &schema.complex_types[0];
@@ -2625,7 +2625,7 @@ mod tests {
                             </xs:complexType>
                         </xs:schema>"#;
         let mut parser = SchemaParser::from_reader(xml.as_bytes());
-        let schema = parser.parse_schema().unwrap();
+        let schema = parser.parse().unwrap();
 
         assert_eq!(schema.complex_types.len(), 1);
         let complex_type = &schema.complex_types[0];
@@ -2674,7 +2674,7 @@ mod tests {
                             </xs:complexType>
                         </xs:schema>"#;
         let mut parser = SchemaParser::from_reader(xml.as_bytes());
-        let schema = parser.parse_schema().unwrap();
+        let schema = parser.parse().unwrap();
 
         assert_eq!(schema.complex_types.len(), 2);
         let base_type = &schema.complex_types[0];
@@ -2769,7 +2769,7 @@ mod tests {
                             </xs:complexType>
                         </xs:schema>"#;
         let mut parser = SchemaParser::from_reader(xml.as_bytes());
-        let schema = parser.parse_schema().unwrap();
+        let schema = parser.parse().unwrap();
 
         let complex_type = &schema.complex_types[0];
         assert_eq!(
@@ -2864,7 +2864,7 @@ mod tests {
                                 </xs:complexType>
                             </xs:schema>"#;
         let mut parser = SchemaParser::from_reader(xml.as_bytes());
-        let schema = parser.parse_schema().unwrap();
+        let schema = parser.parse().unwrap();
 
         let complex_type = &schema.complex_types[0];
         assert_eq!(
@@ -2918,7 +2918,7 @@ mod tests {
                                 </xs:complexType>
                             </xs:schema>"#;
         let mut parser = SchemaParser::from_reader(xml.as_bytes());
-        let schema = parser.parse_schema().unwrap();
+        let schema = parser.parse().unwrap();
 
         let complex_type = &schema.complex_types[0];
         assert_eq!(
@@ -2962,7 +2962,7 @@ mod tests {
                                 </xs:complexType>
                             </xs:schema>"#;
         let mut parser = SchemaParser::from_reader(xml.as_bytes());
-        let schema = parser.parse_schema().unwrap();
+        let schema = parser.parse().unwrap();
 
         let complex_type = &schema.complex_types[0];
         assert_eq!(
@@ -3007,7 +3007,7 @@ mod tests {
                                 </xs:complexType>
                             </xs:schema>"#;
         let mut parser = SchemaParser::from_reader(xml.as_bytes());
-        let schema = parser.parse_schema().unwrap();
+        let schema = parser.parse().unwrap();
 
         let complex_type = &schema.complex_types[0];
         assert_eq!(
@@ -3057,7 +3057,7 @@ mod tests {
                                 </xs:complexType>
                             </xs:schema>"#;
         let mut parser = SchemaParser::from_reader(xml.as_bytes());
-        let schema = parser.parse_schema().unwrap();
+        let schema = parser.parse().unwrap();
 
         let complex_type = &schema.complex_types[0];
         assert_eq!(
@@ -3103,7 +3103,7 @@ mod tests {
                                 </xs:complexType>
                             </xs:schema>"#;
         let mut parser = SchemaParser::from_reader(xml.as_bytes());
-        let schema = parser.parse_schema().unwrap();
+        let schema = parser.parse().unwrap();
 
         let complex_type = &schema.complex_types[0];
         assert_eq!(
