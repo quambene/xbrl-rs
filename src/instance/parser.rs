@@ -703,11 +703,8 @@ impl<R: BufRead> InstanceParser<R> {
                             if let Event::Text(ref text) =
                                 self.reader.read_event_into(&mut member_buf)?
                             {
-                                let member = text
-                                    .xml_content()
-                                    .map_err(quick_xml::Error::from)?
-                                    .into_owned();
-                                let member = parse_qname(&member);
+                                let member = text.xml_content().map_err(quick_xml::Error::from)?;
+                                let member = parse_qname(member.trim());
                                 dimensions.push(RawDimension { dimension, member });
                             }
                         }

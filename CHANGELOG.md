@@ -11,6 +11,7 @@
 - fixed
   - Fix conformance tests `TupleGroupCounterExample` and `TupleChoiceExample`
   - Fix `download` feature
+  - Fix trimming for parsed text content
 - added
   - Make `ArcroleUri`, `ArcroleType`, `RoleType`, `XbrlType`, `Concept`, `Particle`, `ElementDecl`,
     `ElementParticle`, `GroupDef`, `GroupParticle`, `Occurrence`, `ROLE_TERSE`,
