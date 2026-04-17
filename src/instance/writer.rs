@@ -10,80 +10,106 @@ use quick_xml::{
 };
 use std::{collections::HashMap, io};
 
-/// Serialize [`InstanceDocument`] to an XBRL XML document.
-pub(crate) fn write_xml<W: io::Write>(
-    writer: &mut Writer<W>,
-    instance: &InstanceDocument,
-) -> Result<()> {
-    // XML declaration
-    writer.write_event(Event::Decl(BytesDecl::new("1.0", Some("utf-8"), None)))?;
+/// The writer for XBRL instance documents.
+pub struct InstanceWriter<W> {
+    /// The XML writer for the instance document.
+    writer: Writer<W>,
+    /// Flag to indicate if the root element is an XBRL instance element.
+    is_xbrl_root: bool,
+}
 
-    let prefix_to_uri = instance.namespaces();
-    let uri_to_prefix: HashMap<NamespaceUri, NamespacePrefix> = prefix_to_uri
-        .iter()
-        .map(|(prefix, uri)| (uri.clone(), prefix.clone()))
-        .collect();
-    let mut namespaces: Vec<_> = prefix_to_uri.iter().collect();
-    namespaces.sort_by_key(|(prefix, _)| *prefix);
-
-    // <xbrli:xbrl> root element with namespace declarations
-    let mut root = BytesStart::new("xbrli:xbrl");
-
-    for (prefix, uri) in &namespaces {
-        let attr_name = format!("xmlns:{prefix}");
-        root.push_attribute((attr_name.as_str(), uri.as_str()));
+impl<W: io::Write> InstanceWriter<W> {
+    pub fn new(writer: Writer<W>, is_xbrl_root: bool) -> Self {
+        Self {
+            writer,
+            is_xbrl_root,
+        }
     }
 
-    writer.write_event(Event::Start(root))?;
-
-    // <link:schemaRef> elements
-    for href in instance.schema_refs() {
-        let mut elem = BytesStart::new("link:schemaRef");
-        elem.push_attribute(("xlink:type", "simple"));
-        elem.push_attribute(("xlink:href", href.as_str()));
-        writer.write_event(Event::Empty(elem))?;
+    /// Consume the writer and return the underlying writer.
+    pub fn into_inner(self) -> W {
+        self.writer.into_inner()
     }
 
-    // <link:roleRef> elements
-    for role_uri in instance.role_refs() {
-        let mut elem = BytesStart::new("link:roleRef");
-        elem.push_attribute(("roleURI", role_uri.as_str()));
-        elem.push_attribute(("xlink:type", "simple"));
-        elem.push_attribute(("xlink:href", ""));
-        writer.write_event(Event::Empty(elem))?;
+    /// Serialize [`InstanceDocument`] to an XBRL XML document.
+    ///
+    /// When `xbrl_root` is `true`, the XML declaration is omitted (e.g. when embedding
+    /// the XBRL element inside an outer document).
+    pub fn write(&mut self, instance: &InstanceDocument) -> Result<()> {
+        // XML declaration is only needed if the root element is <xbrli:xbrl>.
+        if self.is_xbrl_root {
+            self.writer
+                .write_event(Event::Decl(BytesDecl::new("1.0", Some("utf-8"), None)))?;
+        }
+
+        let prefix_to_uri = instance.namespaces();
+        let uri_to_prefix: HashMap<NamespaceUri, NamespacePrefix> = prefix_to_uri
+            .iter()
+            .map(|(prefix, uri)| (uri.clone(), prefix.clone()))
+            .collect();
+        let mut namespaces: Vec<_> = prefix_to_uri.iter().collect();
+        namespaces.sort_by_key(|(prefix, _)| *prefix);
+
+        // <xbrli:xbrl> root element with namespace declarations
+        let mut root = BytesStart::new("xbrli:xbrl");
+
+        for (prefix, uri) in &namespaces {
+            let attr_name = format!("xmlns:{prefix}");
+            root.push_attribute((attr_name.as_str(), uri.as_str()));
+        }
+
+        self.writer.write_event(Event::Start(root))?;
+
+        // <link:schemaRef> elements
+        for href in instance.schema_refs() {
+            let mut elem = BytesStart::new("link:schemaRef");
+            elem.push_attribute(("xlink:type", "simple"));
+            elem.push_attribute(("xlink:href", href.as_str()));
+            self.writer.write_event(Event::Empty(elem))?;
+        }
+
+        // <link:roleRef> elements
+        for role_uri in instance.role_refs() {
+            let mut elem = BytesStart::new("link:roleRef");
+            elem.push_attribute(("roleURI", role_uri.as_str()));
+            elem.push_attribute(("xlink:type", "simple"));
+            elem.push_attribute(("xlink:href", ""));
+            self.writer.write_event(Event::Empty(elem))?;
+        }
+
+        // <link:arcroleRef> elements
+        for arcrole_uri in instance.arcrole_refs() {
+            let mut elem = BytesStart::new("link:arcroleRef");
+            elem.push_attribute(("arcroleURI", arcrole_uri.as_str()));
+            elem.push_attribute(("xlink:type", "simple"));
+            elem.push_attribute(("xlink:href", ""));
+            self.writer.write_event(Event::Empty(elem))?;
+        }
+
+        // <xbrli:context> elements
+        let mut ctx_sorted: Vec<_> = instance.contexts().iter().collect();
+        ctx_sorted.sort_by_key(|(id, _)| *id);
+        for (_, context) in &ctx_sorted {
+            write_context(&mut self.writer, context, &uri_to_prefix)?;
+        }
+
+        // <xbrli:unit> elements
+        let mut unit_sorted: Vec<_> = instance.units().iter().collect();
+        unit_sorted.sort_by_key(|(id, _)| *id);
+        for (_, unit) in &unit_sorted {
+            write_unit(&mut self.writer, unit, &uri_to_prefix)?;
+        }
+
+        for fact in instance.facts() {
+            write_fact(&mut self.writer, fact, &uri_to_prefix)?;
+        }
+
+        // </xbrli:xbrl>
+        self.writer
+            .write_event(Event::End(BytesEnd::new("xbrli:xbrl")))?;
+
+        Ok(())
     }
-
-    // <link:arcroleRef> elements
-    for arcrole_uri in instance.arcrole_refs() {
-        let mut elem = BytesStart::new("link:arcroleRef");
-        elem.push_attribute(("arcroleURI", arcrole_uri.as_str()));
-        elem.push_attribute(("xlink:type", "simple"));
-        elem.push_attribute(("xlink:href", ""));
-        writer.write_event(Event::Empty(elem))?;
-    }
-
-    // <xbrli:context> elements
-    let mut ctx_sorted: Vec<_> = instance.contexts().iter().collect();
-    ctx_sorted.sort_by_key(|(id, _)| *id);
-    for (_, context) in &ctx_sorted {
-        write_context(writer, context, &uri_to_prefix)?;
-    }
-
-    // <xbrli:unit> elements
-    let mut unit_sorted: Vec<_> = instance.units().iter().collect();
-    unit_sorted.sort_by_key(|(id, _)| *id);
-    for (_, unit) in &unit_sorted {
-        write_unit(writer, unit, &uri_to_prefix)?;
-    }
-
-    for fact in instance.facts() {
-        write_fact(writer, fact, &uri_to_prefix)?;
-    }
-
-    // </xbrli:xbrl>
-    writer.write_event(Event::End(BytesEnd::new("xbrli:xbrl")))?;
-
-    Ok(())
 }
 
 fn write_context<W: std::io::Write>(
@@ -309,4 +335,32 @@ fn write_item_fact<W: std::io::Write>(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use quick_xml::Writer;
+
+    fn write_instance(instance: &InstanceDocument, is_xbrl_root: bool) -> String {
+        let mut output = Vec::new();
+        let mut writer = InstanceWriter::new(Writer::new(&mut output), is_xbrl_root);
+        writer.write(instance).unwrap();
+        String::from_utf8(output).unwrap()
+    }
+
+    #[test]
+    fn test_write_instance_xbrl_root() {
+        let instance = InstanceDocument::default();
+        let output = write_instance(&instance, true);
+        assert!(output.starts_with("<?xml version=\"1.0\" encoding=\"utf-8\"?>"));
+    }
+
+    #[test]
+    fn test_write_instance_non_xbrl_root() {
+        let instance = InstanceDocument::default();
+        let output = write_instance(&instance, false);
+        assert!(!output.starts_with("<?xml version=\"1.0\" encoding=\"utf-8\"?>"));
+        assert!(output.starts_with("<xbrli:xbrl"));
+    }
 }
