@@ -297,7 +297,7 @@ impl<R: BufRead> LinkbaseParser<R> {
 
     /// Parses the linkbase document and fills the provided `Linkbases` struct
     /// with the parsed links.
-    pub fn parse_linkbase(&mut self, linkbase: &mut RawLinkbases) -> Result<(), XbrlError> {
+    pub fn parse(&mut self, linkbase: &mut RawLinkbases) -> Result<(), XbrlError> {
         let mut buf = Vec::new();
         let mut has_linkbase_root = false;
 
@@ -1060,7 +1060,7 @@ mod tests {
         let mut parser = LinkbaseParser::from_reader(xml.as_bytes());
         let mut linkbases = RawLinkbases::default();
 
-        let result = parser.parse_linkbase(&mut linkbases);
+        let result = parser.parse(&mut linkbases);
 
         assert_matches!(result, Err(XbrlError::InvalidLinkbaseDocument { reason, .. }) if reason == "missing <linkbase> root element");
     }
@@ -1089,7 +1089,7 @@ mod tests {
                             </link:linkbase>"#;
         let mut parser = LinkbaseParser::from_reader(xml.as_bytes());
         let mut linkbases = RawLinkbases::default();
-        parser.parse_linkbase(&mut linkbases).unwrap();
+        parser.parse(&mut linkbases).unwrap();
 
         assert_eq!(linkbases.presentation_links.len(), 1);
         assert_eq!(linkbases.calculation_links.len(), 0);
@@ -1138,7 +1138,7 @@ mod tests {
                         </link:linkbase>"#;
         let mut parser = LinkbaseParser::from_reader(xml.as_bytes());
         let mut linkbases = RawLinkbases::default();
-        parser.parse_linkbase(&mut linkbases).unwrap();
+        parser.parse(&mut linkbases).unwrap();
 
         assert_eq!(linkbases.presentation_links.len(), 0);
         assert_eq!(linkbases.calculation_links.len(), 1);
@@ -1175,7 +1175,7 @@ mod tests {
                         </link:linkbase>"#;
         let mut parser = LinkbaseParser::from_reader(xml.as_bytes());
         let mut linkbases = RawLinkbases::default();
-        parser.parse_linkbase(&mut linkbases).unwrap();
+        parser.parse(&mut linkbases).unwrap();
 
         assert_eq!(linkbases.presentation_links.len(), 0);
         assert_eq!(linkbases.calculation_links.len(), 0);
@@ -1221,7 +1221,7 @@ mod tests {
                         </link:linkbase>"#;
         let mut parser = LinkbaseParser::from_reader(xml.as_bytes());
         let mut linkbases = RawLinkbases::default();
-        parser.parse_linkbase(&mut linkbases).unwrap();
+        parser.parse(&mut linkbases).unwrap();
 
         assert_eq!(linkbases.presentation_links.len(), 0);
         assert_eq!(linkbases.calculation_links.len(), 0);
@@ -1285,7 +1285,7 @@ mod tests {
                         </link:linkbase>"#;
         let mut parser = LinkbaseParser::from_reader(xml.as_bytes());
         let mut linkbases = RawLinkbases::default();
-        parser.parse_linkbase(&mut linkbases).unwrap();
+        parser.parse(&mut linkbases).unwrap();
 
         assert_eq!(linkbases.presentation_links.len(), 0);
         assert_eq!(linkbases.calculation_links.len(), 0);
