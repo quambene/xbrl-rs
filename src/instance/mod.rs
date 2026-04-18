@@ -368,8 +368,26 @@ impl InstanceDocument {
     /// Panics if `index` is out of bounds.
     pub fn set_fact_value(&mut self, index: usize, value: String) {
         let mut current_index = 0usize;
+
         for fact in &mut self.facts {
             if Self::set_item_value_by_index(fact, index, &value, &mut current_index) {
+                return;
+            }
+        }
+
+        panic!("fact index out of bounds: {index}");
+    }
+
+    /// Set the nil status of a fact by its index (from [`DocumentView`] fact_indices).
+    /// When setting nil=true, also clears the value.
+    ///
+    /// # Panics
+    /// Panics if `index` is out of bounds.
+    pub fn set_fact_nil(&mut self, index: usize, is_nil: bool) {
+        let mut current_index = 0usize;
+
+        for fact in &mut self.facts {
+            if Self::set_item_nil_by_index(fact, index, is_nil, &mut current_index) {
                 return;
             }
         }
@@ -408,6 +426,38 @@ impl InstanceDocument {
     /// Get all units
     pub fn units(&self) -> &HashMap<UnitId, Unit> {
         &self.units
+    }
+
+    /// Set the value of a fact by its index (from [`DocumentView`]
+    /// fact_indices).
+    fn set_item_nil_by_index(
+        fact: &mut Fact,
+        target_index: usize,
+        is_nil: bool,
+        current_index: &mut usize,
+    ) -> bool {
+        match fact {
+            Fact::Item(item) => {
+                if *current_index == target_index {
+                    item.set_nil(is_nil);
+                    if is_nil {
+                        item.set_value(String::new());
+                    }
+                    true
+                } else {
+                    *current_index += 1;
+                    false
+                }
+            }
+            Fact::Tuple(tuple) => {
+                for child in tuple.children_mut() {
+                    if Self::set_item_nil_by_index(child, target_index, is_nil, current_index) {
+                        return true;
+                    }
+                }
+                false
+            }
+        }
     }
 
     /// Recursively walk one node of the presentation tree and emit facts.
