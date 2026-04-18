@@ -934,6 +934,10 @@ impl<R: BufRead> InstanceParser<R> {
                 buf.clear();
             }
 
+            // Remove newline characters and trim whitespace from the fact
+            // value.
+            let value = value.trim().to_owned();
+
             Ok(Some(RawFact::Item(RawItemFact {
                 name,
                 value,
