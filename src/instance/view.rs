@@ -23,6 +23,23 @@ impl<'a> DocumentView<'a> {
     pub fn build(facts: &[&ItemFact], taxonomy: &'a TaxonomySet) -> Self {
         build_view(facts, taxonomy)
     }
+
+    /// Build a document view with tuple-parent context for each fact.
+    ///
+    /// `parents` must be the same length as `facts`. Each element is the
+    /// concept name of the direct tuple parent of the corresponding fact, or
+    /// `None` if the fact is a top-level item.
+    ///
+    /// When a parent is known, fact lookup in each tree node prefers the
+    /// scoped `(parent_concept, child_concept)` key so that items shared
+    /// across multiple tuple types each receive only their own facts.
+    pub fn build_with_parents(
+        facts: &[&ItemFact],
+        parents: &[Option<ExpandedName>],
+        taxonomy: &'a TaxonomySet,
+    ) -> Self {
+        build_view_with_context(facts, parents, taxonomy)
+    }
 }
 
 /// One report section (extended link role) from the presentation linkbase.
@@ -62,14 +79,34 @@ pub struct TreeNode<'a> {
 /// are retained, so the returned `DocumentView<'a>` borrows only from
 /// `taxonomy`.
 pub fn build_view<'a>(facts: &[&ItemFact], taxonomy: &'a TaxonomySet) -> DocumentView<'a> {
-    // Index facts by their element ID → position in the facts slice.
-    let mut fact_index: HashMap<ExpandedName, Vec<usize>> = HashMap::new();
+    let parents = vec![None; facts.len()];
+    build_view_with_context(facts, &parents, taxonomy)
+}
 
-    for (i, fact) in facts.iter().enumerate() {
-        fact_index
-            .entry(fact.concept_name().clone())
-            .or_default()
-            .push(i);
+/// Build a [`DocumentView`] like [`build_view`], but also accepts a parallel
+/// `parents` slice that records the direct tuple-parent concept of each fact
+/// (or `None` for top-level items).
+///
+/// When a parent is known, facts are indexed by `(parent_concept, child_concept)`
+/// so each tree node receives only the fact that belongs to its tuple context
+/// rather than all facts for that concept across all tuple instances.
+pub fn build_view_with_context<'a>(
+    facts: &[&ItemFact],
+    parents: &[Option<ExpandedName>],
+    taxonomy: &'a TaxonomySet,
+) -> DocumentView<'a> {
+    let mut fact_index: HashMap<ExpandedName, Vec<usize>> = HashMap::new();
+    let mut tuple_child_index: HashMap<(ExpandedName, ExpandedName), Vec<usize>> = HashMap::new();
+
+    for (i, (fact, parent)) in facts.iter().zip(parents.iter()).enumerate() {
+        let concept = fact.concept_name().clone();
+        fact_index.entry(concept.clone()).or_default().push(i);
+        if let Some(parent) = parent {
+            tuple_child_index
+                .entry((parent.clone(), concept))
+                .or_default()
+                .push(i);
+        }
     }
 
     let roles = taxonomy
@@ -103,7 +140,15 @@ pub fn build_view<'a>(facts: &[&ItemFact], taxonomy: &'a TaxonomySet) -> Documen
         let nodes = roots
             .iter()
             .flat_map(|root_id| {
-                build_nodes(&arc_index, root_id, 0, taxonomy, &fact_index, &mut visited)
+                build_nodes(
+                    &arc_index,
+                    root_id,
+                    0,
+                    taxonomy,
+                    &fact_index,
+                    &tuple_child_index,
+                    &mut visited,
+                )
             })
             .collect();
 
@@ -155,6 +200,7 @@ fn build_nodes<'a>(
     depth: usize,
     taxonomy: &'a TaxonomySet,
     fact_index: &HashMap<ExpandedName, Vec<usize>>,
+    tuple_child_index: &HashMap<(ExpandedName, ExpandedName), Vec<usize>>,
     visited: &mut HashSet<&'a ExpandedName>,
 ) -> Vec<TreeNode<'a>> {
     if !visited.insert(parent_id) {
@@ -170,13 +216,20 @@ fn build_nodes<'a>(
     for arc in children_arcs {
         let child_id = &arc.to;
         let labels = taxonomy.labels(child_id).unwrap_or_default();
-        let fact_indices = fact_index.get(child_id).cloned().unwrap_or_default();
+        // Prefer scoped lookup by (parent_tuple, child) when available, so
+        // each tree node only receives facts from its own tuple context.
+        let fact_indices = tuple_child_index
+            .get(&(parent_id.clone(), child_id.clone()))
+            .or_else(|| fact_index.get(child_id))
+            .cloned()
+            .unwrap_or_default();
         let children = build_nodes(
             arc_index,
             child_id,
             depth + 1,
             taxonomy,
             fact_index,
+            tuple_child_index,
             visited,
         );
 
@@ -345,6 +398,85 @@ mod tests {
         // Should not hang or panic.
         let view = build_view(&[], &taxonomy);
         assert_eq!(view.sections.len(), 1);
+    }
+
+    #[test]
+    fn tuple_context_scopes_fact_indices() {
+        // Same item concept C appears as child of two different tuple parents
+        // (TupleA and TupleB) in the presentation linkbase.  The instance has
+        // one fact for C inside TupleA and one inside TupleB.  Each tree node
+        // for C should receive only the fact from its own tuple context.
+        let ns = "http://example.com/ns";
+        let tuple_a = ExpandedName::new(ns.into(), "TupleA".into());
+        let tuple_b = ExpandedName::new(ns.into(), "TupleB".into());
+        let item_c = ExpandedName::new(ns.into(), "C".into());
+        let role = "http://example.com/role".to_string();
+
+        let arcs = vec![
+            (
+                role.clone(),
+                PresentationArc {
+                    from: tuple_a.clone(),
+                    to: item_c.clone(),
+                    order: Some(Decimal::new(1, 0)),
+                    preferred_label: None,
+                    arcrole: "http://www.xbrl.org/2003/arcrole/parent-child".into(),
+                },
+            ),
+            (
+                role.clone(),
+                PresentationArc {
+                    from: tuple_b.clone(),
+                    to: item_c.clone(),
+                    order: Some(Decimal::new(1, 0)),
+                    preferred_label: None,
+                    arcrole: "http://www.xbrl.org/2003/arcrole/parent-child".into(),
+                },
+            ),
+        ];
+        let taxonomy = create_taxonomy(arcs, vec![]);
+
+        let fact_c_in_a = ItemFact::new(
+            None,
+            item_c.clone(),
+            "ctx1".to_string(),
+            None,
+            "42".to_string(),
+            false,
+            None,
+            None,
+        );
+        let fact_c_in_b = ItemFact::new(
+            None,
+            item_c.clone(),
+            "ctx1".to_string(),
+            None,
+            "99".to_string(),
+            false,
+            None,
+            None,
+        );
+        let facts = [&fact_c_in_a, &fact_c_in_b];
+        // fact 0 is a child of TupleA, fact 1 is a child of TupleB
+        let parents = [Some(tuple_a.clone()), Some(tuple_b.clone())];
+
+        let view = DocumentView::build_with_parents(&facts, &parents, &taxonomy);
+
+        assert_eq!(view.sections.len(), 1);
+        let section = &view.sections[0];
+        // TupleA and TupleB are roots; build_nodes returns their children,
+        // so section.nodes contains one C-node per tuple parent.
+        assert_eq!(section.nodes.len(), 2);
+
+        let c_under_a = &section.nodes[0];
+        assert_eq!(c_under_a.concept_name, "C");
+        assert_eq!(c_under_a.fact_indices, vec![0]);
+        assert_eq!(facts[c_under_a.fact_indices[0]].value(), "42");
+
+        let c_under_b = &section.nodes[1];
+        assert_eq!(c_under_b.concept_name, "C");
+        assert_eq!(c_under_b.fact_indices, vec![1]);
+        assert_eq!(facts[c_under_b.fact_indices[0]].value(), "99");
     }
 
     #[test]

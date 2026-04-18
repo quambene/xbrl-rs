@@ -234,10 +234,11 @@ impl InstanceDocument {
         validation::validate_all(self, taxonomy)
     }
 
-    /// Convenience wrapper for [`DocumentView::build`] using this instance's item facts.
+    /// Convenience wrapper for [`DocumentView::build_with_context`] using this
+    /// instance's item facts with their tuple-parent context.
     pub fn view<'a>(&self, taxonomy: &'a TaxonomySet) -> DocumentView<'a> {
-        let item_facts = self.item_facts();
-        DocumentView::build(&item_facts, taxonomy)
+        let (item_facts, parents) = self.item_facts_with_parents();
+        DocumentView::build_with_parents(&item_facts, &parents, taxonomy)
     }
 
     /// Serialize this instance to an XML file at the given path.
@@ -354,6 +355,22 @@ impl InstanceDocument {
             fact.walk_items(&mut out);
         }
         out
+    }
+
+    /// Get all item facts in depth-first order together with the concept name
+    /// of each fact's direct tuple parent (`None` for top-level items).
+    ///
+    /// The two returned vecs are always the same length and their indices
+    /// correspond to those produced by [`item_facts`].
+    fn item_facts_with_parents(&self) -> (Vec<&ItemFact>, Vec<Option<ExpandedName>>) {
+        let mut facts = Vec::new();
+        let mut parents = Vec::new();
+
+        for fact in &self.facts {
+            collect_item_facts_with_parent(fact, None, &mut facts, &mut parents);
+        }
+
+        (facts, parents)
     }
 
     /// Number of item facts in the instance (including nested tuple descendants).
@@ -604,6 +621,27 @@ impl InstanceDocument {
                     }
                 }
                 false
+            }
+        }
+    }
+}
+
+/// Recursively collect item facts together with the concept name of their
+/// direct tuple parent (or `None` for top-level items).
+fn collect_item_facts_with_parent<'a>(
+    fact: &'a Fact,
+    parent_tuple: Option<&ExpandedName>,
+    facts: &mut Vec<&'a ItemFact>,
+    parents: &mut Vec<Option<ExpandedName>>,
+) {
+    match fact {
+        Fact::Item(item) => {
+            facts.push(item);
+            parents.push(parent_tuple.cloned());
+        }
+        Fact::Tuple(tuple) => {
+            for child in tuple.children() {
+                collect_item_facts_with_parent(child, Some(tuple.concept_name()), facts, parents);
             }
         }
     }

@@ -12,6 +12,7 @@
   - Fix conformance tests `TupleGroupCounterExample` and `TupleChoiceExample`
   - Fix `download` feature
   - Fix trimming for parsed qname and fact values
+  - Fix duplicate concepts in `SectionView` for item fact in multiple tuple facts
 - added
   - Make `ArcroleUri`, `ArcroleType`, `RoleType`, `XbrlType`, `Concept`, `Particle`, `ElementDecl`,
     `ElementParticle`, `GroupDef`, `GroupParticle`, `Occurrence`, `ROLE_TERSE`,
@@ -22,6 +23,7 @@
   - Support non-xbrl root in instance documents
   - Add `InstanceWriter`
   - Add `InstanceDocument::set_fact_nil`
+  - Add `DocumentView::build_with_parents`
 - changed
   - Parse `ComplexType`s recursively
   - Rename `InstanceParser::parse_instance` to `InstanceParser::parse`
