@@ -233,13 +233,17 @@ fn build_nodes<'a>(
             visited,
         );
 
-        nodes.push(TreeNode {
-            concept_name: &child_id.local_name,
-            labels,
-            depth,
-            fact_indices,
-            children,
-        });
+        // Only include the node if it has facts or children; otherwise it's
+        // just a concept with no reported facts.
+        if !fact_indices.is_empty() || !children.is_empty() {
+            nodes.push(TreeNode {
+                concept_name: &child_id.local_name,
+                labels,
+                depth,
+                fact_indices,
+                children,
+            });
+        }
     }
 
     visited.remove(parent_id);
@@ -345,8 +349,8 @@ mod tests {
         let section = &view.sections[0];
         assert_eq!(section.role, role);
 
-        // "root" is the root; its children are child_a and child_b
-        assert_eq!(section.nodes.len(), 2);
+        // child_b has no facts so it is excluded; grandchild has no facts either.
+        assert_eq!(section.nodes.len(), 1);
 
         let node_a = &section.nodes[0];
         assert_eq!(node_a.concept_name, "child_a");
@@ -356,16 +360,7 @@ mod tests {
         assert_eq!(node_a.depth, 0);
         assert_eq!(node_a.fact_indices.len(), 1);
         assert_eq!(facts[node_a.fact_indices[0]].value(), "42");
-        assert_eq!(node_a.children.len(), 1);
-
-        let grandchild = &node_a.children[0];
-        assert_eq!(grandchild.concept_name, "grandchild");
-        assert_eq!(grandchild.depth, 1);
-        assert!(grandchild.labels.is_empty());
-
-        let node_b = &section.nodes[1];
-        assert_eq!(node_b.concept_name, "child_b");
-        assert!(node_b.fact_indices.is_empty());
+        assert_eq!(node_a.children.len(), 0);
     }
 
     #[test]
@@ -505,7 +500,28 @@ mod tests {
             ),
         ];
         let taxonomy = create_taxonomy(arcs, vec![]);
-        let view = build_view(&[], &taxonomy);
+        let namespace = "http://example.com/namespace";
+        let fact_a = ItemFact::new(
+            None,
+            ExpandedName::new(namespace.into(), "a".into()),
+            "ctx1".to_string(),
+            None,
+            "1".to_string(),
+            false,
+            None,
+            None,
+        );
+        let fact_b = ItemFact::new(
+            None,
+            ExpandedName::new(namespace.into(), "b".into()),
+            "ctx1".to_string(),
+            None,
+            "2".to_string(),
+            false,
+            None,
+            None,
+        );
+        let view = build_view(&[&fact_a, &fact_b], &taxonomy);
 
         let section = &view.sections[0];
         assert_eq!(section.nodes[0].concept_name, "a");
