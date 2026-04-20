@@ -113,79 +113,59 @@ impl InstanceDocument {
             instance.add_unit(unit.clone());
         }
 
-        // Walk the presentation tree in section order, depth-first within each section.
-        // The tree structure gives both the fact order and the tuple nesting directly,
-        // without needing to consult schema substitution groups.
-        let mut recursion_path: HashSet<ExpandedName> = HashSet::new();
-        let mut emitted_items: HashSet<ExpandedName> = HashSet::new();
-        let mut emitted_tuples: HashSet<ExpandedName> = HashSet::new();
+        Self::populate_presentations(
+            &mut instance.facts,
+            taxonomy,
+            &instant_context_ref,
+            &duration_context_ref,
+            units,
+            taxonomy.presentations().values().map(Vec::as_slice),
+        );
 
-        for arcs in taxonomy.presentations().values() {
-            let mut arc_index: HashMap<&ExpandedName, Vec<&PresentationArc>> = HashMap::new();
+        instance
+    }
 
-            for arc in arcs {
-                arc_index.entry(&arc.from).or_default().push(arc);
-            }
+    /// Populates facts for the specified presentation sections (extended link
+    /// role URIs).
+    ///
+    /// Roles not present in the taxonomy are skipped.
+    pub fn from_sections(
+        taxonomy: &TaxonomySet,
+        selected_roles: &[&str],
+        namespaces: HashMap<NamespacePrefix, NamespaceUri>,
+        instant_context: Context,
+        duration_context: Context,
+        units: &[Unit],
+    ) -> Self {
+        let mut instance = Self::default();
 
-            for children in arc_index.values_mut() {
-                children.sort_by(|a, b| match (a.order, b.order) {
-                    (Some(x), Some(y)) => x.cmp(&y),
-                    (Some(_), None) => Ordering::Less,
-                    (None, Some(_)) => Ordering::Greater,
-                    (None, None) => Ordering::Equal,
-                });
-            }
-
-            let roots = view::find_roots(arcs, &arc_index);
-            let mut seeded_nodes: HashSet<&ExpandedName> = HashSet::new();
-
-            for root_id in roots {
-                seeded_nodes.insert(root_id);
-                let mut hoisted: Vec<Fact> = Vec::new();
-                Self::populate_from_tree(
-                    &arc_index,
-                    root_id,
-                    taxonomy,
-                    &instant_context_ref,
-                    &duration_context_ref,
-                    units,
-                    &mut instance.facts,
-                    &mut emitted_items,
-                    &mut emitted_tuples,
-                    &mut recursion_path,
-                    None,
-                    &mut hoisted,
-                );
-                instance.facts.extend(hoisted);
-            }
-
-            let mut remaining_nodes = arcs
-                .iter()
-                .flat_map(|arc| [&arc.from, &arc.to])
-                .filter(|concept_name| !seeded_nodes.contains(concept_name))
-                .collect::<Vec<_>>();
-            remaining_nodes.sort_unstable();
-            remaining_nodes.dedup();
-
-            for concept_name in remaining_nodes {
-                let mut hoisted: Vec<Fact> = Vec::new();
-                Self::populate_from_tree(
-                    &arc_index,
-                    concept_name,
-                    taxonomy,
-                    &instant_context_ref,
-                    &duration_context_ref,
-                    units,
-                    &mut instance.facts,
-                    &mut emitted_items,
-                    &mut emitted_tuples,
-                    &mut recursion_path,
-                    None,
-                    &mut hoisted,
-                );
-                instance.facts.extend(hoisted);
-            }
+        for (prefix, uri) in namespaces {
+            instance.add_namespace(prefix, uri);
         }
+
+        for schema_url in taxonomy.schema_refs().keys() {
+            instance.add_schema_ref(schema_url.to_string());
+        }
+
+        let instant_context_ref = instant_context.id.clone();
+        let duration_context_ref = duration_context.id.clone();
+        instance.add_context(instant_context);
+        instance.add_context(duration_context);
+
+        for unit in units {
+            instance.add_unit(unit.clone());
+        }
+
+        Self::populate_presentations(
+            &mut instance.facts,
+            taxonomy,
+            &instant_context_ref,
+            &duration_context_ref,
+            units,
+            selected_roles
+                .iter()
+                .filter_map(|r| taxonomy.presentation_arcs(r)),
+        );
 
         instance
     }
@@ -473,6 +453,91 @@ impl InstanceDocument {
                     }
                 }
                 false
+            }
+        }
+    }
+
+    /// Populate facts for the given presentation sections, walking the
+    /// presentation tree in section order and depth-first within each section.
+    fn populate_presentations<'t>(
+        facts: &mut Vec<Fact>,
+        taxonomy: &'t TaxonomySet,
+        instant_ctx: &ContextId,
+        duration_ctx: &ContextId,
+        units: &[Unit],
+        presentations: impl Iterator<Item = &'t [PresentationArc]>,
+    ) {
+        let mut recursion_path: HashSet<ExpandedName> = HashSet::new();
+        let mut emitted_items: HashSet<ExpandedName> = HashSet::new();
+        let mut emitted_tuples: HashSet<ExpandedName> = HashSet::new();
+
+        // Walk the presentation tree in section order, depth-first within each section.
+        // The tree structure gives both the fact order and the tuple nesting directly,
+        // without needing to consult schema substitution groups.
+        for arcs in presentations {
+            let mut arc_index: HashMap<&ExpandedName, Vec<&PresentationArc>> = HashMap::new();
+
+            for arc in arcs {
+                arc_index.entry(&arc.from).or_default().push(arc);
+            }
+
+            for children in arc_index.values_mut() {
+                children.sort_by(|a, b| match (a.order, b.order) {
+                    (Some(x), Some(y)) => x.cmp(&y),
+                    (Some(_), None) => Ordering::Less,
+                    (None, Some(_)) => Ordering::Greater,
+                    (None, None) => Ordering::Equal,
+                });
+            }
+
+            let roots = view::find_roots(arcs, &arc_index);
+            let mut seeded_nodes: HashSet<&ExpandedName> = HashSet::new();
+
+            for root_id in roots {
+                seeded_nodes.insert(root_id);
+                let mut hoisted: Vec<Fact> = Vec::new();
+                Self::populate_from_tree(
+                    &arc_index,
+                    root_id,
+                    taxonomy,
+                    instant_ctx,
+                    duration_ctx,
+                    units,
+                    facts,
+                    &mut emitted_items,
+                    &mut emitted_tuples,
+                    &mut recursion_path,
+                    None,
+                    &mut hoisted,
+                );
+                facts.extend(hoisted);
+            }
+
+            let mut remaining_nodes = arcs
+                .iter()
+                .flat_map(|arc| [&arc.from, &arc.to])
+                .filter(|concept_name| !seeded_nodes.contains(concept_name))
+                .collect::<Vec<_>>();
+            remaining_nodes.sort_unstable();
+            remaining_nodes.dedup();
+
+            for concept_name in remaining_nodes {
+                let mut hoisted: Vec<Fact> = Vec::new();
+                Self::populate_from_tree(
+                    &arc_index,
+                    concept_name,
+                    taxonomy,
+                    instant_ctx,
+                    duration_ctx,
+                    units,
+                    facts,
+                    &mut emitted_items,
+                    &mut emitted_tuples,
+                    &mut recursion_path,
+                    None,
+                    &mut hoisted,
+                );
+                facts.extend(hoisted);
             }
         }
     }

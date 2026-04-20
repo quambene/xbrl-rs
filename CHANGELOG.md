@@ -25,6 +25,7 @@
   - Add `InstanceWriter`
   - Add `InstanceDocument::set_fact_nil`
   - Add `DocumentView::build_with_parents`
+  - Add `InstanceDocument::from_sections`
 - changed
   - Parse `ComplexType`s recursively
   - Rename `InstanceParser::parse_instance` to `InstanceParser::parse`
