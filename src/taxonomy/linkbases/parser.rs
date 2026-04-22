@@ -828,7 +828,7 @@ impl<R: BufRead> LinkbaseParser<R> {
                         let text = str::from_utf8(bytes_text.as_ref())
                             .map_err(XbrlError::Utf8)?
                             .trim()
-                            .to_string();
+                            .to_owned();
 
                         labels.push(LabelResource {
                             label: label.ok_or_else(|| XbrlError::ParseError {

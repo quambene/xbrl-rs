@@ -183,6 +183,7 @@ impl TaxonomyLoader {
 
 fn enqueue_http_reference(base_url: &Url, reference: &str, queue: &mut VecDeque<Url>) {
     let reference = reference.trim();
+
     if reference.is_empty() {
         return;
     }

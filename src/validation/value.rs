@@ -100,17 +100,17 @@ pub(super) fn prepare_fact_values(
         let parsed = match expected_value_kind(element) {
             ExpectedValueKind::Numeric => parse_numeric_compatible(trimmed)
                 .map(FactValue::Numeric)
-                .or_else(|| Some(FactValue::Text(fact.value().to_string()))),
+                .or_else(|| Some(FactValue::Text(trimmed.to_string()))),
             ExpectedValueKind::Boolean => parse_boolean(trimmed)
                 .map(FactValue::Boolean)
-                .or_else(|| Some(FactValue::Text(fact.value().to_string()))),
+                .or_else(|| Some(FactValue::Text(trimmed.to_string()))),
             ExpectedValueKind::Date => parse_xsd_date(trimmed)
                 .map(FactValue::Date)
-                .or_else(|| Some(FactValue::Text(fact.value().to_string()))),
+                .or_else(|| Some(FactValue::Text(trimmed.to_string()))),
             ExpectedValueKind::DateTime => parse_xsd_datetime(trimmed)
                 .map(FactValue::DateTime)
-                .or_else(|| Some(FactValue::Text(fact.value().to_string()))),
-            ExpectedValueKind::Other => Some(FactValue::Text(fact.value().to_string())),
+                .or_else(|| Some(FactValue::Text(trimmed.to_string()))),
+            ExpectedValueKind::Other => Some(FactValue::Text(trimmed.to_string())),
         };
 
         prepared.insert(fact, parsed);
