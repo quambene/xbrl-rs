@@ -14,6 +14,7 @@
   - Fix trimming for parsed qname and fact values
   - Fix duplicate concepts in `SectionView` for item fact in multiple tuple facts
   - Remove unreported facts from `DocumentView`
+  - Fix serializing nil facts
 - added
   - Make `ArcroleUri`, `ArcroleType`, `RoleType`, `XbrlType`, `Concept`, `Particle`, `ElementDecl`,
     `ElementParticle`, `GroupDef`, `GroupParticle`, `Occurrence`, `ROLE_TERSE`,

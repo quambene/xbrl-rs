@@ -317,12 +317,14 @@ fn write_item_fact<W: std::io::Write>(
         element.push_attribute(("unitRef", unit_ref));
     }
 
-    if let Some(decimals) = fact.decimals() {
-        element.push_attribute(("decimals", decimals.to_string().as_str()));
-    }
+    if !fact.is_nil() {
+        if let Some(decimals) = fact.decimals() {
+            element.push_attribute(("decimals", decimals.to_string().as_str()));
+        }
 
-    if let Some(precision) = fact.precision() {
-        element.push_attribute(("precision", precision.to_string().as_str()));
+        if let Some(precision) = fact.precision() {
+            element.push_attribute(("precision", precision.to_string().as_str()));
+        }
     }
 
     if fact.is_nil() {
