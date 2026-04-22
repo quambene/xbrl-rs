@@ -1162,10 +1162,8 @@ impl<R: BufRead> SchemaParser<R> {
 
         loop {
             match self.reader.read_event_into(&mut buf)? {
-                Event::Start(ref event) => {
-                    if event.local_name().as_ref() == b"complexType" {
-                        element.complex_type = Some(self.parse_complex_type(event)?);
-                    }
+                Event::Start(ref event) if event.local_name().as_ref() == b"complexType" => {
+                    element.complex_type = Some(self.parse_complex_type(event)?);
                 }
                 Event::End(ref event) if event.name().as_ref() == start.name().as_ref() => {
                     break;

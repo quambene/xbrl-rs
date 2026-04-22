@@ -264,13 +264,11 @@ impl<R: BufRead> InstanceParser<R> {
                             has_instance_root = true;
                             self.parse_instance_root(&mut instance, attributes)?;
                         }
-                        _ if !has_instance_root => {
-                            if self.is_xbrl_root {
-                                return Err(XbrlError::InvalidInstanceDocument {
-                                    path: self.path.clone(),
-                                    reason: "expected <xbrli:xbrl> as root element".to_string(),
-                                });
-                            }
+                        _ if !has_instance_root && self.is_xbrl_root => {
+                            return Err(XbrlError::InvalidInstanceDocument {
+                                path: self.path.clone(),
+                                reason: "expected <xbrli:xbrl> as root element".to_string(),
+                            });
                         }
                         b"schemaRef" => self.parse_schema_ref(&mut instance, attributes)?,
                         b"roleRef" => self.parse_role_ref(&mut instance, attributes)?,
@@ -293,13 +291,11 @@ impl<R: BufRead> InstanceParser<R> {
                             has_instance_root = true;
                             self.parse_instance_root(&mut instance, attributes)?;
                         }
-                        _ if !has_instance_root => {
-                            if self.is_xbrl_root {
-                                return Err(XbrlError::InvalidInstanceDocument {
-                                    path: self.path.clone(),
-                                    reason: "expected <xbrli:xbrl> as root element".to_string(),
-                                });
-                            }
+                        _ if !has_instance_root && self.is_xbrl_root => {
+                            return Err(XbrlError::InvalidInstanceDocument {
+                                path: self.path.clone(),
+                                reason: "expected <xbrli:xbrl> as root element".to_string(),
+                            });
                         }
                         b"schemaRef" => self.parse_schema_ref(&mut instance, attributes)?,
                         b"roleRef" => self.parse_role_ref(&mut instance, attributes)?,
@@ -584,11 +580,9 @@ impl<R: BufRead> InstanceParser<R> {
                     }
                     _ => {}
                 },
-                Event::Text(ref text) => {
-                    if identifier.is_none() {
-                        let value = text.xml_content().map_err(quick_xml::Error::from)?;
-                        identifier = Some(value.into_owned());
-                    }
+                Event::Text(ref text) if identifier.is_none() => {
+                    let value = text.xml_content().map_err(quick_xml::Error::from)?;
+                    identifier = Some(value.into_owned());
                 }
                 Event::End(ref event) if event.local_name().as_ref() == b"entity" => break,
                 Event::Eof => break,
@@ -678,35 +672,35 @@ impl<R: BufRead> InstanceParser<R> {
 
         loop {
             match self.reader.read_event_into(&mut buf)? {
-                Event::Start(ref event) | Event::Empty(ref event) => {
-                    if event.local_name().as_ref() == b"explicitMember" {
-                        let mut dimension = None;
+                Event::Start(ref event) | Event::Empty(ref event)
+                    if event.local_name().as_ref() == b"explicitMember" =>
+                {
+                    let mut dimension = None;
 
-                        for attribute in event.attributes() {
-                            let attribute = attribute.map_err(|err| XbrlError::XmlParse {
-                                path: self.path.clone(),
-                                position: self.reader.buffer_position(),
-                                element: Some("explicitMember".to_string()),
-                                source: err.into(),
-                            })?;
+                    for attribute in event.attributes() {
+                        let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                            path: self.path.clone(),
+                            position: self.reader.buffer_position(),
+                            element: Some("explicitMember".to_string()),
+                            source: err.into(),
+                        })?;
 
-                            if attribute.key.local_name().as_ref() == b"dimension" {
-                                let value =
-                                    attribute.decode_and_unescape_value(self.reader.decoder())?;
-                                dimension = Some(parse_qname(&value));
-                            }
+                        if attribute.key.local_name().as_ref() == b"dimension" {
+                            let value =
+                                attribute.decode_and_unescape_value(self.reader.decoder())?;
+                            dimension = Some(parse_qname(&value));
                         }
+                    }
 
-                        if let Some(dimension) = dimension {
-                            let mut member_buf = Vec::new();
+                    if let Some(dimension) = dimension {
+                        let mut member_buf = Vec::new();
 
-                            if let Event::Text(ref text) =
-                                self.reader.read_event_into(&mut member_buf)?
-                            {
-                                let member = text.xml_content().map_err(quick_xml::Error::from)?;
-                                let member = parse_qname(member.trim());
-                                dimensions.push(RawDimension { dimension, member });
-                            }
+                        if let Event::Text(ref text) =
+                            self.reader.read_event_into(&mut member_buf)?
+                        {
+                            let member = text.xml_content().map_err(quick_xml::Error::from)?;
+                            let member = parse_qname(member.trim());
+                            dimensions.push(RawDimension { dimension, member });
                         }
                     }
                 }
@@ -955,17 +949,17 @@ impl<R: BufRead> InstanceParser<R> {
             // Tuple fact: recursively parse child facts until closing tag
             loop {
                 match self.reader.read_event_into(&mut buf)? {
-                    Event::Start(ref child_event) => {
-                        if Self::is_fact_element(child_event.name().local_name().as_ref())
-                            && let Some(child) = self.parse_fact_recursive(child_event)?
-                        {
+                    Event::Start(ref child_event)
+                        if Self::is_fact_element(child_event.name().local_name().as_ref()) =>
+                    {
+                        if let Some(child) = self.parse_fact_recursive(child_event)? {
                             children.push(child);
                         }
                     }
-                    Event::Empty(ref child_event) => {
-                        if Self::is_fact_element(child_event.name().local_name().as_ref()) {
-                            children.push(self.parse_empty_fact(child_event)?);
-                        }
+                    Event::Empty(ref child_event)
+                        if Self::is_fact_element(child_event.name().local_name().as_ref()) =>
+                    {
+                        children.push(self.parse_empty_fact(child_event)?);
                     }
                     Event::End(ref end) if end.name().as_ref() == event.name().as_ref() => break,
                     Event::Eof => break,

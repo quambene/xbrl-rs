@@ -457,10 +457,8 @@ impl<R: BufRead> LinkbaseParser<R> {
 
                     _ => {}
                 },
-                Event::End(event) => {
-                    if event.name() == start.name() {
-                        break;
-                    }
+                Event::End(event) if event.name() == start.name() => {
+                    break;
                 }
                 Event::Eof => {
                     return Err(XbrlError::ParseError {
@@ -585,10 +583,8 @@ impl<R: BufRead> LinkbaseParser<R> {
                     }
                     _ => {}
                 },
-                Event::End(event) => {
-                    if event.name() == start.name() {
-                        break;
-                    }
+                Event::End(event) if event.name() == start.name() => {
+                    break;
                 }
                 Event::Eof => {
                     return Err(XbrlError::ParseError {
@@ -701,10 +697,8 @@ impl<R: BufRead> LinkbaseParser<R> {
                     }
                     _ => {}
                 },
-                Event::End(event) => {
-                    if event.name() == start.name() {
-                        break;
-                    }
+                Event::End(event) if event.name() == start.name() => {
+                    break;
                 }
                 Event::Eof => {
                     return Err(XbrlError::ParseError {
@@ -848,10 +842,8 @@ impl<R: BufRead> LinkbaseParser<R> {
                     }
                     _ => {}
                 },
-                Event::End(event) => {
-                    if event.name() == start.name() {
-                        break;
-                    }
+                Event::End(event) if event.name() == start.name() => {
+                    break;
                 }
                 Event::Eof => {
                     return Err(XbrlError::ParseError {
@@ -979,10 +971,8 @@ impl<R: BufRead> LinkbaseParser<R> {
                     }
                     _ => {}
                 },
-                Event::End(event) => {
-                    if event.name() == start.name() {
-                        break;
-                    }
+                Event::End(event) if event.name() == start.name() => {
+                    break;
                 }
                 Event::Eof => {
                     return Err(XbrlError::ParseError {
