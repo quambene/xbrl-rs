@@ -276,7 +276,7 @@ impl<R: BufRead> InstanceParser<R> {
                         b"context" => self.parse_context(&mut instance, attributes)?,
                         b"unit" => self.parse_unit(&mut instance, attributes)?,
                         b"footnoteLink" => self.parse_footnote_link(&mut instance, attributes)?,
-                        _ if Self::is_fact_element(local_name.as_ref()) => {
+                        _ if has_instance_root && Self::is_fact_element(local_name.as_ref()) => {
                             self.parse_fact(&mut instance, event)?;
                         }
                         _ => {}
@@ -300,7 +300,7 @@ impl<R: BufRead> InstanceParser<R> {
                         b"schemaRef" => self.parse_schema_ref(&mut instance, attributes)?,
                         b"roleRef" => self.parse_role_ref(&mut instance, attributes)?,
                         b"arcroleRef" => self.parse_arcrole_ref(&mut instance, attributes)?,
-                        _ if Self::is_fact_element(local_name.as_ref()) => {
+                        _ if has_instance_root && Self::is_fact_element(local_name.as_ref()) => {
                             let fact = self.parse_empty_fact(event)?;
                             instance.facts.push(fact);
                         }
