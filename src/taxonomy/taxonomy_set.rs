@@ -39,11 +39,11 @@ pub struct TaxonomySet {
     linkbases: Linkbases,
     /// Maps each role URI to the schema file that defines it (`link:roleType`).
     role_source_schema: HashMap<RoleUri, PathBuf>,
-    /// Taxonomy version extracted from the schema ref URLs.
+    /// Taxonomy date extracted from the schema ref URLs.
     /// German-style taxonomies yield a date (e.g. `"2020-04-01"`); US GAAP
     /// taxonomies yield a year (e.g. `"2023"`). `None` if neither pattern
     /// matches.
-    version: Option<String>,
+    date: Option<String>,
 }
 
 impl TaxonomySet {
@@ -57,13 +57,13 @@ impl TaxonomySet {
     /// Automatic download of taxonomy files is not supported. All referenced
     /// files must be present locally.
     pub fn discover(schema_refs: Vec<String>, entry_point: PathBuf) -> Result<Self> {
-        let version = schema_refs.first().and_then(|url| extract_version(url));
+        let date = schema_refs.first().and_then(|url| extract_date(url));
 
         if schema_refs.len() > 1
-            && let Some(ref expected) = version
+            && let Some(ref expected) = date
         {
             for url in schema_refs.iter().skip(1) {
-                if let Some(found) = extract_version(url)
+                if let Some(found) = extract_date(url)
                     && &found != expected
                 {
                     return Err(XbrlError::VersionMismatch {
@@ -181,7 +181,7 @@ impl TaxonomySet {
             linkbase_paths,
             linkbases,
             role_source_schema,
-            version,
+            date,
         };
 
         Ok(taxonomy)
@@ -192,12 +192,12 @@ impl TaxonomySet {
         &self.entry_point
     }
 
-    /// Get the taxonomy version, if present.
+    /// Get the taxonomy date, if present.
     ///
     /// Returns a date string for German-style taxonomies (e.g. `"2020-04-01"`)
     /// or a year string for US GAAP (e.g. `"2023"`).
-    pub fn version(&self) -> Option<&str> {
-        self.version.as_deref()
+    pub fn date(&self) -> Option<&str> {
+        self.date.as_deref()
     }
 
     /// Get the entry point schema URLs and their resolved local paths, in declaration order.
@@ -408,7 +408,7 @@ fn resolve_local_path(base_dir: &Path, reference: &str) -> Option<PathBuf> {
     Some(base_dir.join(reference))
 }
 
-/// Extracts the taxonomy version from a schema ref URL.
+/// Extracts the taxonomy date from a schema ref URL.
 ///
 /// Two patterns are recognized:
 /// - German style: the first path segment ends with `YYYY-MM-DD`
@@ -417,7 +417,7 @@ fn resolve_local_path(base_dir: &Path, reference: &str) -> Option<PathBuf> {
 ///   (e.g. `us-gaap/2023/elts/…` → `"2023"`)
 ///
 /// Returns `None` if neither pattern matches.
-fn extract_version(url: &str) -> Option<String> {
+fn extract_date(url: &str) -> Option<String> {
     let stripped = strip_prefix(url);
 
     // German style: first segment ends with YYYY-MM-DD (e.g. de-gcd-2020-04-01).

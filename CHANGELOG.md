@@ -32,6 +32,7 @@
   - Rename `LinkbaseParser::parse_linkbase` to `InstanceParser::parse`
   - Rename `SchemaParser::parse_schema` to `SchemaParser::parse`
   - Update Rust to 1.95
+  - Rename `TaxonomySet::version` to `TaxonomySet::date`
 - removed
   - Remove `tuple_children` and `compositor` from `Concept`
   - Remove `context` for `XbrlError::FileOpen` and `XbrlError::FileRead`
