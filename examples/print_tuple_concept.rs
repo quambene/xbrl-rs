@@ -7,8 +7,10 @@
 //! Usage:
 //!     cargo run --example print_tuple_concept
 
-use std::collections::HashSet;
-use std::path::{Path, PathBuf};
+use std::{
+    collections::HashSet,
+    path::{Path, PathBuf},
+};
 use xbrl_rs::{
     Concept, ConceptView, InstanceDocument, ROLE_LABEL, ROLE_TERSE, TaxonomySet, TupleParticleView,
 };
@@ -110,7 +112,7 @@ fn expand_report_element_heads<'a>(
     expanded
 }
 
-fn find_target_tuple_concept<'a>(taxonomy: &'a TaxonomySet) -> Option<&'a Concept> {
+fn find_target_tuple_concept(taxonomy: &TaxonomySet) -> Option<&Concept> {
     taxonomy
         .find_concept_by_id(TUPLE_CONCEPT_ID)
         .filter(|concept| concept.is_tuple())

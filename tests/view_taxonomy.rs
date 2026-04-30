@@ -30,7 +30,12 @@ fn taxonomy_and_concept_views_on_discovered_dts() {
     let taxonomy_view = TaxonomyView::build(&dts);
     assert!(!taxonomy_view.sections.is_empty());
     assert_eq!(taxonomy_view.sections.len(), dts.presentations().len());
-    assert!(taxonomy_view.sections.iter().any(|section| !section.nodes.is_empty()));
+    assert!(
+        taxonomy_view
+            .sections
+            .iter()
+            .any(|section| !section.nodes.is_empty())
+    );
 
     let concept = dts
         .elements()
@@ -41,6 +46,7 @@ fn taxonomy_and_concept_views_on_discovered_dts() {
 
     assert_eq!(concept_view.concept.name.local_name, "bs.ass");
     assert!(
-        !concept_view.presentation_parents.is_empty() || !concept_view.presentation_children.is_empty()
+        !concept_view.presentation_parents.is_empty()
+            || !concept_view.presentation_children.is_empty()
     );
 }
