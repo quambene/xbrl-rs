@@ -22,8 +22,10 @@ pub use taxonomy::TaxonomyLoader;
 pub use taxonomy::{
     ArcroleType, Balance, CalculationArc, Concept, DeclaredAccuracy, DefinitionArc, ElementDecl,
     ElementParticle, GroupDef, GroupParticle, Label, LinkbaseLocator, LinkbaseParser, Occurrence,
-    Particle, PeriodType, PresentationArc, Reference, ReferencePart, RoleType, SchemaParser,
-    SubstitutionGroup, TaxonomySchema, TaxonomySet, XbrlType,
+    Particle, PeriodType, PresentationArc, PresentationRelationView, Reference, ReferencePart,
+    RoleType, SchemaParser, SubstitutionGroup, TaxonomySchema, TaxonomySectionView,
+    TaxonomySet, TaxonomyTreeNode, TaxonomyView, TupleElementView, TupleParticleView, XbrlType,
+    ConceptView,
 };
 pub use validation::{Severity, ValidationMessage, ValidationResult};
 pub use xml::{

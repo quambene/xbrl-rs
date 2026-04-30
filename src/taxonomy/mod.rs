@@ -3,6 +3,7 @@ mod linkbases;
 mod loader;
 mod schema;
 mod taxonomy_set;
+mod view;
 
 pub use linkbases::{
     locator::LinkbaseLocator,
@@ -17,3 +18,7 @@ pub use schema::{
     TaxonomySchema, XbrlType,
 };
 pub use taxonomy_set::TaxonomySet;
+pub use view::{
+    ConceptView, PresentationRelationView, TaxonomySectionView, TaxonomyTreeNode, TaxonomyView,
+    TupleElementView, TupleParticleView,
+};

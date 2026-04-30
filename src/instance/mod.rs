@@ -234,7 +234,7 @@ impl InstanceDocument {
         validation::validate_all(self, taxonomy)
     }
 
-    /// Convenience wrapper for [`DocumentView::build_with_context`] using this
+    /// Convenience wrapper for [`DocumentView::build_with_parents`] using this
     /// instance's item facts with their tuple-parent context.
     pub fn view<'a>(&self, taxonomy: &'a TaxonomySet) -> DocumentView<'a> {
         let (item_facts, parents) = self.item_facts_with_parents();
