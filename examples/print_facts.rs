@@ -52,8 +52,8 @@ fn print_node(
     let label = resolve_label(node, lang);
     let label_col = truncate(&format!("{indent}{label}"), w_label);
     let concept_col = truncate(node.concept_name, w_concept);
-
     let level = node.depth;
+
     if node.fact_indices.is_empty() {
         println!(
             "| {:<w_concept$} | {:>5} | {:<w_label$} | {:>w_value$} | {:<6} | {:<16} |",
@@ -62,9 +62,11 @@ fn print_node(
     } else {
         for &idx in &node.fact_indices {
             let fact = &facts[idx];
+
             if fact.is_nil() {
                 continue;
             }
+
             println!(
                 "| {:<w_concept$} | {:>5} | {:<w_label$} | {:>w_value$} | {:<6} | {:<16} |",
                 concept_col,
