@@ -12,7 +12,7 @@ mod writer;
 use crate::{
     ExpandedName, NamespacePrefix, NamespaceUri, PresentationArc, TaxonomySet,
     error::Result,
-    taxonomy::{Concept, ElementParticle, Particle, PeriodType},
+    taxonomy::{Concept, ElementParticle, GroupParticle, Particle, PeriodType},
     validation::{self, ValidationResult},
 };
 pub use context::{Context, ContextId, EntityIdentifier, Period};
@@ -81,6 +81,8 @@ impl InstanceDocument {
     /// - Adds both contexts and all provided units
     /// - Pre-populates nil facts for concepts in the presentation linkbase,
     ///   preserving tuple nesting derived directly from the presentation tree
+    /// - For tuples with an exclusive single-choice content model, emits the
+    ///   tuple as `xsi:nil=true` (without pre-populated choice children)
     /// - Assigns each fact the correct `unitRef` based on its XSD type:
     ///   monetary → first currency unit, shares → first shares unit,
     ///   other numeric → first pure unit, non-numeric → no unitRef
@@ -234,11 +236,13 @@ impl InstanceDocument {
         validation::validate_all(self, taxonomy)
     }
 
-    /// Convenience wrapper for [`DocumentView::build_with_parents`] using this
-    /// instance's item facts with their tuple-parent context.
+    /// Convenience wrapper for [`DocumentView::build`] using this instance's
+    /// full fact tree.
+    ///
+    /// The returned view is item-indexed (`fact_indices`) and keeps tuple
+    /// concepts visible when corresponding tuple facts are present.
     pub fn view<'a>(&self, taxonomy: &'a TaxonomySet) -> DocumentView<'a> {
-        let (item_facts, parents) = self.item_facts_with_parents();
-        DocumentView::build_with_parents(&item_facts, &parents, taxonomy)
+        DocumentView::build(self.facts(), taxonomy)
     }
 
     /// Serialize this instance to an XML file at the given path.
@@ -355,22 +359,6 @@ impl InstanceDocument {
             fact.walk_items(&mut out);
         }
         out
-    }
-
-    /// Get all item facts in depth-first order together with the concept name
-    /// of each fact's direct tuple parent (`None` for top-level items).
-    ///
-    /// The two returned vecs are always the same length and their indices
-    /// correspond to those produced by [`item_facts`].
-    fn item_facts_with_parents(&self) -> (Vec<&ItemFact>, Vec<Option<ExpandedName>>) {
-        let mut facts = Vec::new();
-        let mut parents = Vec::new();
-
-        for fact in &self.facts {
-            collect_item_facts_with_parent(fact, None, &mut facts, &mut parents);
-        }
-
-        (facts, parents)
     }
 
     /// Number of item facts in the instance (including nested tuple descendants).
@@ -602,7 +590,33 @@ impl InstanceDocument {
         if let Some(concept) = taxonomy.find_concept(concept_name) {
             if concept.is_tuple() && !concept.is_abstract {
                 if emitted_tuples.insert(concept_name.clone()) {
-                    facts.push(Fact::Tuple(TupleFact::new(concept.name.clone())));
+                    let mut tuple = TupleFact::new(concept.name.clone());
+
+                    // For exclusive single-choice tuple models, generate a nil
+                    // tuple placeholder.
+                    if tuple_uses_nil_template(concept) {
+                        tuple.set_nil(true);
+                        facts.push(Fact::Tuple(tuple));
+
+                        // Skip materialization of this tuple's presentation
+                        // descendants and mark them as emitted so fallback
+                        // traversal does not emit them at top level.
+                        let mut skipped_visited: HashSet<ExpandedName> = HashSet::new();
+                        for arc in children {
+                            mark_presentation_subtree_as_emitted(
+                                arc_index,
+                                &arc.to,
+                                emitted_items,
+                                emitted_tuples,
+                                &mut skipped_visited,
+                            );
+                        }
+
+                        recursion_path.remove(concept_name);
+                        return;
+                    }
+
+                    facts.push(Fact::Tuple(tuple));
 
                     let tuple_children = match facts.last_mut() {
                         Some(Fact::Tuple(tuple)) => tuple.children_mut(),
@@ -906,27 +920,6 @@ impl InstanceDocument {
     }
 }
 
-/// Recursively collect item facts together with the concept name of their
-/// direct tuple parent (or `None` for top-level items).
-fn collect_item_facts_with_parent<'a>(
-    fact: &'a Fact,
-    parent_tuple: Option<&ExpandedName>,
-    facts: &mut Vec<&'a ItemFact>,
-    parents: &mut Vec<Option<ExpandedName>>,
-) {
-    match fact {
-        Fact::Item(item) => {
-            facts.push(item);
-            parents.push(parent_tuple.cloned());
-        }
-        Fact::Tuple(tuple) => {
-            for child in tuple.children() {
-                collect_item_facts_with_parent(child, Some(tuple.concept_name()), facts, parents);
-            }
-        }
-    }
-}
-
 /// Determine the correct `unitRef` string for an element based on its XSD type.
 ///
 /// - Monetary items  → first currency unit (`is_currency()`)
@@ -971,6 +964,76 @@ fn item_allowed_in_tuple(
         return true;
     };
     matches_particle_model(model, child_element, taxonomy)
+}
+
+/// Returns `true` when the tuple should be emitted as tuple-level nil in
+/// `from_taxonomy`, because its content model is an exclusive single-choice.
+fn tuple_uses_nil_template(concept: &Concept) -> bool {
+    if !concept.is_tuple() {
+        return false;
+    }
+
+    concept
+        .content_model
+        .as_ref()
+        .is_some_and(is_exclusive_single_choice_particle)
+}
+
+/// Marks all concepts reachable from `start` in the presentation arc graph as
+/// emitted, so fallback traversal does not materialize them later.
+fn mark_presentation_subtree_as_emitted(
+    arc_index: &HashMap<&ExpandedName, Vec<&PresentationArc>>,
+    start: &ExpandedName,
+    emitted_items: &mut HashSet<ExpandedName>,
+    emitted_tuples: &mut HashSet<ExpandedName>,
+    visited: &mut HashSet<ExpandedName>,
+) {
+    if !visited.insert(start.clone()) {
+        return;
+    }
+
+    emitted_items.insert(start.clone());
+    emitted_tuples.insert(start.clone());
+
+    if let Some(children) = arc_index.get(start) {
+        for arc in children {
+            mark_presentation_subtree_as_emitted(
+                arc_index,
+                &arc.to,
+                emitted_items,
+                emitted_tuples,
+                visited,
+            );
+        }
+    }
+}
+
+/// Returns `true` when `model` effectively represents an exclusive choice
+/// where at most one alternative can be selected.
+///
+/// Supported nested form:
+/// - a direct `choice` with `maxOccurs=1`
+/// - wrappers (`sequence`/`group`) with `maxOccurs=1` and exactly one child,
+///   recursively ending in the same exclusive-choice shape
+fn is_exclusive_single_choice_particle(model: &Particle) -> bool {
+    match model {
+        Particle::Choice { occurs, .. } => occurs.max == Some(1),
+        Particle::Sequence { children, occurs } => {
+            occurs.max == Some(1)
+                && children.len() == 1
+                && is_exclusive_single_choice_particle(&children[0])
+        }
+        Particle::Group { group, occurs } => {
+            occurs.max == Some(1)
+                && match group {
+                    GroupParticle::Def(group_def) => {
+                        is_exclusive_single_choice_particle(&group_def.particle)
+                    }
+                    GroupParticle::Ref(_) => false,
+                }
+        }
+        Particle::Element { .. } => false,
+    }
 }
 
 /// Returns `true` if `child_element` satisfies any element particle in `model`,
@@ -1026,7 +1089,10 @@ fn matches_element_particle(
 #[cfg(test)]
 mod tests {
     use super::{Fact, InstanceDocument, ItemFact, TaxonomySet, TupleFact};
-    use crate::{ExpandedName, NamespaceUri};
+    use crate::{
+        ElementDecl, ElementParticle, ExpandedName, GroupDef, GroupParticle, NamespaceUri,
+        Occurrence, Particle,
+    };
 
     fn expanded_name(local_name: &str) -> ExpandedName {
         ExpandedName::new(
@@ -1361,5 +1427,135 @@ mod tests {
             _ => panic!("expected tuple fact"),
         };
         assert!(tuple_fact.is_nil());
+    }
+
+    #[test]
+    fn exclusive_choice_particle_detected() {
+        let model = Particle::Choice {
+            children: vec![
+                Particle::Element {
+                    element: ElementParticle::Decl(ElementDecl {
+                        name: "A".to_owned(),
+                        type_name: None,
+                        inline_type: None,
+                    }),
+                    occurs: Occurrence {
+                        min: 0,
+                        max: Some(1),
+                    },
+                },
+                Particle::Element {
+                    element: ElementParticle::Decl(ElementDecl {
+                        name: "B".to_owned(),
+                        type_name: None,
+                        inline_type: None,
+                    }),
+                    occurs: Occurrence {
+                        min: 0,
+                        max: Some(1),
+                    },
+                },
+            ],
+            occurs: Occurrence {
+                min: 1,
+                max: Some(1),
+            },
+        };
+
+        assert!(super::is_exclusive_single_choice_particle(&model));
+    }
+
+    #[test]
+    fn repeating_choice_particle_not_detected() {
+        let model = Particle::Choice {
+            children: vec![Particle::Element {
+                element: ElementParticle::Decl(ElementDecl {
+                    name: "A".to_owned(),
+                    type_name: None,
+                    inline_type: None,
+                }),
+                occurs: Occurrence {
+                    min: 0,
+                    max: Some(1),
+                },
+            }],
+            occurs: Occurrence { min: 0, max: None },
+        };
+
+        assert!(!super::is_exclusive_single_choice_particle(&model));
+    }
+
+    #[test]
+    fn nested_exclusive_choice_particle_detected() {
+        let model = Particle::Sequence {
+            children: vec![Particle::Group {
+                group: GroupParticle::Def(GroupDef {
+                    name: None,
+                    particle: Box::new(Particle::Choice {
+                        children: vec![Particle::Element {
+                            element: ElementParticle::Decl(ElementDecl {
+                                name: "A".to_owned(),
+                                type_name: None,
+                                inline_type: None,
+                            }),
+                            occurs: Occurrence {
+                                min: 0,
+                                max: Some(1),
+                            },
+                        }],
+                        occurs: Occurrence {
+                            min: 0,
+                            max: Some(1),
+                        },
+                    }),
+                }),
+                occurs: Occurrence {
+                    min: 1,
+                    max: Some(1),
+                },
+            }],
+            occurs: Occurrence {
+                min: 1,
+                max: Some(1),
+            },
+        };
+
+        assert!(super::is_exclusive_single_choice_particle(&model));
+    }
+
+    #[test]
+    fn sequence_with_multiple_children_not_detected_as_exclusive_choice() {
+        let model = Particle::Sequence {
+            children: vec![
+                Particle::Element {
+                    element: ElementParticle::Decl(ElementDecl {
+                        name: "A".to_owned(),
+                        type_name: None,
+                        inline_type: None,
+                    }),
+                    occurs: Occurrence {
+                        min: 0,
+                        max: Some(1),
+                    },
+                },
+                Particle::Element {
+                    element: ElementParticle::Decl(ElementDecl {
+                        name: "B".to_owned(),
+                        type_name: None,
+                        inline_type: None,
+                    }),
+                    occurs: Occurrence {
+                        min: 0,
+                        max: Some(1),
+                    },
+                },
+            ],
+            occurs: Occurrence {
+                min: 1,
+                max: Some(1),
+            },
+        };
+
+        assert!(!super::is_exclusive_single_choice_particle(&model));
     }
 }

@@ -16,6 +16,7 @@
   - Remove unreported facts from `DocumentView`
   - Fix serializing nil facts
   - Fix newlines in fact values
+  - Don't pre-populate single-choice tuples in `InstanceDocument::from_taxonomy`
 - added
   - Make `ArcroleUri`, `ArcroleType`, `RoleType`, `XbrlType`, `Concept`, `Particle`, `ElementDecl`,
     `ElementParticle`, `GroupDef`, `GroupParticle`, `Occurrence`, `ROLE_TERSE`,
