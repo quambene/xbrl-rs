@@ -928,9 +928,9 @@ impl<R: BufRead> InstanceParser<R> {
                 buf.clear();
             }
 
-            // Remove newline characters and trim whitespace from the fact
-            // value.
-            let value = value.trim().to_owned();
+            // Normalize line breaks and collapse repeated whitespace
+            let value = value.replace(['\n', '\r'], "");
+            let value = value.split_whitespace().collect::<Vec<_>>().join(" ");
 
             Ok(Some(RawFact::Item(RawItemFact {
                 name,
@@ -1424,6 +1424,26 @@ mod tests {
             assert_eq!(fact.unit_ref.as_deref(), Some("u1"));
             assert_eq!(fact.decimals.as_deref(), Some("-3"));
             assert!(!fact.is_nil);
+        });
+    }
+
+    #[test]
+    fn test_parse_item_fact_embedded_newlines() {
+        let xml = r#"<xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance"
+                            xmlns:t="http://example.com/taxonomy">
+                            <t:Description contextRef="c1">
+                                Revenue 
+                                for 
+                                the period
+                            </t:Description>
+                        </xbrli:xbrl>"#;
+        let mut parser = InstanceParser::from_reader(xml.as_bytes());
+        let instance = parser.parse().unwrap();
+
+        assert_eq!(instance.facts.len(), 1);
+        assert_matches!(&instance.facts[0], RawFact::Item(fact) => {
+            assert_eq!(fact.name.to_string(), "t:Description");
+            assert_eq!(fact.value, "Revenue for the period");
         });
     }
 
