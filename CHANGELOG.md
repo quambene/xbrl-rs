@@ -25,9 +25,13 @@
   - Write failed conformance tests to csv file
   - Support non-xbrl root in instance documents
   - Add `InstanceWriter`
-  - Add `InstanceDocument::set_fact_nil`
+  - Add `InstanceDocument::set_fact_nil`,
+    `InstanceDocument::set_tuple_fact_nil`,
+    `InstanceDocument::set_tuple_child_nil`,
+    `InstanceDocument::add_tuple_child`, and `InstanceDocument::remove_tuple_child`
   - Add `DocumentView::build_with_parents`
   - Add `TaxonomyView` and `ConceptView`
+  - Add Ins
 - changed
   - Parse `ComplexType`s recursively
   - Rename `InstanceParser::parse_instance` to `InstanceParser::parse`

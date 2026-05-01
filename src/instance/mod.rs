@@ -412,6 +412,94 @@ impl InstanceDocument {
         panic!("fact index out of bounds: {index}");
     }
 
+    /// Sets `xsi:nil` on a tuple fact within all matching tuple instances.
+    ///
+    /// This is a mutation-only helper. It does not check taxonomy/schema
+    /// compatibility; call [`validate`] explicitly after mutation.
+    ///
+    /// Returns the number of tuple instances that were mutated.
+    pub fn set_tuple_fact_nil(&mut self, tuple_local_name: &str, is_nil: bool) -> Result<usize> {
+        let mut changed = 0usize;
+
+        for fact in &mut self.facts {
+            changed += Self::set_tuple_fact_nil_in_fact(fact, tuple_local_name, is_nil);
+        }
+
+        Ok(changed)
+    }
+
+    /// Adds one tuple child within all matching tuple instances.
+    ///
+    /// Behavior:
+    /// - if the child already exists, no change is made
+    /// - if it does not exist, a new child is added using `child_fact`
+    /// - if the tuple itself is nil and a child is added, it is set to non-nil
+    ///
+    /// This is a mutation-only helper. It does not check taxonomy/schema
+    /// compatibility; call [`validate`] explicitly after mutation.
+    ///
+    /// Returns the number of tuple instances that were mutated.
+    pub fn add_tuple_child(
+        &mut self,
+        tuple_local_name: &str,
+        child_fact: &ItemFact,
+    ) -> Result<usize> {
+        let mut changed = 0usize;
+
+        for fact in &mut self.facts {
+            changed += Self::add_tuple_child_in_fact(fact, tuple_local_name, child_fact);
+        }
+
+        Ok(changed)
+    }
+
+    /// Removes one tuple child within all matching tuple instances.
+    ///
+    /// Behavior:
+    /// - removes all item children whose local name matches
+    ///   `child_local_name`
+    /// - leaves all other children unchanged
+    ///
+    /// This is a mutation-only helper. It does not check taxonomy/schema
+    /// compatibility; call [`validate`] explicitly after mutation.
+    ///
+    /// Returns the number of tuple instances that were mutated.
+    pub fn remove_tuple_child(
+        &mut self,
+        tuple_local_name: &str,
+        child_local_name: &str,
+    ) -> Result<usize> {
+        let mut changed = 0usize;
+
+        for fact in &mut self.facts {
+            changed += Self::remove_tuple_child_in_fact(fact, tuple_local_name, child_local_name);
+        }
+
+        Ok(changed)
+    }
+
+    /// Sets `xsi:nil` on a tuple child within all matching tuple instances.
+    ///
+    /// This is a mutation-only helper. It does not check taxonomy/schema
+    /// compatibility; call [`validate`] explicitly after mutation.
+    ///
+    /// Returns the number of tuple instances that were mutated.
+    pub fn set_tuple_child_nil(
+        &mut self,
+        tuple_local_name: &str,
+        child_local_name: &str,
+        is_nil: bool,
+    ) -> Result<usize> {
+        let mut changed = 0usize;
+
+        for fact in &mut self.facts {
+            changed +=
+                Self::set_tuple_child_nil_in_fact(fact, tuple_local_name, child_local_name, is_nil);
+        }
+
+        Ok(changed)
+    }
+
     /// Add a namespace prefix mapping
     pub fn add_namespace(&mut self, prefix: NamespacePrefix, uri: NamespaceUri) {
         self.namespaces.insert(prefix, uri);
@@ -624,6 +712,198 @@ impl InstanceDocument {
             }
         }
     }
+
+    /// Sets `xsi:nil` on a tuple fact within a fact.
+    ///
+    /// This is a mutation-only helper. It does not check taxonomy/schema
+    /// compatibility; call [`validate`] explicitly after mutation.
+    ///
+    /// Returns the number of tuple instances that were mutated.
+    fn set_tuple_fact_nil_in_fact(fact: &mut Fact, tuple_local_name: &str, is_nil: bool) -> usize {
+        match fact {
+            Fact::Item(_) => 0,
+            Fact::Tuple(tuple) => {
+                let mut changed = 0usize;
+
+                if tuple.concept_name().local_name == tuple_local_name {
+                    tuple.set_nil(is_nil);
+                    changed += 1;
+                }
+
+                for child in tuple.children_mut() {
+                    changed += Self::set_tuple_fact_nil_in_fact(child, tuple_local_name, is_nil);
+                }
+
+                changed
+            }
+        }
+    }
+
+    /// Adds one tuple child within a fact.
+    ///
+    /// This is a mutation-only helper. It does not check taxonomy/schema
+    /// compatibility; call [`validate`] explicitly after mutation.
+    ///
+    /// Returns the number of tuple instances that were mutated.
+    fn add_tuple_child_in_fact(
+        fact: &mut Fact,
+        tuple_local_name: &str,
+        child_fact: &ItemFact,
+    ) -> usize {
+        match fact {
+            Fact::Item(_) => 0,
+            Fact::Tuple(tuple) => {
+                let mut changed = 0usize;
+
+                if tuple.concept_name().local_name == tuple_local_name
+                    && Self::add_tuple_child_in_tuple(tuple, child_fact)
+                {
+                    changed += 1;
+                }
+
+                for child in tuple.children_mut() {
+                    changed += Self::add_tuple_child_in_fact(child, tuple_local_name, child_fact);
+                }
+
+                changed
+            }
+        }
+    }
+
+    /// Adds one tuple child within a tuple fact.
+    fn add_tuple_child_in_tuple(tuple: &mut TupleFact, child_fact: &ItemFact) -> bool {
+        let child_local_name = child_fact.concept_name().local_name.as_str();
+        let has_matching_child = tuple.children().iter().any(|fact| {
+            matches!(fact, Fact::Item(item) if item.concept_name().local_name == child_local_name)
+        });
+
+        // Explicit no-op when the child already exists.
+        if has_matching_child {
+            return false;
+        }
+
+        // A nil tuple has no active content. Adding a child makes it non-nil again.
+        if tuple.is_nil() {
+            tuple.set_nil(false);
+        }
+
+        let children = tuple.children_mut();
+
+        let mut added = child_fact.clone();
+        added.set_nil(false);
+        children.push(Fact::Item(added));
+        true
+    }
+
+    /// Removes one tuple child within a fact.
+    ///
+    /// This is a mutation-only helper. It does not check taxonomy/schema
+    /// compatibility; call [`validate`] explicitly after mutation.
+    ///
+    /// Returns the number of tuple instances that were mutated.
+    fn remove_tuple_child_in_fact(
+        fact: &mut Fact,
+        tuple_local_name: &str,
+        child_local_name: &str,
+    ) -> usize {
+        match fact {
+            Fact::Item(_) => 0,
+            Fact::Tuple(tuple) => {
+                let mut changed = 0usize;
+
+                if tuple.concept_name().local_name == tuple_local_name
+                    && Self::remove_tuple_child_in_tuple(tuple, child_local_name)
+                {
+                    changed += 1;
+                }
+
+                for child in tuple.children_mut() {
+                    changed +=
+                        Self::remove_tuple_child_in_fact(child, tuple_local_name, child_local_name);
+                }
+
+                changed
+            }
+        }
+    }
+
+    /// Removes all matching tuple item children within a tuple fact.
+    fn remove_tuple_child_in_tuple(tuple: &mut TupleFact, child_local_name: &str) -> bool {
+        let children = tuple.children_mut();
+        let original_len = children.len();
+
+        children.retain(|fact| {
+            !matches!(fact, Fact::Item(item) if item.concept_name().local_name == child_local_name)
+        });
+
+        original_len != children.len()
+    }
+
+    /// Sets `xsi:nil` on a tuple child within a tuple fact.
+    ///
+    /// This is a mutation-only helper. It does not check taxonomy/schema
+    /// compatibility; call [`validate`] explicitly after mutation.
+    ///
+    /// Returns true if the fact was mutated.
+    ///
+    /// Note: this only sets nil on existing children; it does not add new nil
+    /// children if the target child does not already exist.
+    ///
+    /// If the same child appears multiple times within the same tuple, all
+    /// occurrences will be updated.
+    fn set_tuple_child_nil_in_fact(
+        fact: &mut Fact,
+        tuple_local_name: &str,
+        child_local_name: &str,
+        is_nil: bool,
+    ) -> usize {
+        match fact {
+            Fact::Item(_) => 0,
+            Fact::Tuple(tuple) => {
+                let mut changed = 0usize;
+
+                if tuple.concept_name().local_name == tuple_local_name
+                    && Self::set_tuple_child_nil_in_tuple(tuple, child_local_name, is_nil)
+                {
+                    changed += 1;
+                }
+
+                for child in tuple.children_mut() {
+                    changed += Self::set_tuple_child_nil_in_fact(
+                        child,
+                        tuple_local_name,
+                        child_local_name,
+                        is_nil,
+                    );
+                }
+
+                changed
+            }
+        }
+    }
+
+    /// Sets `xsi:nil` on a tuple child within a tuple fact.
+    fn set_tuple_child_nil_in_tuple(
+        tuple: &mut TupleFact,
+        child_local_name: &str,
+        is_nil: bool,
+    ) -> bool {
+        let mut touched = false;
+
+        for fact in tuple.children_mut() {
+            if let Fact::Item(item) = fact
+                && item.concept_name().local_name == child_local_name
+            {
+                item.set_nil(is_nil);
+                if is_nil {
+                    item.set_value(String::new());
+                }
+                touched = true;
+            }
+        }
+
+        touched
+    }
 }
 
 /// Recursively collect item facts together with the concept name of their
@@ -745,7 +1025,38 @@ fn matches_element_particle(
 
 #[cfg(test)]
 mod tests {
-    use super::{InstanceDocument, TaxonomySet};
+    use super::{Fact, InstanceDocument, ItemFact, TaxonomySet, TupleFact};
+    use crate::{ExpandedName, NamespaceUri};
+
+    fn expanded_name(local_name: &str) -> ExpandedName {
+        ExpandedName::new(
+            NamespaceUri::from("http://example.com/ns"),
+            local_name.to_owned(),
+        )
+    }
+
+    fn item(local_name: &str, value: &str, is_nil: bool) -> Fact {
+        Fact::Item(ItemFact::new(
+            None,
+            expanded_name(local_name),
+            "D-2020".to_owned(),
+            None,
+            value.to_owned(),
+            is_nil,
+            None,
+            None,
+        ))
+    }
+
+    fn tuple(local_name: &str, children: Vec<Fact>) -> Fact {
+        let mut tuple = TupleFact::new(expanded_name(local_name));
+
+        for child in children {
+            tuple.add_child(child);
+        }
+
+        Fact::Tuple(tuple)
+    }
 
     #[test]
     fn from_xml_parses_basic_instance() {
@@ -880,5 +1191,175 @@ mod tests {
                 .iter()
                 .any(|message| message.code == "spec.duplicate_arcrole_ref")
         );
+    }
+
+    #[test]
+    fn remove_tuple_child_removes_existing_child() {
+        let mut instance = InstanceDocument::default();
+        instance.add_fact(tuple(
+            "genInfo.report.id.specialAccountingStandard",
+            vec![
+                item("genInfo.report.id.specialAccountingStandard.K", "", false),
+                item("genInfo.report.id.specialAccountingStandard.RKV", "", true),
+            ],
+        ));
+
+        let changed = instance
+            .remove_tuple_child(
+                "genInfo.report.id.specialAccountingStandard",
+                "genInfo.report.id.specialAccountingStandard.RKV",
+            )
+            .expect("remove should succeed");
+
+        assert_eq!(changed, 1);
+
+        let facts = instance.item_facts();
+        assert_eq!(facts.len(), 1);
+        assert!(facts.iter().any(|fact| {
+            fact.concept_name().local_name == "genInfo.report.id.specialAccountingStandard.K"
+        }));
+        assert!(!facts.iter().any(|fact| {
+            fact.concept_name().local_name == "genInfo.report.id.specialAccountingStandard.RKV"
+        }));
+    }
+
+    #[test]
+    fn add_tuple_child_adds_new_child_when_missing() {
+        let mut instance = InstanceDocument::default();
+        instance.add_fact(tuple(
+            "genInfo.report.id.specialAccountingStandard",
+            vec![item(
+                "genInfo.report.id.specialAccountingStandard.K",
+                "",
+                false,
+            )],
+        ));
+
+        let changed = instance
+            .add_tuple_child(
+                "genInfo.report.id.specialAccountingStandard",
+                &ItemFact::new(
+                    None,
+                    expanded_name("genInfo.report.id.specialAccountingStandard.RKV"),
+                    "D-2020".to_owned(),
+                    None,
+                    String::new(),
+                    false,
+                    None,
+                    None,
+                ),
+            )
+            .expect("add should succeed");
+
+        assert_eq!(changed, 1);
+
+        let facts = instance.item_facts();
+        assert_eq!(facts.len(), 2);
+        assert!(facts.iter().any(|fact| {
+            fact.concept_name().local_name == "genInfo.report.id.specialAccountingStandard.RKV"
+                && !fact.is_nil()
+        }));
+        assert!(facts.iter().any(|fact| {
+            fact.concept_name().local_name == "genInfo.report.id.specialAccountingStandard.K"
+                && !fact.is_nil()
+        }));
+    }
+
+    #[test]
+    fn add_tuple_child_does_nothing_when_child_exists() {
+        let mut instance = InstanceDocument::default();
+        instance.add_fact(tuple(
+            "genInfo.report.id.specialAccountingStandard",
+            vec![
+                item("genInfo.report.id.specialAccountingStandard.K", "", false),
+                item("genInfo.report.id.specialAccountingStandard.RKV", "", true),
+            ],
+        ));
+
+        let changed = instance
+            .add_tuple_child(
+                "genInfo.report.id.specialAccountingStandard",
+                &ItemFact::new(
+                    None,
+                    expanded_name("genInfo.report.id.specialAccountingStandard.RKV"),
+                    "D-2020".to_owned(),
+                    None,
+                    String::new(),
+                    false,
+                    None,
+                    None,
+                ),
+            )
+            .expect("add should succeed");
+
+        assert_eq!(changed, 0);
+
+        let facts = instance.item_facts();
+        assert_eq!(facts.len(), 2);
+        let rkv = facts
+            .iter()
+            .find(|fact| {
+                fact.concept_name().local_name == "genInfo.report.id.specialAccountingStandard.RKV"
+            })
+            .expect("RKV child should exist");
+        assert!(rkv.is_nil());
+    }
+
+    #[test]
+    fn set_tuple_child_nil_sets_nil_and_clears_value() {
+        let mut instance = InstanceDocument::default();
+        instance.add_fact(tuple(
+            "genInfo.report.id.reportElement",
+            vec![item(
+                "genInfo.report.id.reportElement.reportElements.BVV",
+                "present",
+                false,
+            )],
+        ));
+
+        let changed = instance
+            .set_tuple_child_nil(
+                "genInfo.report.id.reportElement",
+                "genInfo.report.id.reportElement.reportElements.BVV",
+                true,
+            )
+            .expect("nil update should succeed");
+
+        assert_eq!(changed, 1);
+
+        let facts = instance.item_facts();
+        let bvv = facts
+            .iter()
+            .find(|fact| {
+                fact.concept_name().local_name
+                    == "genInfo.report.id.reportElement.reportElements.BVV"
+            })
+            .expect("BVV child should exist");
+        assert!(bvv.is_nil());
+        assert_eq!(bvv.value(), "");
+    }
+
+    #[test]
+    fn set_tuple_fact_nil() {
+        let mut instance = InstanceDocument::default();
+        instance.add_fact(tuple(
+            "genInfo.report.id.reportType",
+            vec![item(
+                "genInfo.report.id.reportType.reportType.JA",
+                "",
+                false,
+            )],
+        ));
+
+        let changed = instance
+            .set_tuple_fact_nil("genInfo.report.id.reportType", true)
+            .expect("tuple nil update should succeed");
+
+        assert_eq!(changed, 1);
+        let tuple_fact = match &instance.facts()[0] {
+            Fact::Tuple(tuple) => tuple,
+            _ => panic!("expected tuple fact"),
+        };
+        assert!(tuple_fact.is_nil());
     }
 }
