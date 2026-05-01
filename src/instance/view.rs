@@ -1,6 +1,6 @@
 //! Document view built from the presentation linkbase.
 
-use super::fact::ItemFact;
+use super::fact::{Fact, ItemFact};
 use crate::{ExpandedName, Label, PresentationArc, TaxonomySet};
 use std::{
     cmp::Ordering,
@@ -15,30 +15,21 @@ pub struct DocumentView<'a> {
 }
 
 impl<'a> DocumentView<'a> {
-    /// Build a document view from a flat facts slice and a taxonomy.
+    /// Build a document view from instance facts and a taxonomy.
     ///
-    /// `facts` is read once to map concept IDs to their positions; no
-    /// references into the slice are retained. The returned view borrows
-    /// only from `taxonomy`.
-    pub fn build(facts: &[&ItemFact], taxonomy: &'a TaxonomySet) -> Self {
-        build_view(facts, taxonomy)
-    }
+    /// `fact_indices` in the returned view are item-only indices in depth-first
+    /// order, matching [`InstanceDocument::set_fact_value`] / `set_fact_nil`.
+    pub fn build(facts: &[Fact], taxonomy: &'a TaxonomySet) -> Self {
+        let mut item_facts = Vec::new();
+        let mut parents = Vec::new();
+        let mut tuple_fact_names = HashSet::new();
 
-    /// Build a document view with tuple-parent context for each fact.
-    ///
-    /// `parents` must be the same length as `facts`. Each element is the
-    /// concept name of the direct tuple parent of the corresponding fact, or
-    /// `None` if the fact is a top-level item.
-    ///
-    /// When a parent is known, fact lookup in each tree node prefers the
-    /// scoped `(parent_concept, child_concept)` key so that items shared
-    /// across multiple tuple types each receive only their own facts.
-    pub fn build_with_parents(
-        facts: &[&ItemFact],
-        parents: &[Option<ExpandedName>],
-        taxonomy: &'a TaxonomySet,
-    ) -> Self {
-        build_view_with_context(facts, parents, taxonomy)
+        for fact in facts {
+            collect_item_facts_with_parent(fact, None, &mut item_facts, &mut parents);
+            collect_tuple_fact_names(fact, &mut tuple_fact_names);
+        }
+
+        build_view(&item_facts, &parents, &tuple_fact_names, taxonomy)
     }
 }
 
@@ -72,27 +63,11 @@ pub struct TreeNode<'a> {
     pub children: Vec<TreeNode<'a>>,
 }
 
-/// Build a [`DocumentView`] by walking the presentation linkbase and
-/// attaching instance facts and taxonomy labels to each node.
-///
-/// `facts` is borrowed for index-building only; no references into the slice
-/// are retained, so the returned `DocumentView<'a>` borrows only from
-/// `taxonomy`.
-pub fn build_view<'a>(facts: &[&ItemFact], taxonomy: &'a TaxonomySet) -> DocumentView<'a> {
-    let parents = vec![None; facts.len()];
-    build_view_with_context(facts, &parents, taxonomy)
-}
-
-/// Build a [`DocumentView`] like [`build_view`], but also accepts a parallel
-/// `parents` slice that records the direct tuple-parent concept of each fact
-/// (or `None` for top-level items).
-///
-/// When a parent is known, facts are indexed by `(parent_concept, child_concept)`
-/// so each tree node receives only the fact that belongs to its tuple context
-/// rather than all facts for that concept across all tuple instances.
-pub fn build_view_with_context<'a>(
+/// Build a [`DocumentView`] from item-fact indices and tuple-presence context.
+fn build_view<'a>(
     facts: &[&ItemFact],
     parents: &[Option<ExpandedName>],
+    tuple_fact_names: &HashSet<ExpandedName>,
     taxonomy: &'a TaxonomySet,
 ) -> DocumentView<'a> {
     let mut fact_index: HashMap<ExpandedName, Vec<usize>> = HashMap::new();
@@ -147,6 +122,7 @@ pub fn build_view_with_context<'a>(
                     taxonomy,
                     &fact_index,
                     &tuple_child_index,
+                    tuple_fact_names,
                     &mut visited,
                 )
             })
@@ -156,6 +132,40 @@ pub fn build_view_with_context<'a>(
     }
 
     DocumentView { sections }
+}
+
+/// Recursively collect item facts, tracking the parent tuple concept for each
+/// fact.
+fn collect_item_facts_with_parent<'a>(
+    fact: &'a Fact,
+    parent_tuple: Option<&ExpandedName>,
+    facts: &mut Vec<&'a ItemFact>,
+    parents: &mut Vec<Option<ExpandedName>>,
+) {
+    match fact {
+        Fact::Item(item) => {
+            facts.push(item);
+            parents.push(parent_tuple.cloned());
+        }
+        Fact::Tuple(tuple) => {
+            for child in tuple.children() {
+                collect_item_facts_with_parent(child, Some(tuple.concept_name()), facts, parents);
+            }
+        }
+    }
+}
+
+/// Recursively collect concept names of all tuple facts.
+fn collect_tuple_fact_names(fact: &Fact, names: &mut HashSet<ExpandedName>) {
+    match fact {
+        Fact::Item(_) => {}
+        Fact::Tuple(tuple) => {
+            names.insert(tuple.concept_name().clone());
+            for child in tuple.children() {
+                collect_tuple_fact_names(child, names);
+            }
+        }
+    }
 }
 
 /// Find root concept IDs: those that appear as `from` but never as `to`.
@@ -194,6 +204,7 @@ pub(super) fn find_roots<'a>(
 }
 
 /// Recursively build tree nodes for all children of `parent_id`.
+#[allow(clippy::too_many_arguments)]
 fn build_nodes<'a>(
     arc_index: &HashMap<&'a ExpandedName, Vec<&'a PresentationArc>>,
     parent_id: &'a ExpandedName,
@@ -201,6 +212,7 @@ fn build_nodes<'a>(
     taxonomy: &'a TaxonomySet,
     fact_index: &HashMap<ExpandedName, Vec<usize>>,
     tuple_child_index: &HashMap<(ExpandedName, ExpandedName), Vec<usize>>,
+    tuple_fact_names: &HashSet<ExpandedName>,
     visited: &mut HashSet<&'a ExpandedName>,
 ) -> Vec<TreeNode<'a>> {
     if !visited.insert(parent_id) {
@@ -230,12 +242,16 @@ fn build_nodes<'a>(
             taxonomy,
             fact_index,
             tuple_child_index,
+            tuple_fact_names,
             visited,
         );
 
         // Only include the node if it has facts or children; otherwise it's
         // just a concept with no reported facts.
-        if !fact_indices.is_empty() || !children.is_empty() {
+        //
+        // Tuple names are retained when present in the instance even if
+        // they currently have no item descendants.
+        if !fact_indices.is_empty() || !children.is_empty() || tuple_fact_names.contains(child_id) {
             nodes.push(TreeNode {
                 concept_name: &child_id.local_name,
                 labels,
@@ -254,7 +270,7 @@ fn build_nodes<'a>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{ItemFact, taxonomy::TaxonomySet};
+    use crate::{Fact, ItemFact, taxonomy::TaxonomySet};
     use rust_decimal::Decimal;
 
     fn create_taxonomy(
@@ -274,7 +290,7 @@ mod tests {
     #[test]
     fn build_view_empty_taxonomy() {
         let taxonomy = TaxonomySet::default();
-        let view = build_view(&[], &taxonomy);
+        let view = DocumentView::build(&[], &taxonomy);
         assert!(view.sections.is_empty());
     }
 
@@ -341,9 +357,9 @@ mod tests {
             None,
             None,
         );
-        let facts = vec![&fact];
+        let facts = vec![Fact::Item(fact)];
 
-        let view = build_view(&facts, &taxonomy);
+        let view = DocumentView::build(&facts, &taxonomy);
 
         assert_eq!(view.sections.len(), 1);
         let section = &view.sections[0];
@@ -359,7 +375,10 @@ mod tests {
         assert_eq!(node_a.labels[0].lang, "en");
         assert_eq!(node_a.depth, 0);
         assert_eq!(node_a.fact_indices.len(), 1);
-        assert_eq!(facts[node_a.fact_indices[0]].value(), "42");
+        let first_fact = facts[node_a.fact_indices[0]]
+            .as_item()
+            .expect("expected item fact");
+        assert_eq!(first_fact.value(), "42");
         assert_eq!(node_a.children.len(), 0);
     }
 
@@ -391,7 +410,7 @@ mod tests {
         ];
         let taxonomy = create_taxonomy(arcs, vec![]);
         // Should not hang or panic.
-        let view = build_view(&[], &taxonomy);
+        let view = DocumentView::build(&[], &taxonomy);
         assert_eq!(view.sections.len(), 1);
     }
 
@@ -451,11 +470,17 @@ mod tests {
             None,
             None,
         );
-        let facts = [&fact_c_in_a, &fact_c_in_b];
+        let facts = [Fact::Item(fact_c_in_a), Fact::Item(fact_c_in_b)];
         // fact 0 is a child of TupleA, fact 1 is a child of TupleB
-        let parents = [Some(tuple_a.clone()), Some(tuple_b.clone())];
-
-        let view = DocumentView::build_with_parents(&facts, &parents, &taxonomy);
+        let view = build_view(
+            &[
+                facts[0].as_item().expect("expected item fact"),
+                facts[1].as_item().expect("expected item fact"),
+            ],
+            &[Some(tuple_a.clone()), Some(tuple_b.clone())],
+            &HashSet::new(),
+            &taxonomy,
+        );
 
         assert_eq!(view.sections.len(), 1);
         let section = &view.sections[0];
@@ -466,12 +491,18 @@ mod tests {
         let c_under_a = &section.nodes[0];
         assert_eq!(c_under_a.concept_name, "C");
         assert_eq!(c_under_a.fact_indices, vec![0]);
-        assert_eq!(facts[c_under_a.fact_indices[0]].value(), "42");
+        let first = facts[c_under_a.fact_indices[0]]
+            .as_item()
+            .expect("expected item fact");
+        assert_eq!(first.value(), "42");
 
         let c_under_b = &section.nodes[1];
         assert_eq!(c_under_b.concept_name, "C");
         assert_eq!(c_under_b.fact_indices, vec![1]);
-        assert_eq!(facts[c_under_b.fact_indices[0]].value(), "99");
+        let second = facts[c_under_b.fact_indices[0]]
+            .as_item()
+            .expect("expected item fact");
+        assert_eq!(second.value(), "99");
     }
 
     #[test]
@@ -521,10 +552,70 @@ mod tests {
             None,
             None,
         );
-        let view = build_view(&[&fact_a, &fact_b], &taxonomy);
+        let facts = [Fact::Item(fact_a), Fact::Item(fact_b)];
+        let view = DocumentView::build(&facts, &taxonomy);
 
         let section = &view.sections[0];
         assert_eq!(section.nodes[0].concept_name, "a");
         assert_eq!(section.nodes[1].concept_name, "b");
+    }
+
+    #[test]
+    fn tuple_presence_keeps_tuple_node_without_item_facts() {
+        let role = "http://example.com/role/tuple-visibility".to_string();
+        let root = ExpandedName::new("http://example.com/ns".into(), "root".into());
+        let tuple = ExpandedName::new("http://example.com/ns".into(), "reportType".into());
+
+        let arcs = vec![(
+            role.clone(),
+            PresentationArc {
+                from: root,
+                to: tuple.clone(),
+                order: Some(Decimal::new(1, 0)),
+                preferred_label: None,
+                arcrole: "http://www.xbrl.org/2003/arcrole/parent-child".into(),
+            },
+        )];
+        let taxonomy = create_taxonomy(arcs, vec![]);
+
+        let facts: [&ItemFact; 0] = [];
+        let parents: [Option<ExpandedName>; 0] = [];
+        let tuple_concepts = HashSet::from([tuple.clone()]);
+
+        let view = build_view(&facts, &parents, &tuple_concepts, &taxonomy);
+
+        assert_eq!(view.sections.len(), 1);
+        let section = &view.sections[0];
+        assert_eq!(section.nodes.len(), 1);
+        assert_eq!(section.nodes[0].concept_name, "reportType");
+        assert!(section.nodes[0].fact_indices.is_empty());
+    }
+
+    #[test]
+    fn tuple_without_presence_stays_hidden_when_empty() {
+        let role = "http://example.com/role/tuple-hidden".to_string();
+        let root = ExpandedName::new("http://example.com/ns".into(), "root".into());
+        let tuple = ExpandedName::new("http://example.com/ns".into(), "reportType".into());
+
+        let arcs = vec![(
+            role,
+            PresentationArc {
+                from: root,
+                to: tuple,
+                order: Some(Decimal::new(1, 0)),
+                preferred_label: None,
+                arcrole: "http://www.xbrl.org/2003/arcrole/parent-child".into(),
+            },
+        )];
+        let taxonomy = create_taxonomy(arcs, vec![]);
+
+        let facts: [&ItemFact; 0] = [];
+        let parents: [Option<ExpandedName>; 0] = [];
+        let tuple_concepts = HashSet::new();
+
+        let view = build_view(&facts, &parents, &tuple_concepts, &taxonomy);
+
+        assert_eq!(view.sections.len(), 1);
+        assert!(view.sections[0].nodes.is_empty());
     }
 }

@@ -29,7 +29,6 @@
     `InstanceDocument::set_tuple_fact_nil`,
     `InstanceDocument::set_tuple_child_nil`,
     `InstanceDocument::add_tuple_child`, and `InstanceDocument::remove_tuple_child`
-  - Add `DocumentView::build_with_parents`
   - Add `TaxonomyView` and `ConceptView`
   - Add Ins
 - changed
@@ -39,6 +38,7 @@
   - Rename `SchemaParser::parse_schema` to `SchemaParser::parse`
   - Update Rust to 1.95
   - Rename `TaxonomySet::version` to `TaxonomySet::date`
+  - Provide `Fact`s instead of `ItemFact`s in `DocumentView::build`
 - removed
   - Remove `tuple_children` and `compositor` from `Concept`
   - Remove `context` for `XbrlError::FileOpen` and `XbrlError::FileRead`
