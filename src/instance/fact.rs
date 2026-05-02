@@ -114,8 +114,16 @@ impl ItemFact {
         &self.context_ref
     }
 
+    pub fn set_context_ref(&mut self, context_ref: String) {
+        self.context_ref = context_ref;
+    }
+
     pub fn unit_ref(&self) -> Option<&str> {
         self.unit_ref.as_deref()
+    }
+
+    pub fn set_unit_ref(&mut self, unit_ref: Option<String>) {
+        self.unit_ref = unit_ref;
     }
 
     pub fn value(&self) -> &str {
