@@ -10,9 +10,7 @@ pub use parser::{
     ElementDecl, ElementParticle, GroupDef, GroupParticle, LinkbaseRef, Occurrence, Particle,
     SchemaImport, SchemaInclude, SchemaParser,
 };
-#[cfg(test)]
-pub use resolver::BaseSubstitutionGroup;
-pub use resolver::{Concept, SubstitutionGroup, XbrlType};
+pub use resolver::{BaseSubstitutionGroup, Concept, SubstitutionGroup, XbrlType};
 use std::{
     collections::HashMap,
     fs::File,

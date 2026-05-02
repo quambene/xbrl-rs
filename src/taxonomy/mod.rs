@@ -13,9 +13,9 @@ pub use linkbases::{
 #[cfg(feature = "download")]
 pub use loader::TaxonomyLoader;
 pub use schema::{
-    ArcroleType, Balance, Concept, DeclaredAccuracy, ElementDecl, ElementParticle, GroupDef,
-    GroupParticle, Occurrence, Particle, PeriodType, RoleType, SchemaParser, SubstitutionGroup,
-    TaxonomySchema, XbrlType,
+    ArcroleType, Balance, BaseSubstitutionGroup, Concept, DeclaredAccuracy, ElementDecl,
+    ElementParticle, GroupDef, GroupParticle, Occurrence, Particle, PeriodType, RoleType,
+    SchemaParser, SubstitutionGroup, TaxonomySchema, XbrlType,
 };
 pub use taxonomy_set::TaxonomySet;
 pub use view::{

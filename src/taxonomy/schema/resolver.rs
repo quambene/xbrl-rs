@@ -73,7 +73,7 @@ pub enum BaseSubstitutionGroup {
 
 /// The resolved substitution group of a concept, including both the resolved
 /// base group and the original QName.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SubstitutionGroup {
     /// The fully resolved base group (item, tuple, dimension, etc.)
     pub base: BaseSubstitutionGroup,
@@ -107,7 +107,7 @@ impl SubstitutionGroup {
 /// - A reportable concept that may appear in instance documents.
 /// - The structural and semantic metadata required for validation, instance
 ///   building, and linkbase processing.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Concept {
     /// The element's id attribute (e.g., "de-gaap-ci_bs.ass.fixAss").
     pub id: Option<String>,

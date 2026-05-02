@@ -33,6 +33,7 @@
   - Add `TaxonomyView` and `ConceptView`
   - Add `InstanceDocument::contexts_mut` and `InstanceDocument::units_mut`
   - Add `ItemFact::set_context_ref` and `ItemFact::set_unit_ref`
+  - Add `TypedInstanceDocument` and `XbrlError::ValueError`
 - changed
   - Parse `ComplexType`s recursively
   - Rename `InstanceParser::parse_instance` to `InstanceParser::parse`

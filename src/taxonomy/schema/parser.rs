@@ -31,7 +31,7 @@ pub enum FormDefault {
 /// The kind of derivation in a `simpleContent`.
 ///
 /// For example, `xbrli:monetaryItemType` derives from `decimalItemType`.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DerivationKind {
     /// Derivation by extending the base type (from `xs:extension`).
     ///
@@ -157,7 +157,7 @@ pub struct RawArcroleType {
 }
 
 /// Represents an attribute use in a `simpleContent` extension or restriction.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AttributeUse {
     /// The QName of the referenced attribute.
     pub ref_name: String,
@@ -166,7 +166,7 @@ pub struct AttributeUse {
 }
 
 /// Represents an `xs:anyAttribute` in a complex type's content model.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AnyAttribute {
     /// The `namespace` attribute of the `xs:anyAttribute`, which determines
     /// which attributes are allowed.
@@ -174,7 +174,7 @@ pub struct AnyAttribute {
 }
 
 /// Represents the `namespace` attribute of an `xs:anyAttribute`.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AnyAttributeNamespace {
     /// All attributes from any namespace are allowed.
     Any,
@@ -189,7 +189,7 @@ pub enum AnyAttributeNamespace {
 
 /// Represents the occurence constraints for a
 /// particle in a complex type's content model.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Occurrence {
     /// The minimum number of occurrences (from `minOccurs`).
     pub min: u32,
@@ -200,7 +200,7 @@ pub struct Occurrence {
 
 /// Represents the derivation method (extension or restriction) for a
 /// `complexContent` in a complex type.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Derivation {
     /// Derivation by extension (from `xs:extension`).
     Extension(QName),
@@ -210,7 +210,7 @@ pub enum Derivation {
 
 /// Represents an element declaration in the schema, which can be either a
 /// global element or an inline element declaration inside a compositor.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ElementDecl {
     /// The name of the element.
     pub name: String,
@@ -221,7 +221,7 @@ pub struct ElementDecl {
 }
 
 /// Represents an element particle in a complex type's content model.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ElementParticle {
     /// A reference to a globally defined element (from `xs:element[@ref]`).
     Ref(QName),
@@ -243,7 +243,7 @@ impl ElementParticle {
 }
 
 /// Represents a group definition in a complex type's content model.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GroupDef {
     /// The name of the group (from `xs:group[@name]`). This is optional because
     /// XBRL allows anonymous groups defined via `xs:group` inside compositors.
@@ -253,7 +253,7 @@ pub struct GroupDef {
 }
 
 /// Represents a group particle in a complex type's content model.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GroupParticle {
     /// A reference to a globally defined group (from `xs:group[@ref]`).
     Ref(QName),
@@ -265,7 +265,7 @@ pub enum GroupParticle {
 ///
 /// A particle is a building block of a complex type's content model, which can
 /// be an element, a sequence, a choice, or a group.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Particle {
     /// An element, which can be either a reference to a globally defined
     /// element or an inline element declaration.
@@ -326,7 +326,7 @@ impl Particle {
 
 /// Represents a `simpleContent` in a complex type, which is used for defining
 /// tuple types in XBRL.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SimpleContent {
     /// The base type of the simple content (from `xs:extension` or
     /// `xs:restriction`).
@@ -337,7 +337,7 @@ pub struct SimpleContent {
 }
 /// Represents a `complexContent` in a complex type, which is used for defining
 /// tuple types with child elements in XBRL.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ComplexContent {
     /// The kind of derivation (extension or restriction) for this complex
     /// content.
@@ -365,7 +365,7 @@ pub struct SimpleType {
 
 /// Represents a complex type definition (`xs:complexType`) in the schema, which
 /// can be used for both item and tuple elements in XBRL.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ComplexTypeContent {
     /// A `simpleContent` is used for tuple types that only have attributes and
     /// no child elements.
@@ -383,7 +383,7 @@ pub enum ComplexTypeContent {
 }
 
 /// Represents a complex type definition (`xs:complexType`) in the schema.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ComplexType {
     /// The name of the complex type.
     pub name: Option<String>,

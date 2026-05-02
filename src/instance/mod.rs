@@ -5,6 +5,7 @@ mod fact;
 mod footnote;
 mod parser;
 mod resolver;
+mod typed;
 mod unit;
 mod view;
 mod writer;
@@ -27,6 +28,7 @@ use std::{
     io,
     path::Path,
 };
+pub use typed::{FactValue, TypedFact, TypedInstanceDocument, TypedItemFact, TypedTupleFact};
 pub use unit::{Unit, UnitId};
 pub use view::{DocumentView, SectionView, TreeNode};
 pub use writer::InstanceWriter;
@@ -234,6 +236,11 @@ impl InstanceDocument {
     /// Validate this instance against a taxonomy.
     pub fn validate(&self, taxonomy: &TaxonomySet) -> ValidationResult {
         validation::validate_all(self, taxonomy)
+    }
+
+    /// Convert this instance into a typed instance document.
+    pub fn type_instance(self, taxonomy: &TaxonomySet) -> Result<TypedInstanceDocument> {
+        TypedInstanceDocument::from_instance(self, taxonomy)
     }
 
     /// Convenience wrapper for [`DocumentView::build`] using this instance's
@@ -1134,6 +1141,17 @@ mod tests {
         }
 
         Fact::Tuple(tuple)
+    }
+
+    #[test]
+    fn type_instance_fails_for_unknown_concept() {
+        let taxonomy = TaxonomySet::default();
+        let mut instance = InstanceDocument::default();
+
+        instance.add_fact(item("unknownConcept", "1", false));
+
+        let result = instance.type_instance(&taxonomy);
+        assert!(result.is_err());
     }
 
     #[test]

@@ -10,21 +10,23 @@ mod taxonomy;
 pub(crate) mod validation;
 mod xml;
 
-pub use error::{LinkbaseType, Result, XbrlError};
+pub use error::{LinkbaseType, Result, ValueError, XbrlError};
 pub use instance::{
-    Context, ContextId, Decimals, DocumentView, EntityIdentifier, Fact, FootnoteArc, FootnoteLink,
-    FootnoteLocator, FootnoteResource, InstanceDocument, InstanceParser, InstanceWriter, ItemFact,
-    Period, SectionView, TreeNode, TupleFact, Unit, UnitId,
+    Context, ContextId, Decimals, DocumentView, EntityIdentifier, Fact, FactValue, FootnoteArc,
+    FootnoteLink, FootnoteLocator, FootnoteResource, InstanceDocument, InstanceParser,
+    InstanceWriter, ItemFact, Period, SectionView, TreeNode, TupleFact, TypedFact,
+    TypedInstanceDocument, TypedItemFact, TypedTupleFact, Unit, UnitId,
 };
 pub use quick_xml::{Reader as XmlReader, Writer as XmlWriter};
 #[cfg(feature = "download")]
 pub use taxonomy::TaxonomyLoader;
 pub use taxonomy::{
-    ArcroleType, Balance, CalculationArc, Concept, ConceptView, DeclaredAccuracy, DefinitionArc,
-    ElementDecl, ElementParticle, GroupDef, GroupParticle, Label, LinkbaseLocator, LinkbaseParser,
-    Occurrence, Particle, PeriodType, PresentationArc, PresentationRelationView, Reference,
-    ReferencePart, RoleType, SchemaParser, SubstitutionGroup, TaxonomySchema, TaxonomySectionView,
-    TaxonomySet, TaxonomyTreeNode, TaxonomyView, TupleElementView, TupleParticleView, XbrlType,
+    ArcroleType, Balance, BaseSubstitutionGroup, CalculationArc, Concept, ConceptView,
+    DeclaredAccuracy, DefinitionArc, ElementDecl, ElementParticle, GroupDef, GroupParticle, Label,
+    LinkbaseLocator, LinkbaseParser, Occurrence, Particle, PeriodType, PresentationArc,
+    PresentationRelationView, Reference, ReferencePart, RoleType, SchemaParser, SubstitutionGroup,
+    TaxonomySchema, TaxonomySectionView, TaxonomySet, TaxonomyTreeNode, TaxonomyView,
+    TupleElementView, TupleParticleView, XbrlType,
 };
 pub use validation::{Severity, ValidationMessage, ValidationResult};
 pub use xml::{

@@ -1,6 +1,37 @@
 use std::{io, path::PathBuf};
 use thiserror::Error;
 
+/// Error type for typed fact value conversion.
+#[derive(Error, Debug, Clone)]
+pub enum ValueError {
+    #[error("unknown concept: {concept}")]
+    UnknownConcept { concept: String },
+
+    #[error("missing context reference: {context_ref}")]
+    MissingContext { context_ref: String },
+
+    #[error("missing unit reference: {unit_ref}")]
+    MissingUnit { unit_ref: String },
+
+    #[error("invalid boolean value '{raw}'")]
+    InvalidBoolean { raw: String },
+
+    #[error("invalid integer value '{raw}'")]
+    InvalidInteger { raw: String },
+
+    #[error("invalid decimal value '{raw}'")]
+    InvalidDecimal { raw: String },
+
+    #[error("invalid date value '{raw}'")]
+    InvalidDate { raw: String },
+
+    #[error("invalid dateTime value '{raw}'")]
+    InvalidDateTime { raw: String },
+
+    #[error("invalid QName value '{raw}': {reason}")]
+    InvalidQName { raw: String, reason: String },
+}
+
 /// The type of linkbase being parsed
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LinkbaseType {
@@ -132,6 +163,10 @@ pub enum XbrlError {
         expected: &'static str,
         value: String,
     },
+
+    /// Error while converting or parsing typed fact values.
+    #[error(transparent)]
+    Value(#[from] ValueError),
 
     /// IO error
     #[error(transparent)]
