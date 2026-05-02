@@ -31,7 +31,7 @@
     `InstanceDocument::set_tuple_child_nil`,
     `InstanceDocument::add_tuple_child`, and `InstanceDocument::remove_tuple_child`
   - Add `TaxonomyView` and `ConceptView`
-  - Add Ins
+  - Add `InstanceDocument::contexts_mut` and `InstanceDocument::units_mut`
 - changed
   - Parse `ComplexType`s recursively
   - Rename `InstanceParser::parse_instance` to `InstanceParser::parse`

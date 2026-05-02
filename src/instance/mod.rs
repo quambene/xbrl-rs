@@ -503,22 +503,34 @@ impl InstanceDocument {
         &self.namespaces
     }
 
+    /// Add a footnote link to the instance.
     pub fn add_footnote_link(&mut self, footnote_link: FootnoteLink) {
         self.footnote_links.push(footnote_link);
     }
 
+    /// Get all footnote links in the instance.
     pub fn footnote_links(&self) -> &[FootnoteLink] {
         &self.footnote_links
     }
 
-    /// Get all contexts
+    /// Get all contexts.
     pub fn contexts(&self) -> &HashMap<ContextId, Context> {
         &self.contexts
     }
 
-    /// Get all units
+    /// Get a mutable reference to all contexts.
+    pub fn contexts_mut(&mut self) -> &mut HashMap<ContextId, Context> {
+        &mut self.contexts
+    }
+
+    /// Get all units.
     pub fn units(&self) -> &HashMap<UnitId, Unit> {
         &self.units
+    }
+
+    /// Get a mutable reference to all units.
+    pub fn units_mut(&mut self) -> &mut HashMap<UnitId, Unit> {
+        &mut self.units
     }
 
     /// Set the value of a fact by its index (from [`DocumentView`]
