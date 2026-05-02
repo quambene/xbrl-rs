@@ -592,14 +592,10 @@ impl<R: BufRead> InstanceParser<R> {
         }
 
         Ok(RawEntity {
-            identifier: identifier.ok_or_else(|| XbrlError::InvalidInstanceDocument {
-                path: self.path.clone(),
-                reason: "missing identifier in xbrli:entity".to_string(),
-            })?,
-            scheme: scheme.ok_or_else(|| XbrlError::InvalidInstanceDocument {
-                path: self.path.clone(),
-                reason: "missing scheme in xbrli:identifier".to_string(),
-            })?,
+            // Keep parsing tolerant and report missing identifier/scheme during
+            // validation as spec-level errors.
+            identifier: identifier.unwrap_or_default(),
+            scheme: scheme.unwrap_or_default(),
             segment_dimensions,
         })
     }
@@ -1349,6 +1345,29 @@ mod tests {
                 }],
             }
         );
+    }
+
+    #[test]
+    fn test_parse_context_missing_identifier_is_tolerated() {
+        let xml = r#"<xbrli:xbrl
+                                xmlns:xbrli="http://www.xbrl.org/2003/instance"
+                                xmlns:ifrs="http://xbrl.ifrs.org/taxonomy/2023">
+                                <context id="c1">
+                                    <entity>
+                                        <identifier scheme="http://example.com"></identifier>
+                                    </entity>
+                                    <period>
+                                        <instant>2024-12-31</instant>
+                                    </period>
+                                </context>
+                            </xbrli:xbrl>"#;
+        let mut parser = InstanceParser::from_reader(xml.as_bytes());
+        let instance = parser.parse().unwrap();
+
+        assert_eq!(instance.contexts.len(), 1);
+        let context = &instance.contexts[0];
+        assert_eq!(context.entity.identifier, "");
+        assert_eq!(context.entity.scheme, "http://example.com");
     }
 
     #[test]
