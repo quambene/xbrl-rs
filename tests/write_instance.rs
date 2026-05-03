@@ -157,6 +157,11 @@ fn generate_instance() {
     let fixture_path = Path::new("test_data/instances/generated_instance.xml");
     let expected_instance = InstanceDocument::from_file(fixture_path).unwrap();
 
+    // Fix the fixture
+    // let file = std::fs::File::create(fixture_path).unwrap();
+    // let mut writer = InstanceWriter::new(XmlWriter::new(file), true);
+    // writer.write(&instance).unwrap();
+
     let mut role_refs = instance.role_refs().to_vec();
     role_refs.sort();
     let mut expected_role_refs = expected_instance.role_refs().to_vec();

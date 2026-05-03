@@ -39,12 +39,7 @@
     <de-gcd:genInfo.doc.author>
         <de-gcd:genInfo.doc.author.name contextRef="D-2020" xsi:nil="true" />
         <de-gcd:genInfo.doc.author.dept contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.doc.author.function>
-            <de-gcd:genInfo.doc.author.function.functionType.contactPerson contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.doc.author.function.functionType.taxAdvisor contextRef="D-2020"
-                xsi:nil="true" />
-        </de-gcd:genInfo.doc.author.function>
+        <de-gcd:genInfo.doc.author.function xsi:nil="true" />
         <de-gcd:genInfo.doc.author.compName contextRef="D-2020" xsi:nil="true" />
         <de-gcd:genInfo.doc.author.street contextRef="D-2020" xsi:nil="true" />
         <de-gcd:genInfo.doc.author.houseNo contextRef="D-2020" xsi:nil="true" />
@@ -75,40 +70,15 @@
         contextRef="D-2020" xsi:nil="true" />
     <de-gcd:genInfo.report.autorisedExperts.namesOfOtherAuthorisedExperts contextRef="D-2020"
         xsi:nil="true" />
-    <de-gcd:genInfo.report.id.reportType>
-        <de-gcd:genInfo.report.id.reportType.reportType.GB contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.id.reportType.reportType.JF contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.id.reportType.reportType.VP contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.id.reportType.reportType.PB contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.id.reportType.reportType.EB contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.id.reportType.reportType.JA contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.id.reportType.reportType.EUE contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.id.reportType.reportType.HF contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.id.reportType.reportType.GA contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.id.reportType.reportType.QF contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.id.reportType.reportType.S contextRef="D-2020" xsi:nil="true" />
-    </de-gcd:genInfo.report.id.reportType>
+    <de-gcd:genInfo.report.id.reportType xsi:nil="true" />
     <de-gcd:genInfo.report.id.reportStatus.reportStatus.dateofapproval contextRef="D-2020"
         xsi:nil="true" />
     <de-gcd:genInfo.report.id.reportStatus.reportStatus.disclosureBeforeApproval contextRef="D-2020"
         xsi:nil="true" />
     <de-gcd:genInfo.report.id.reportStatus.reportStatus.dateofdisclosure contextRef="D-2020"
         xsi:nil="true" />
-    <de-gcd:genInfo.report.id.reportStatus>
-        <de-gcd:genInfo.report.id.reportStatus.reportStatus.V contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.id.reportStatus.reportStatus.E contextRef="D-2020" xsi:nil="true" />
-    </de-gcd:genInfo.report.id.reportStatus>
-    <de-gcd:genInfo.report.id.revisionStatus>
-        <de-gcd:genInfo.report.id.revisionStatus.revisionStatus.E contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.id.revisionStatus.revisionStatus.B contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.id.revisionStatus.revisionStatus.G contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.id.revisionStatus.revisionStatus.BG contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.report.id.revisionStatus.revisionStatus.I contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.id.revisionStatus.revisionStatus.K contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.id.revisionStatus.revisionStatus.sK contextRef="D-2020"
-            xsi:nil="true" />
-    </de-gcd:genInfo.report.id.revisionStatus>
+    <de-gcd:genInfo.report.id.reportStatus xsi:nil="true" />
+    <de-gcd:genInfo.report.id.revisionStatus xsi:nil="true" />
     <de-gcd:genInfo.report.id.reportElement>
         <de-gcd:genInfo.report.id.reportElement.reportElements.L contextRef="D-2020" xsi:nil="true" />
         <de-gcd:genInfo.report.id.reportElement.reportElements.B contextRef="D-2020" xsi:nil="true" />
@@ -163,103 +133,19 @@
     </de-gcd:genInfo.report.id.reportElement>
     <de-gcd:genInfo.report.id.reportElement.reportElements.SAERL contextRef="D-2020" xsi:nil="true" />
     <de-gcd:genInfo.report.id.reportElement.reportElements.SERL contextRef="D-2020" xsi:nil="true" />
-    <de-gcd:genInfo.report.id.reportElement.allocation.ntAss>
-        <de-gcd:genInfo.report.id.reportElement.allocation.reportElementsLayout.AB
-            contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.id.reportElement.allocation.reportElementsLayout.AA
-            contextRef="D-2020" xsi:nil="true" />
-    </de-gcd:genInfo.report.id.reportElement.allocation.ntAss>
-    <de-gcd:genInfo.report.id.reportElement.allocation.incomeUse>
-        <de-gcd:genInfo.report.id.reportElement.allocation.reportElementsLayout.EG
-            contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.id.reportElement.allocation.reportElementsLayout.EA
-            contextRef="D-2020" xsi:nil="true" />
-    </de-gcd:genInfo.report.id.reportElement.allocation.incomeUse>
-    <de-gcd:genInfo.report.id.reportElement.allocation.payablesReceivablesAgeingReport>
-        <de-gcd:genInfo.report.id.reportElement.allocation.payablesReceivablesAgeingReport.VAkVB
-            contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.id.reportElement.allocation.payablesReceivablesAgeingReport.VAVB
-            contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.id.reportElement.allocation.payablesReceivablesAgeingReport.kVAVB
-            contextRef="D-2020" xsi:nil="true" />
-    </de-gcd:genInfo.report.id.reportElement.allocation.payablesReceivablesAgeingReport>
-    <de-gcd:genInfo.report.id.reportElement.allocation.genInfo>
-        <de-gcd:genInfo.report.id.reportElement.allocation.genInfo.toBalance contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.report.id.reportElement.allocation.genInfo.inNotes contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.report.id.reportElement.allocation.genInfo.OtherPlace contextRef="D-2020"
-            xsi:nil="true" />
-    </de-gcd:genInfo.report.id.reportElement.allocation.genInfo>
-    <de-gcd:genInfo.report.id.reportElement.allocation.notesMicroBilG>
-        <de-gcd:genInfo.report.id.reportElement.allocation.notesMicroBilG.toBalance
-            contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.id.reportElement.allocation.notesMicroBilG.inNotes
-            contextRef="D-2020" xsi:nil="true" />
-    </de-gcd:genInfo.report.id.reportElement.allocation.notesMicroBilG>
-    <de-gcd:genInfo.report.id.reportElement.allocation.contingencies>
-        <de-gcd:genInfo.report.id.reportElement.allocation.contingencies.toBalance
-            contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.id.reportElement.allocation.contingencies.inNotes contextRef="D-2020"
-            xsi:nil="true" />
-    </de-gcd:genInfo.report.id.reportElement.allocation.contingencies>
-    <de-gcd:genInfo.report.id.statementType>
-        <de-gcd:genInfo.report.id.statementType.statementType.E contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.id.statementType.statementType.UBandE contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.report.id.statementType.statementType.ST contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.id.statementType.statementType.PL contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.id.statementType.statementType.EB contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.id.statementType.statementType.ZW contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.id.statementType.statementType.UJ contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.id.statementType.statementType.UN contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.id.statementType.statementType.AK contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.id.statementType.statementType.FK contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.id.statementType.statementType.UB contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.id.statementType.statementType.LAB contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.id.statementType.statementType.LEB contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.id.statementType.statementType.LZB contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.id.statementType.statementType.LSB contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.id.statementType.statementType.AB contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.id.statementType.statementType.S contextRef="D-2020" xsi:nil="true" />
-    </de-gcd:genInfo.report.id.statementType>
+    <de-gcd:genInfo.report.id.reportElement.allocation.ntAss xsi:nil="true" />
+    <de-gcd:genInfo.report.id.reportElement.allocation.incomeUse xsi:nil="true" />
+    <de-gcd:genInfo.report.id.reportElement.allocation.payablesReceivablesAgeingReport
+        xsi:nil="true" />
+    <de-gcd:genInfo.report.id.reportElement.allocation.genInfo xsi:nil="true" />
+    <de-gcd:genInfo.report.id.reportElement.allocation.notesMicroBilG xsi:nil="true" />
+    <de-gcd:genInfo.report.id.reportElement.allocation.contingencies xsi:nil="true" />
+    <de-gcd:genInfo.report.id.statementType xsi:nil="true" />
     <de-gcd:genInfo.report.id.statementType.statementType.SERL contextRef="D-2020" xsi:nil="true" />
-    <de-gcd:genInfo.report.id.statementType.tax>
-        <de-gcd:genInfo.report.id.statementType.tax.statementTypeTax.GHB contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.report.id.statementType.tax.statementTypeTax.SB contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.report.id.statementType.tax.statementTypeTax.EB contextRef="D-2020"
-            xsi:nil="true" />
-    </de-gcd:genInfo.report.id.statementType.tax>
+    <de-gcd:genInfo.report.id.statementType.tax xsi:nil="true" />
     <de-gcd:genInfo.report.id.statementType.restated contextRef="D-2020" xsi:nil="true" />
     <de-gcd:genInfo.report.id.incomeStatementendswithBalProfit contextRef="D-2020" xsi:nil="true" />
-    <de-gcd:genInfo.report.id.accountingStandard>
-        <de-gcd:genInfo.report.id.accountingStandard.accountingStandard.HGB contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.report.id.accountingStandard.accountingStandard.HGBM contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.report.id.accountingStandard.accountingStandard.HAOE contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.report.id.accountingStandard.accountingStandard.HIAS contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.report.id.accountingStandard.accountingStandard.HUS contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.report.id.accountingStandard.accountingStandard.HKC contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.report.id.accountingStandard.accountingStandard.AO contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.report.id.accountingStandard.accountingStandard.IAS contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.report.id.accountingStandard.accountingStandard.USG contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.report.id.accountingStandard.accountingStandard.LHR contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.report.id.accountingStandard.accountingStandard.LSR contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.report.id.accountingStandard.accountingStandard.S contextRef="D-2020"
-            xsi:nil="true" />
-    </de-gcd:genInfo.report.id.accountingStandard>
+    <de-gcd:genInfo.report.id.accountingStandard xsi:nil="true" />
     <de-gcd:genInfo.report.id.accountingStandard.accountingStandard.SERL contextRef="D-2020"
         xsi:nil="true" />
     <de-gcd:genInfo.report.id.specialAccountingStandard>
@@ -274,7 +160,7 @@
         <de-gcd:genInfo.report.id.specialAccountingStandard.VUV contextRef="D-2020" xsi:nil="true" />
         <de-gcd:genInfo.report.id.specialAccountingStandard.LUF contextRef="D-2020" xsi:nil="true" />
     </de-gcd:genInfo.report.id.specialAccountingStandard>
-    <de-gcd:genInfo.report.id.mainAccountingStandard />
+    <de-gcd:genInfo.report.id.mainAccountingStandard xsi:nil="true" />
     <de-gcd:genInfo.report.id.kindOfFinancialInstitution>
         <de-gcd:genInfo.report.id.kindOfFinancialInstitution.Bauspar contextRef="D-2020"
             xsi:nil="true" />
@@ -305,53 +191,12 @@
         <de-gcd:genInfo.report.id.kindOfFinancialInstitution.Universalinstitute contextRef="D-2020"
             xsi:nil="true" />
     </de-gcd:genInfo.report.id.kindOfFinancialInstitution>
-    <de-gcd:genInfo.report.id.kindOfInsurance>
-        <de-gcd:genInfo.report.id.kindOfInsurance.SUV contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.id.kindOfInsurance.RV contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.id.kindOfInsurance.LKV contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.id.kindOfInsurance.PSK contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.id.kindOfInsurance.LUV contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.id.kindOfInsurance.SUK contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.id.kindOfInsurance.PF contextRef="D-2020" xsi:nil="true" />
-    </de-gcd:genInfo.report.id.kindOfInsurance>
-    <de-gcd:genInfo.report.id.incomeStatementFormat>
-        <de-gcd:genInfo.report.id.incomeStatementFormat.incomeStatementFormat.GKV
-            contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.id.incomeStatementFormat.incomeStatementFormat.UKV
-            contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.id.incomeStatementFormat.incomeStatementFormat.S contextRef="D-2020"
-            xsi:nil="true" />
-    </de-gcd:genInfo.report.id.incomeStatementFormat>
-    <de-gcd:genInfo.report.id.consolidationRange>
-        <de-gcd:genInfo.report.id.consolidationRange.consolidationRange.EA contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.report.id.consolidationRange.consolidationRange.KA contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.report.id.consolidationRange.consolidationRange.KAI contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.report.id.consolidationRange.consolidationRange.KAW contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.report.id.consolidationRange.consolidationRange.TKA contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.report.id.consolidationRange.consolidationRange.GB contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.report.id.consolidationRange.consolidationRange.U contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.report.id.consolidationRange.consolidationRange.S contextRef="D-2020"
-            xsi:nil="true" />
-    </de-gcd:genInfo.report.id.consolidationRange>
+    <de-gcd:genInfo.report.id.kindOfInsurance xsi:nil="true" />
+    <de-gcd:genInfo.report.id.incomeStatementFormat xsi:nil="true" />
+    <de-gcd:genInfo.report.id.consolidationRange xsi:nil="true" />
     <de-gcd:genInfo.report.id.consolidationRange.consolidationRange.SERL contextRef="D-2020"
         xsi:nil="true" />
-    <de-gcd:genInfo.report.id.consideredInConsolidatedStatement>
-        <de-gcd:genInfo.report.id.consideredInConsolidatedStatement.consolidation.KO
-            contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.id.consideredInConsolidatedStatement.consolidation.KF
-            contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.id.consideredInConsolidatedStatement.consolidation.UK
-            contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.id.consideredInConsolidatedStatement.consolidation.U
-            contextRef="D-2020" xsi:nil="true" />
-    </de-gcd:genInfo.report.id.consideredInConsolidatedStatement>
+    <de-gcd:genInfo.report.id.consideredInConsolidatedStatement xsi:nil="true" />
     <de-gcd:genInfo.report.id.accordingTo>
         <de-gcd:genInfo.report.id.accordingTo.name contextRef="D-2020" xsi:nil="true" />
         <de-gcd:genInfo.report.id.accordingTo.idNo>
@@ -378,66 +223,23 @@
     <de-gcd:genInfo.report.period.fiscalPreviousYearBegin contextRef="D-2020" xsi:nil="true" />
     <de-gcd:genInfo.report.period.fiscalPreviousYearEnd contextRef="D-2020" xsi:nil="true" />
     <de-gcd:genInfo.report.period.balSheetClosingDatePreviousYear contextRef="D-2020" xsi:nil="true" />
-    <de-gcd:genInfo.report.audit.noAudit>
-        <de-gcd:genInfo.report.audit.noAudit.noAuditRequi contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.audit.noAudit.auditRequi contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.audit.noAudit.reviewAccIDW_PS_900Oth contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.report.audit.noAudit.otherAudits_Reviews contextRef="D-2020" xsi:nil="true" />
-    </de-gcd:genInfo.report.audit.noAudit>
+    <de-gcd:genInfo.report.audit.noAudit xsi:nil="true" />
     <de-gcd:genInfo.report.audit.auditDone contextRef="D-2020" xsi:nil="true" />
-    <de-gcd:genInfo.report.audit.certificateText.heading>
-        <de-gcd:genInfo.report.audit.certificateText.heading.BV contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.audit.certificateText.heading.BVA contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.audit.certificateText.heading.BVKA contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.audit.certificateText.heading.VV contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.audit.certificateText.heading.VVA contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.audit.certificateText.heading.VVKA contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.audit.certificateText.heading.BT contextRef="D-2020" xsi:nil="true" />
-    </de-gcd:genInfo.report.audit.certificateText.heading>
+    <de-gcd:genInfo.report.audit.certificateText.heading xsi:nil="true" />
     <de-gcd:genInfo.report.audit.certificateText contextRef="D-2020" xsi:nil="true" />
     <de-gcd:genInfo.report.audit.certificateText.pre contextRef="D-2020" xsi:nil="true" />
     <de-gcd:genInfo.report.audit.certificateText.desc contextRef="D-2020" xsi:nil="true" />
     <de-gcd:genInfo.report.audit.certificateText.opin contextRef="D-2020" xsi:nil="true" />
     <de-gcd:genInfo.report.audit.certificateText.comm contextRef="D-2020" xsi:nil="true" />
     <de-gcd:genInfo.report.audit.certificateText.hardcoment contextRef="D-2020" xsi:nil="true" />
-    <de-gcd:genInfo.report.audit.certificateOpinion>
-        <de-gcd:genInfo.report.audit.certificateOpinion.certificate.BVU contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.report.audit.certificateOpinion.certificate.BVV contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.report.audit.certificateOpinion.certificate.BVE contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.report.audit.certificateOpinion.certificate.VS contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.report.audit.certificateOpinion.certificate.DU contextRef="D-2020"
-            xsi:nil="true" />
-    </de-gcd:genInfo.report.audit.certificateOpinion>
+    <de-gcd:genInfo.report.audit.certificateOpinion xsi:nil="true" />
     <de-gcd:genInfo.report.audit.city contextRef="D-2020" xsi:nil="true" />
     <de-gcd:genInfo.report.audit.date contextRef="D-2020" xsi:nil="true" />
     <de-gcd:genInfo.report.audit.certText2018.heading contextRef="D-2020" xsi:nil="true" />
     <de-gcd:genInfo.report.audit.certText2018.addressee contextRef="D-2020" xsi:nil="true" />
     <de-gcd:genInfo.report.audit.certText2018.certificateOpinion contextRef="D-2020" xsi:nil="true" />
-    <de-gcd:genInfo.report.audit.certText2018.certificateOpinion.FS>
-        <de-gcd:genInfo.report.audit.certText2018.certificateOpinion.FS.unmod contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.report.audit.certText2018.certificateOpinion.FS.qual contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.report.audit.certText2018.certificateOpinion.FS.adverse contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.report.audit.certText2018.certificateOpinion.FS.disclaimer
-            contextRef="D-2020" xsi:nil="true" />
-    </de-gcd:genInfo.report.audit.certText2018.certificateOpinion.FS>
-    <de-gcd:genInfo.report.audit.certText2018.certificateOpinion.MR>
-        <de-gcd:genInfo.report.audit.certText2018.certificateOpinion.MR.unmod contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.report.audit.certText2018.certificateOpinion.MR.qual contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.report.audit.certText2018.certificateOpinion.MR.adverse contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.report.audit.certText2018.certificateOpinion.MR.disclaimer
-            contextRef="D-2020" xsi:nil="true" />
-    </de-gcd:genInfo.report.audit.certText2018.certificateOpinion.MR>
+    <de-gcd:genInfo.report.audit.certText2018.certificateOpinion.FS xsi:nil="true" />
+    <de-gcd:genInfo.report.audit.certText2018.certificateOpinion.MR xsi:nil="true" />
     <de-gcd:genInfo.report.audit.certText2018.basisOp contextRef="D-2020" xsi:nil="true" />
     <de-gcd:genInfo.report.audit.certText2018.matUncertGoingConcern contextRef="D-2020"
         xsi:nil="true" />
@@ -466,33 +268,13 @@
         xsi:nil="true" />
     <de-gcd:genInfo.report.audit.auditor>
         <de-gcd:genInfo.report.audit.auditor.company contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.audit.auditor.type>
-            <de-gcd:genInfo.report.audit.auditor.type.auditorType.WP contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.report.audit.auditor.type.auditorType.vBP contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.report.audit.auditor.type.auditorType.StB contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.report.audit.auditor.type.auditorType.StBv contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.report.audit.auditor.type.auditorType.U contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.report.audit.auditor.type.auditorType.S contextRef="D-2020"
-                xsi:nil="true" />
-        </de-gcd:genInfo.report.audit.auditor.type>
+        <de-gcd:genInfo.report.audit.auditor.type xsi:nil="true" />
         <de-gcd:genInfo.report.audit.auditor.type.auditorType.SERL contextRef="D-2020"
             xsi:nil="true" />
         <de-gcd:genInfo.report.audit.auditor.name contextRef="D-2020" xsi:nil="true" />
         <de-gcd:genInfo.report.audit.auditor.electronicSignature contextRef="D-2020" xsi:nil="true" />
     </de-gcd:genInfo.report.audit.auditor>
-    <de-gcd:genInfo.report.preparationAttestation.type>
-        <de-gcd:genInfo.report.preparationAttestation.type.EOB contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.preparationAttestation.type.EPB contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.preparationAttestation.type.EUB contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.preparationAttestation.type.EOBVE contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.preparationAttestation.type.EPBUBE contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.report.preparationAttestation.type.NB contextRef="D-2020" xsi:nil="true" />
-    </de-gcd:genInfo.report.preparationAttestation.type>
+    <de-gcd:genInfo.report.preparationAttestation.type xsi:nil="true" />
     <de-gcd:genInfo.report.preparationAttestation.heading contextRef="D-2020" xsi:nil="true" />
     <de-gcd:genInfo.report.preparationAttestation.text contextRef="D-2020" xsi:nil="true" />
     <de-gcd:genInfo.report.preparationAttestation.city contextRef="D-2020" xsi:nil="true" />
@@ -523,82 +305,7 @@
     <de-gcd:genInfo.company.id.name.formerName contextRef="D-2020" xsi:nil="true" />
     <de-gcd:genInfo.company.id.name.dateOfLastChange contextRef="D-2020" xsi:nil="true" />
     <de-gcd:genInfo.company.id.firstName contextRef="D-2020" xsi:nil="true" />
-    <de-gcd:genInfo.company.id.legalStatus>
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.FB contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.EUF contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.EU contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.EUN contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.FB43 contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.G43 contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.EUNasHGT contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.LFW contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.PA contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.BgewPG contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.Other.EUN contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.EUNotherThanHGT contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.soNP contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.soSB contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.AG contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.gAG contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.AOER contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.BNVA contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.EG contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.EV contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.GK contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.GMBH contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.gGMBH contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.HAJP contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.KOG contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.KOER contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.LTD contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.NRV contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.OERREL contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.OERVERS contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.OEFSP contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.VOER contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.RG contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.REIT contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.SG contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.SCE contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.SE contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.SEKGAA contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.Other.KOER contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.SJPR contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.KAOER contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.ZB contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.ST contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.UG contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.VVAG contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.AGKG contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.AGKGAA contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.AGOHG contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.ASG contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.EWI contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.GBR contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.GKG contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.GKGAA contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.GOHG contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.KG contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.KGAA contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.MU contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.OHG contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.PG contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalstatus.PartGmbH contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.Other.MUN contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.soPG contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.RAG contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.RHRA contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.RHRB contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.RAP contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.legalStatus.SR contextRef="D-2020" xsi:nil="true" />
-    </de-gcd:genInfo.company.id.legalStatus>
+    <de-gcd:genInfo.company.id.legalStatus xsi:nil="true" />
     <de-gcd:genInfo.company.id.legalStatus.legalStatus.Other.EUNERL contextRef="D-2020"
         xsi:nil="true" />
     <de-gcd:genInfo.company.id.legalStatus.legalStatus.Other.KOERERL contextRef="D-2020"
@@ -606,92 +313,7 @@
     <de-gcd:genInfo.company.id.legalStatus.legalStatus.Other.MUNERL contextRef="D-2020"
         xsi:nil="true" />
     <de-gcd:genInfo.company.id.legalStatus.legalStatus.SRERL contextRef="D-2020" xsi:nil="true" />
-    <de-gcd:genInfo.company.id.legalStatus.formerStatus>
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.FB contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.EU contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.EUF contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.EUN contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.FB43 contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.G43 contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.EUNasHGT contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.LFW contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.PA contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.PartGmbH contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.BgewPG contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.Other.EUN contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.EUNotherThanHGT contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.soNP contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.soSB contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.AG contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.gAG contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.EWG contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.AOER contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.BNVA contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.EG contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.EV contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.GK contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.GMBH contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.gGMBH contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.HAJP contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.KOG contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.KOER contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.KREDITG contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.LANDWG contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.LTD contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.NRV contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.OERREL contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.OERVERS contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.OEFSP contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.VOER contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.RG contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.REIT contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.SG contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.SCE contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.SE contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.SEKGAA contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.Other.KOER contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.SJPR contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.KAOER contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.ZB contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.ST contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.UG contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.VVAG contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.ZK contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.AGKG contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.AGKGAA contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.AGOHG contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.ASG contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.EWI contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.GBR contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.GKG contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.GKGAA contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.GOHG contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.KG contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.KGAA contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.MU contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.OHG contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.PG contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.Other.MUN contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.soPG contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.RAG contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.RHRA contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.RHRB contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.RAP contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.legalStatus.formerStatus.SR contextRef="D-2020" xsi:nil="true" />
-    </de-gcd:genInfo.company.id.legalStatus.formerStatus>
+    <de-gcd:genInfo.company.id.legalStatus.formerStatus xsi:nil="true" />
     <de-gcd:genInfo.company.id.legalStatus.formerStatus.Other.EUNERL contextRef="D-2020"
         xsi:nil="true" />
     <de-gcd:genInfo.company.id.legalStatus.formerStatus.Other.KOERERL contextRef="D-2020"
@@ -702,13 +324,7 @@
     <de-gcd:genInfo.company.id.legalStatus.dateOfLastChange contextRef="D-2020" xsi:nil="true" />
     <de-gcd:genInfo.company.id.FoundationDate contextRef="D-2020" xsi:nil="true" />
     <de-gcd:genInfo.company.id.Incorporation contextRef="D-2020" xsi:nil="true" />
-    <de-gcd:genInfo.company.id.Incorporation.Type>
-        <de-gcd:genInfo.company.id.Incorporation.Type.Type.HR contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.Incorporation.Type.Type.GR contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.Incorporation.Type.Type.PR contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.Incorporation.Type.Type.VR contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.Incorporation.Type.Type.SR contextRef="D-2020" xsi:nil="true" />
-    </de-gcd:genInfo.company.id.Incorporation.Type>
+    <de-gcd:genInfo.company.id.Incorporation.Type xsi:nil="true" />
     <de-gcd:genInfo.company.id.Incorporation.prefix contextRef="D-2020" xsi:nil="true" />
     <de-gcd:genInfo.company.id.Incorporation.section contextRef="D-2020" xsi:nil="true" />
     <de-gcd:genInfo.company.id.Incorporation.number contextRef="D-2020" xsi:nil="true" />
@@ -717,30 +333,9 @@
     <de-gcd:genInfo.company.id.Incorporation.dateOfFirstRegistration contextRef="D-2020"
         xsi:nil="true" />
     <de-gcd:genInfo.company.id.lastTaxAudit contextRef="D-2020" xsi:nil="true" />
-    <de-gcd:genInfo.company.id.sizeClass>
-        <de-gcd:genInfo.company.id.sizeClass.sizeClass.GK contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.sizeClass.sizeClass.MK contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.sizeClass.sizeClass.KK contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.sizeClass.sizeClass.KstK contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.sizeClass.sizeClass.PublGss1and11 contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.company.id.sizeClass.sizeClass.NK contextRef="D-2020" xsi:nil="true" />
-    </de-gcd:genInfo.company.id.sizeClass>
-    <de-gcd:genInfo.company.id.reportedSizeClassBs>
-        <de-gcd:genInfo.company.id.reportedSizeClassBs.G contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.reportedSizeClassBs.M contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.reportedSizeClassBs.K contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.reportedSizeClassBs.Kst contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.reportedSizeClassBs.PublGss1and11 contextRef="D-2020"
-            xsi:nil="true" />
-    </de-gcd:genInfo.company.id.reportedSizeClassBs>
-    <de-gcd:genInfo.company.id.reportedSizeClassIs>
-        <de-gcd:genInfo.company.id.reportedSizeClassIs.G contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.reportedSizeClassIs.M contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.reportedSizeClassIs.Kst contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.reportedSizeClassIs.PublGss1and11 contextRef="D-2020"
-            xsi:nil="true" />
-    </de-gcd:genInfo.company.id.reportedSizeClassIs>
+    <de-gcd:genInfo.company.id.sizeClass xsi:nil="true" />
+    <de-gcd:genInfo.company.id.reportedSizeClassBs xsi:nil="true" />
+    <de-gcd:genInfo.company.id.reportedSizeClassIs xsi:nil="true" />
     <de-gcd:genInfo.company.id.location contextRef="D-2020" xsi:nil="true" />
     <de-gcd:genInfo.company.id.location.street contextRef="D-2020" xsi:nil="true" />
     <de-gcd:genInfo.company.id.location.houseNo contextRef="D-2020" xsi:nil="true" />
@@ -778,36 +373,13 @@
     </de-gcd:genInfo.company.id.bankAcct>
     <de-gcd:genInfo.company.id.business contextRef="D-2020" xsi:nil="true" />
     <de-gcd:genInfo.company.id.industry>
-        <de-gcd:genInfo.company.id.industry.keyType>
-            <de-gcd:genInfo.company.id.industry.keyType.industryKey.NACE contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.industry.keyType.industryKey.NACE1.1 contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.industry.keyType.industryKey.NACE2.0 contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.industry.keyType.industryKey.WZ2008 contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.industry.keyType.industryKey.SIC contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.industry.keyType.industryKey.S contextRef="D-2020"
-                xsi:nil="true" />
-        </de-gcd:genInfo.company.id.industry.keyType>
+        <de-gcd:genInfo.company.id.industry.keyType xsi:nil="true" />
         <de-gcd:genInfo.company.id.industry.keyTypeOther contextRef="D-2020" xsi:nil="true" />
         <de-gcd:genInfo.company.id.industry.keyEntry contextRef="D-2020" xsi:nil="true" />
         <de-gcd:genInfo.company.id.industry.name contextRef="D-2020" xsi:nil="true" />
     </de-gcd:genInfo.company.id.industry>
-    <de-gcd:genInfo.company.id.VATchar.TaxCollection>
-        <de-gcd:genInfo.company.id.VATchar.TaxCollection.standardTax contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.company.id.VATchar.TaxCollection.SmallBusiness contextRef="D-2020"
-            xsi:nil="true" />
-    </de-gcd:genInfo.company.id.VATchar.TaxCollection>
-    <de-gcd:genInfo.company.id.VATchar.TaxCalculation>
-        <de-gcd:genInfo.company.id.VATchar.TaxCalculation.ImputedTax contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.company.id.VATchar.TaxCalculation.ActualTax contextRef="D-2020"
-            xsi:nil="true" />
-    </de-gcd:genInfo.company.id.VATchar.TaxCalculation>
+    <de-gcd:genInfo.company.id.VATchar.TaxCollection xsi:nil="true" />
+    <de-gcd:genInfo.company.id.VATchar.TaxCalculation xsi:nil="true" />
     <de-gcd:genInfo.company.id.VATchar.TaxRate>
         <de-gcd:genInfo.company.id.VATchar.TaxRate.StandardTax contextRef="D-2020" xsi:nil="true" />
         <de-gcd:genInfo.company.id.VATchar.TaxRate.AverageTax contextRef="D-2020" xsi:nil="true" />
@@ -815,26 +387,10 @@
             xsi:nil="true" />
         <de-gcd:genInfo.company.id.VATchar.TaxRate.Other contextRef="D-2020" xsi:nil="true" />
     </de-gcd:genInfo.company.id.VATchar.TaxRate>
-    <de-gcd:genInfo.company.id.VATchar.VATtaxPeriod>
-        <de-gcd:genInfo.company.id.VATchar.VATtaxPeriod.month contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.VATchar.VATtaxPeriod.quarter contextRef="D-2020" xsi:nil="true" />
-    </de-gcd:genInfo.company.id.VATchar.VATtaxPeriod>
+    <de-gcd:genInfo.company.id.VATchar.VATtaxPeriod xsi:nil="true" />
     <de-gcd:genInfo.company.id.VATchar.PermanentExtentionOfTime contextRef="D-2020" xsi:nil="true" />
-    <de-gcd:genInfo.company.id.incomeClassification>
-        <de-gcd:genInfo.company.id.incomeClassification.forestryAndAgriculture contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.company.id.incomeClassification.trade contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.incomeClassification.selfEmployment contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.company.id.incomeClassification.other contextRef="D-2020" xsi:nil="true" />
-    </de-gcd:genInfo.company.id.incomeClassification>
-    <de-gcd:genInfo.company.id.CompanyStatus>
-        <de-gcd:genInfo.company.id.CompanyStatus.companyStatus.F contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.CompanyStatus.companyStatus.I contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.CompanyStatus.companyStatus.L contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.CompanyStatus.companyStatus.R contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.CompanyStatus.companyStatus.S contextRef="D-2020" xsi:nil="true" />
-    </de-gcd:genInfo.company.id.CompanyStatus>
+    <de-gcd:genInfo.company.id.incomeClassification xsi:nil="true" />
+    <de-gcd:genInfo.company.id.CompanyStatus xsi:nil="true" />
     <de-gcd:genInfo.company.id.stockExch>
         <de-gcd:genInfo.company.id.stockExch.city contextRef="D-2020" xsi:nil="true" />
         <de-gcd:genInfo.company.id.stockExch.ticker contextRef="D-2020" xsi:nil="true" />
@@ -843,186 +399,14 @@
         <de-gcd:genInfo.company.id.stockExch.securityCode contextRef="D-2020" xsi:nil="true" />
         <de-gcd:genInfo.company.id.stockExch.securityCode.ISIN contextRef="D-2020" xsi:nil="true" />
     </de-gcd:genInfo.company.id.stockExch>
-    <de-gcd:genInfo.company.id.taxGroupKstEst>
-        <de-gcd:genInfo.company.id.taxGroupKstEst.Parent contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.taxGroupKstEst.intermedParent contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.taxGroupKstEst.subComp contextRef="D-2020" xsi:nil="true" />
-    </de-gcd:genInfo.company.id.taxGroupKstEst>
-    <de-gcd:genInfo.company.id.scopeSilentPartnership>
-        <de-gcd:genInfo.company.id.scopeSilentPartnership.all contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.scopeSilentPartnership.part contextRef="D-2020" xsi:nil="true" />
-    </de-gcd:genInfo.company.id.scopeSilentPartnership>
+    <de-gcd:genInfo.company.id.taxGroupKstEst xsi:nil="true" />
+    <de-gcd:genInfo.company.id.scopeSilentPartnership xsi:nil="true" />
     <de-gcd:genInfo.company.id.parent>
         <de-gcd:genInfo.company.id.parent.name contextRef="D-2020" xsi:nil="true" />
         <de-gcd:genInfo.company.id.parent.name.formerName contextRef="D-2020" xsi:nil="true" />
         <de-gcd:genInfo.company.id.parent.name.dateOfLastChange contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.parent.legalStatus>
-            <de-gcd:genInfo.company.id.parent.legalStatus.EUF contextRef="D-2020" xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.EU contextRef="D-2020" xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.EUN contextRef="D-2020" xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.LFW contextRef="D-2020" xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.Other.EUN contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.AG contextRef="D-2020" xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.gAG contextRef="D-2020" xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.EWG contextRef="D-2020" xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.AOER contextRef="D-2020" xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.EG contextRef="D-2020" xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.EV contextRef="D-2020" xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.GK contextRef="D-2020" xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.GMBH contextRef="D-2020" xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.gGMBH contextRef="D-2020" xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.HAJP contextRef="D-2020" xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.KOER contextRef="D-2020" xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.KREDITG contextRef="D-2020" xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.LANDWG contextRef="D-2020" xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.LTD contextRef="D-2020" xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.OERVERS contextRef="D-2020" xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.OEFSP contextRef="D-2020" xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.VOER contextRef="D-2020" xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.REITAG contextRef="D-2020" xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.REITSE contextRef="D-2020" xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.SCE contextRef="D-2020" xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.SE contextRef="D-2020" xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.SEKGAA contextRef="D-2020" xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.Other.KOER contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.SJPR contextRef="D-2020" xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.KAOER contextRef="D-2020" xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.ZB contextRef="D-2020" xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.ST contextRef="D-2020" xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.UG contextRef="D-2020" xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.VVAG contextRef="D-2020" xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.AGKG contextRef="D-2020" xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.AGKGAA contextRef="D-2020" xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.AGOHG contextRef="D-2020" xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.EWI contextRef="D-2020" xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.GBR contextRef="D-2020" xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.GKG contextRef="D-2020" xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.GKGAA contextRef="D-2020" xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.GOHG contextRef="D-2020" xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.KG contextRef="D-2020" xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.KGAA contextRef="D-2020" xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.OHG contextRef="D-2020" xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.PG contextRef="D-2020" xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.PartGmbB contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.Other.MUN contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.RAG contextRef="D-2020" xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.RHAG contextRef="D-2020" xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.RHRB contextRef="D-2020" xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.RAP contextRef="D-2020" xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.SR contextRef="D-2020" xsi:nil="true" />
-        </de-gcd:genInfo.company.id.parent.legalStatus>
-        <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus>
-            <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.EUF contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.EU contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.EUN contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.LFW contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.Other.EUN contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.AG contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.gAG contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.EWG contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.AOER contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.EG contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.EV contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.GK contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.GMBH contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.gGMBH contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.HAJP contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.KOER contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.KREDITG contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.LANDWG contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.LTD contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.OERVERS contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.OEFSP contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.VOER contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.REITAG contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.REITSE contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.SCE contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.SE contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.SEKGAA contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.Other.KOER
-                contextRef="D-2020" xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.SJPR contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.KAOER contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.ZB contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.ST contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.UG contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.VVAG contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.AGKG contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.AGKGAA contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.AGOHG contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.EWI contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.GBR contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.GKG contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.GKGAA contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.GOHG contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.KG contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.KGAA contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.OHG contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.PG contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.PartGmbB contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.Other.MUN contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.RAG contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.RHAG contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.RHRB contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.RAP contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.SR contextRef="D-2020"
-                xsi:nil="true" />
-        </de-gcd:genInfo.company.id.parent.legalStatus.formerStatus>
+        <de-gcd:genInfo.company.id.parent.legalStatus xsi:nil="true" />
+        <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus xsi:nil="true" />
         <de-gcd:genInfo.company.id.parent.legalStatus.dateOfLastChange contextRef="D-2020"
             xsi:nil="true" />
         <de-gcd:genInfo.company.id.parent.location contextRef="D-2020" xsi:nil="true" />
@@ -1062,58 +446,15 @@
                 xsi:nil="true" />
         </de-gcd:genInfo.company.id.parent.idNo>
     </de-gcd:genInfo.company.id.parent>
-    <de-gcd:genInfo.company.id.entityWithTaxablePurposeBusiness>
-        <de-gcd:genInfo.company.id.entityWithTaxablePurposeBusiness.normal contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.company.id.entityWithTaxablePurposeBusiness.taxPrivileged
-            contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.entityWithTaxablePurposeBusiness.publicLaw contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.company.id.entityWithTaxablePurposeBusiness.merchantVesselsInInternationalTraffic
-            contextRef="D-2020" xsi:nil="true" />
-    </de-gcd:genInfo.company.id.entityWithTaxablePurposeBusiness>
-    <de-gcd:genInfo.company.id.transmissionOptionofCorpWithSpecialCaseProfitDetermination>
-        <de-gcd:genInfo.company.id.transmissionOptionofCorpWithSpecialCaseProfitDetermination.umbrellaBodyTable
-            contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.transmissionOptionofCorpWithSpecialCaseProfitDetermination.taxablePurposeBusinessTable
-            contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.transmissionOptionCorporateEntitySpecialCaseProfitDetermination.umbrellaBodyAdjustments
-            contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.transmissionOptionCorporateEntitySpecialCaseProfitDetermination.AdjustmentsWithoutUmbrellaBody
-            contextRef="D-2020" xsi:nil="true" />
-    </de-gcd:genInfo.company.id.transmissionOptionofCorpWithSpecialCaseProfitDetermination>
-    <de-gcd:genInfo.company.id.domesticBranchOfForeignCompany>
-        <de-gcd:genInfo.company.id.domesticBranchOfForeignCompany.HGB contextRef="D-2020"
-            xsi:nil="true" />
-        <de-gcd:genInfo.company.id.domesticBranchOfForeignCompany.other contextRef="D-2020"
-            xsi:nil="true" />
-    </de-gcd:genInfo.company.id.domesticBranchOfForeignCompany>
+    <de-gcd:genInfo.company.id.entityWithTaxablePurposeBusiness xsi:nil="true" />
+    <de-gcd:genInfo.company.id.transmissionOptionofCorpWithSpecialCaseProfitDetermination
+        xsi:nil="true" />
+    <de-gcd:genInfo.company.id.domesticBranchOfForeignCompany xsi:nil="true" />
     <de-gcd:genInfo.company.id.shareholder>
         <de-gcd:genInfo.company.id.shareholder.name contextRef="D-2020" xsi:nil="true" />
         <de-gcd:genInfo.company.id.shareholder.FirstName contextRef="D-2020" xsi:nil="true" />
         <de-gcd:genInfo.company.id.shareholder.id contextRef="D-2020" xsi:nil="true" />
-        <de-gcd:genInfo.company.id.shareholder.group>
-            <de-gcd:genInfo.company.id.shareholder.group.genPartnerPersLiableOHG contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.shareholder.group.genPartnerFullyLiable contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.shareholder.group.genPartnerOther contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.shareholder.group.genPartnerTrustee contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.shareholder.group.limPartner contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.shareholder.group.limPartnerOther contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.shareholder.group.limPartnerTrustee contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.shareholder.group.trusteeForLimPartner contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.shareholder.group.indirectPartner contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.shareholder.group.resignedPartnerAndSuccessorOrAssign
-                contextRef="D-2020" xsi:nil="true" />
-        </de-gcd:genInfo.company.id.shareholder.group>
+        <de-gcd:genInfo.company.id.shareholder.group xsi:nil="true" />
         <de-gcd:genInfo.company.id.shareholder.currentnumber contextRef="D-2020" unitRef="pure"
             xsi:nil="true" />
         <de-gcd:genInfo.company.id.shareholder.signerId contextRef="D-2020" xsi:nil="true" />
@@ -1125,16 +466,7 @@
             contextRef="D-2020" xsi:nil="true" />
         <de-gcd:genInfo.company.id.shareholder.ProfitDivideKey.formerkey contextRef="D-2020"
             xsi:nil="true" />
-        <de-gcd:genInfo.company.id.shareholder.legalStatus>
-            <de-gcd:genInfo.company.id.shareholder.legalStatus.legalStatus.NPP contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.shareholder.legalStatus.legalStatus.NPB contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.shareholder.legalStatus.legalStatus.PG contextRef="D-2020"
-                xsi:nil="true" />
-            <de-gcd:genInfo.company.id.shareholder.legalStatus.legalStatus.KOER contextRef="D-2020"
-                xsi:nil="true" />
-        </de-gcd:genInfo.company.id.shareholder.legalStatus>
+        <de-gcd:genInfo.company.id.shareholder.legalStatus xsi:nil="true" />
         <de-gcd:genInfo.company.id.shareholder.ShareDivideKey>
             <de-gcd:genInfo.company.id.shareholder.ShareDivideKey.numerator contextRef="D-2020"
                 xsi:nil="true" />
@@ -1185,9 +517,6 @@
     <de-gcd:genInfo.company.disclosureCriterion.scope.determinantsDisclosure contextRef="D-2020"
         xsi:nil="true" />
     <de-gcd:genInfo.company.userSpecific contextRef="D-2020" xsi:nil="true" />
-    <de-gcd:genInfo.report.id.reportType.reportType.SERL contextRef="D-2020" xsi:nil="true" />
-    <de-gcd:genInfo.report.id.incomeStatementFormat.incomeStatementFormat.SERL contextRef="D-2020"
-        xsi:nil="true" />
     <de-gcd:genInfo.company.id.parent.legalStatus.labelOF contextRef="D-2020" xsi:nil="true" />
     <de-gcd:genInfo.company.id.parent.legalStatus.formerStatus.labelOF contextRef="D-2020"
         xsi:nil="true" />
@@ -4971,13 +4300,7 @@
     <de-gaap-ci:nt.segmText contextRef="D-2020" xsi:nil="true" />
     <de-gaap-ci:nt.segmBusiness>
         <de-gaap-ci:nt.segmBusiness.name contextRef="D-2020" xsi:nil="true" />
-        <de-gaap-ci:nt.segmBusiness.type>
-            <de-gaap-ci:nt.segmBusiness.type.postenartSgm.SG contextRef="D-2020" xsi:nil="true" />
-            <de-gaap-ci:nt.segmBusiness.type.postenartSgm.SGS contextRef="D-2020" xsi:nil="true" />
-            <de-gaap-ci:nt.segmBusiness.type.postenartSgm.SGK contextRef="D-2020" xsi:nil="true" />
-            <de-gaap-ci:nt.segmBusiness.type.postenartSgm.SGaU contextRef="D-2020" xsi:nil="true" />
-            <de-gaap-ci:nt.segmBusiness.type.postenartSgm.SGJA contextRef="D-2020" xsi:nil="true" />
-        </de-gaap-ci:nt.segmBusiness.type>
+        <de-gaap-ci:nt.segmBusiness.type xsi:nil="true" />
         <de-gaap-ci:nt.segmBusiness.description contextRef="D-2020" xsi:nil="true" />
         <de-gaap-ci:nt.segmBusiness.netSales contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
         <de-gaap-ci:nt.segmBusiness.netSales.thirdParty contextRef="D-2020" unitRef="EUR"
@@ -5028,7 +4351,7 @@
     </de-gaap-ci:nt.segmBusiness>
     <de-gaap-ci:nt.segmGeographical>
         <de-gaap-ci:nt.segmGeographical.name contextRef="D-2020" xsi:nil="true" />
-        <de-gaap-ci:nt.segmGeographical.type />
+        <de-gaap-ci:nt.segmGeographical.type xsi:nil="true" />
         <de-gaap-ci:nt.segmGeographical.description contextRef="D-2020" xsi:nil="true" />
         <de-gaap-ci:nt.segmGeographical.netSales contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
         <de-gaap-ci:nt.segmGeographical.netSales.thirdParty contextRef="D-2020" unitRef="EUR"
@@ -5884,12 +5207,7 @@
         xsi:nil="true" />
     <de-gaap-ci:OtherReportElements.other contextRef="D-2020" xsi:nil="true" />
     <de-gaap-ci:hbst.transfer>
-        <de-gaap-ci:hbst.transfer.kind>
-            <de-gaap-ci:hbst.transfer.kind.reclassification contextRef="D-2020" xsi:nil="true" />
-            <de-gaap-ci:hbst.transfer.kind.changeValue contextRef="D-2020" xsi:nil="true" />
-            <de-gaap-ci:hbst.transfer.kind.reclassificationChangeValue contextRef="D-2020"
-                xsi:nil="true" />
-        </de-gaap-ci:hbst.transfer.kind>
+        <de-gaap-ci:hbst.transfer.kind xsi:nil="true" />
         <de-gaap-ci:hbst.transfer.bsAss>
             <de-gaap-ci:hbst.transfer.bsAss.name contextRef="D-2020" xsi:nil="true" />
             <de-gaap-ci:hbst.transfer.bsAss.changeValueActualPeriod contextRef="D-2020"
