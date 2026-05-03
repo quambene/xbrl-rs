@@ -197,8 +197,9 @@ fn parse_definition_linkbase() {
 #[cfg_attr(not(feature = "taxonomy-test"), ignore)]
 fn parse_reference_linkbase() {
     let entry_point = PathBuf::from_str(TAXONOMY_ENTRY_POINT).unwrap();
+    let gcd = "http://www.xbrl.de/taxonomies/de-gcd-2020-04-01/de-gcd-2020-04-01-shell.xsd";
     let gaap = "http://www.xbrl.de/taxonomies/de-gaap-ci-2020-04-01/de-gaap-ci-2020-04-01-shell-fiscal.xsd";
-    let dts = TaxonomySet::discover(vec![gaap.to_owned()], entry_point).unwrap();
+    let dts = TaxonomySet::discover(vec![gcd.to_owned(), gaap.to_owned()], entry_point).unwrap();
 
     assert!(
         !dts.references().is_empty(),
@@ -208,6 +209,17 @@ fn parse_reference_linkbase() {
     // bs.ass should have an HGB reference
     let bs_refs = dts.references_for("de-gaap-ci_bs.ass");
     assert!(bs_refs.is_some());
+
+    let references = dts.references();
+    assert!(
+        references.values().flatten().any(|reference| {
+            reference
+                .parts
+                .iter()
+                .any(|part| part.name.ends_with(":fiscalRequirement") && part.value == "Mussfeld")
+        }),
+        "Expected at least one parsed fiscalRequirement=Mussfeld reference part"
+    );
 }
 
 #[test]

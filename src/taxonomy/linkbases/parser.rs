@@ -38,15 +38,27 @@ pub struct LabelResource {
 /// Note: The XBRL specification does not define a specific structure for
 /// reference resources, but they are typically used to provide additional
 /// information about the referenced elements, such as citations or
-/// explanations. Therefore, we can use a similar structure to `LabelResource`,
-/// but without parsing the text content, since it can be arbitrary and may
-/// contain complex XML content.
+/// explanations. Therefore, child elements are parsed as generic key-value
+/// parts so taxonomy-specific metadata can be preserved without hardcoding a
+/// fixed schema.
 #[derive(Debug, PartialEq, Eq)]
 pub struct ReferenceResource {
     /// The label of the resource, used to reference it in arcs.
     pub label: String,
     /// The role of the resource, used to specify the type of reference.
     pub role: Option<String>,
+    /// Generic key-value parts under this reference resource.
+    pub parts: Vec<RawReferencePart>,
+}
+
+/// A generic key-value part parsed from a reference resource child element.
+#[derive(Debug, PartialEq, Eq)]
+pub struct RawReferencePart {
+    /// The qualified element name as it appears in XML (e.g.
+    /// `hgbref:fiscalRequirement`).
+    pub name: String,
+    /// The text content of the element.
+    pub value: String,
 }
 
 /// A parent-child relationship from a presentation linkbase.
@@ -891,7 +903,7 @@ impl<R: BufRead> LinkbaseParser<R> {
 
         loop {
             match self.reader.read_event_into(&mut buf)? {
-                Event::Empty(event) | Event::Start(event) => match event.local_name().as_ref() {
+                Event::Empty(event) => match event.local_name().as_ref() {
                     b"loc" => {
                         let locator = self.parse_locator(&event)?;
                         locators.push(locator);
@@ -935,39 +947,57 @@ impl<R: BufRead> LinkbaseParser<R> {
                         });
                     }
                     b"reference" => {
-                        let mut label = None;
-                        let mut ref_role = None;
+                        let reference = self.parse_reference_resource(&event, true)?;
+                        references.push(reference);
+                    }
+                    _ => {}
+                },
+                Event::Start(event) => match event.local_name().as_ref() {
+                    b"loc" => {
+                        let locator = self.parse_locator(&event)?;
+                        locators.push(locator);
+                    }
+                    b"referenceArc" => {
+                        let mut from = None;
+                        let mut to = None;
 
                         for attribute in event.attributes() {
                             let attribute = attribute.map_err(|err| XbrlError::XmlParse {
                                 path: self.path.clone(),
                                 position: self.reader.buffer_position(),
-                                element: Some("reference".to_string()),
+                                element: Some("referenceArc".to_string()),
                                 source: err.into(),
                             })?;
 
                             match attribute.key.as_ref() {
-                                b"xlink:label" => {
+                                b"xlink:from" => {
                                     let value = attribute
                                         .decode_and_unescape_value(self.reader.decoder())?;
-                                    label = Some(value.to_string());
+                                    from = Some(value.to_string());
                                 }
-                                b"xlink:role" => {
+                                b"xlink:to" => {
                                     let value = attribute
                                         .decode_and_unescape_value(self.reader.decoder())?;
-                                    ref_role = Some(value.to_string());
+                                    to = Some(value.to_string());
                                 }
                                 _ => {}
                             }
                         }
 
-                        references.push(ReferenceResource {
-                            label: label.ok_or_else(|| XbrlError::ParseError {
-                                expected: "xlink:label on reference",
+                        arcs.push(RawReferenceArc {
+                            from: from.ok_or_else(|| XbrlError::ParseError {
+                                expected: "xlink:from on referenceArc",
                                 value: "".to_string(),
                             })?,
-                            role: ref_role,
+                            to: to.ok_or_else(|| XbrlError::ParseError {
+                                expected: "xlink:to on referenceArc",
+                                value: "".to_string(),
+                            })?,
                         });
+                    }
+                    b"reference" => {
+                        let reference = self.parse_reference_resource(&event, false)?;
+                        references.push(reference);
                     }
                     _ => {}
                 },
@@ -991,6 +1021,92 @@ impl<R: BufRead> LinkbaseParser<R> {
             locators,
             arcs,
             references,
+        })
+    }
+
+    /// Parses a `reference` resource and its direct child key-value parts.
+    fn parse_reference_resource(
+        &mut self,
+        event: &BytesStart,
+        is_empty: bool,
+    ) -> Result<ReferenceResource, XbrlError> {
+        let mut label = None;
+        let mut ref_role = None;
+
+        for attribute in event.attributes() {
+            let attribute = attribute.map_err(|err| XbrlError::XmlParse {
+                path: self.path.clone(),
+                position: self.reader.buffer_position(),
+                element: Some("reference".to_string()),
+                source: err.into(),
+            })?;
+
+            match attribute.key.as_ref() {
+                b"xlink:label" => {
+                    let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+                    label = Some(value.to_string());
+                }
+                b"xlink:role" => {
+                    let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+                    ref_role = Some(value.to_string());
+                }
+                _ => {}
+            }
+        }
+
+        let mut parts = Vec::new();
+
+        if !is_empty {
+            let mut text_buf = Vec::new();
+            let mut part_buf = Vec::new();
+
+            loop {
+                match self.reader.read_event_into(&mut part_buf)? {
+                    Event::Start(part) => {
+                        let bytes_text = self
+                            .reader
+                            .read_text_into(part.to_end().name(), &mut text_buf)?;
+                        let value = str::from_utf8(bytes_text.as_ref())
+                            .map_err(XbrlError::Utf8)?
+                            .trim()
+                            .to_owned();
+                        let name = str::from_utf8(part.name().as_ref())
+                            .map_err(XbrlError::Utf8)?
+                            .to_owned();
+                        parts.push(RawReferencePart { name, value });
+                    }
+                    Event::Empty(part) => {
+                        let name = str::from_utf8(part.name().as_ref())
+                            .map_err(XbrlError::Utf8)?
+                            .to_owned();
+                        parts.push(RawReferencePart {
+                            name,
+                            value: String::new(),
+                        });
+                    }
+                    Event::End(end) if end.name() == event.name() => {
+                        break;
+                    }
+                    Event::Eof => {
+                        return Err(XbrlError::ParseError {
+                            expected: "reference end tag",
+                            value: "".to_string(),
+                        });
+                    }
+                    _ => {}
+                }
+
+                part_buf.clear();
+            }
+        }
+
+        Ok(ReferenceResource {
+            label: label.ok_or_else(|| XbrlError::ParseError {
+                expected: "xlink:label on reference",
+                value: "".to_string(),
+            })?,
+            role: ref_role,
+            parts,
         })
     }
 
@@ -1311,10 +1427,18 @@ mod tests {
                     ReferenceResource {
                         label: "ref_assets".to_string(),
                         role: Some("http://www.xbrl.org/2003/role/statementRef".to_string()),
+                        parts: vec![RawReferencePart {
+                            name: "link:content".to_string(),
+                            value: "Test content 1".to_string(),
+                        }],
                     },
                     ReferenceResource {
                         label: "ref_cash".to_string(),
                         role: Some("http://www.xbrl.org/2003/role/statementRef".to_string()),
+                        parts: vec![RawReferencePart {
+                            name: "link:content".to_string(),
+                            value: "Test content 2".to_string(),
+                        }],
                     },
                 ],
             }

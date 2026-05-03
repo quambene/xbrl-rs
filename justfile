@@ -1,7 +1,7 @@
 
 # Run tests
 test:
-    cargo test
+    cargo test --features taxonomy-test
 
 # Run unit tests
 test-unit:

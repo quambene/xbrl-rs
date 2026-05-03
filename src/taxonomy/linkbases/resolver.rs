@@ -2,7 +2,7 @@ use crate::{
     ConceptId, ExpandedName, RoleUri, XbrlError,
     taxonomy::{
         Concept,
-        linkbases::parser::{LabelResource, RawLinkbases, ReferenceResource},
+        linkbases::parser::{LabelResource, RawLinkbases, RawReferencePart, ReferenceResource},
     },
     xml::ArcroleUri,
 };
@@ -15,14 +15,18 @@ use std::collections::HashMap;
 pub struct Reference {
     /// The reference role URI.
     pub role: String,
+    /// Generic key-value parts parsed from the reference resource.
+    pub parts: Vec<ReferencePart>,
 }
 
 /// A single key-value part within a reference.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ReferencePart {
-    /// The part name (local element name, e.g., "Name", "Paragraph").
+    /// The part name as QName text (e.g., `hgbref:fiscalRequirement` in German
+    /// GAAP taxonomy).
     pub name: String,
-    /// The part value (text content).
+    /// The part value, i.e., the text content (e.g., "Mussfeld" in German
+    /// GAAP taxonomy).
     pub value: String,
 }
 
@@ -293,6 +297,7 @@ pub fn resolve_linkbases(
                     .or_default()
                     .push(Reference {
                         role: resource.role.clone().unwrap_or_default(),
+                        parts: resource.parts.iter().map(map_reference_part).collect(),
                     });
             }
         }
@@ -310,6 +315,13 @@ pub fn resolve_linkbases(
 /// Extract the fragment (after `#`) from an xlink:href.
 fn href_fragment(href: &str) -> Option<&str> {
     href.split_once('#').map(|(_, frag)| frag)
+}
+
+fn map_reference_part(part: &RawReferencePart) -> ReferencePart {
+    ReferencePart {
+        name: part.name.clone(),
+        value: part.value.clone(),
+    }
 }
 
 #[cfg(test)]
@@ -456,6 +468,16 @@ mod tests {
                 references: vec![ReferenceResource {
                     label: "ref1".into(),
                     role: Some("http://www.xbrl.org/2003/role/reference".into()),
+                    parts: vec![
+                        RawReferencePart {
+                            name: "hgbref:fiscalRequirement".into(),
+                            value: "Mussfeld".into(),
+                        },
+                        RawReferencePart {
+                            name: "hgbref:legalFormEU".into(),
+                            value: "true".into(),
+                        },
+                    ],
                 }],
                 arcs: vec![RawReferenceArc {
                     from: "loc1".into(),
@@ -521,6 +543,16 @@ mod tests {
             reference,
             &Reference {
                 role: "http://www.xbrl.org/2003/role/reference".into(),
+                parts: vec![
+                    ReferencePart {
+                        name: "hgbref:fiscalRequirement".into(),
+                        value: "Mussfeld".into(),
+                    },
+                    ReferencePart {
+                        name: "hgbref:legalFormEU".into(),
+                        value: "true".into(),
+                    },
+                ],
             }
         );
     }
