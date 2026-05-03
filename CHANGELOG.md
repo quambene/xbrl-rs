@@ -18,6 +18,7 @@
   - Fix newlines in fact values
   - Don't pre-populate single-choice tuples in `InstanceDocument::from_taxonomy`
   - Allow missing identifier in `xbrli:entity` during parsing
+  - Fix regression for conformance tests `400-nestedElements` v01 and v02
 - added
   - Make `ArcroleUri`, `ArcroleType`, `RoleType`, `XbrlType`, `Concept`, `Particle`, `ElementDecl`,
     `ElementParticle`, `GroupDef`, `GroupParticle`, `Occurrence`, `ROLE_TERSE`,
@@ -35,6 +36,7 @@
   - Add `InstanceDocument::contexts_mut` and `InstanceDocument::units_mut`
   - Add `ItemFact::set_context_ref` and `ItemFact::set_unit_ref`
   - Add `TypedInstanceDocument` and `XbrlError::ValueError`
+  - Make `resolve_instance` public
 - changed
   - Parse `ComplexType`s recursively
   - Rename `InstanceParser::parse_instance` to `InstanceParser::parse`

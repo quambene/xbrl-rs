@@ -16,7 +16,7 @@ use crate::{ExpandedName, QName, XbrlError, instance::NamespaceUri};
 use std::collections::HashMap;
 
 /// Resolve a [`RawInstance`] into an [`InstanceDocument`].
-pub(crate) fn resolve_instance(raw: RawInstance) -> Result<InstanceDocument, XbrlError> {
+pub fn resolve_instance(raw: RawInstance) -> Result<InstanceDocument, XbrlError> {
     let namespaces = &raw.namespaces;
     let schema_refs = raw
         .schema_refs

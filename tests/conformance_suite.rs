@@ -15,7 +15,7 @@ use std::{
     io::{BufReader, Write},
     path::{Path, PathBuf},
 };
-use xbrl_rs::{InstanceDocument, LinkbaseLocator, TaxonomySet};
+use xbrl_rs::{InstanceParser, LinkbaseLocator, TaxonomySet, resolve_instance};
 
 // ---------------------------------------------------------------------------
 // Data model
@@ -315,8 +315,15 @@ fn run_instance_variation(variation: &Variation, base_dir: &Path) -> Outcome {
 
     let instance_path = base_dir.join(&instance_file.path);
 
-    // Parse the instance document.
-    let instance = match InstanceDocument::from_file(&instance_path) {
+    let instance = InstanceParser::from_file(&instance_path).and_then(|parser| {
+        // Conformance tests require `<xbrli:xbrl>` as the document root.
+        let mut parser = parser.xbrl_root(true);
+        let instance = parser.parse()?;
+        let instance = resolve_instance(instance)?;
+        Ok(instance)
+    });
+
+    let instance = match instance {
         Ok(instance) => instance,
         Err(_) => return Outcome::Invalid,
     };
@@ -358,6 +365,7 @@ fn run_instance_variation(variation: &Variation, base_dir: &Path) -> Outcome {
 
     // Validate.
     let result = instance.validate(&taxonomy);
+
     if result.is_valid() {
         Outcome::Valid
     } else {

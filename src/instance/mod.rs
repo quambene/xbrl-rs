@@ -21,6 +21,7 @@ pub use fact::{Decimals, Fact, ItemFact, TupleFact};
 pub use footnote::{FootnoteArc, FootnoteLink, FootnoteLocator, FootnoteResource};
 pub use parser::InstanceParser;
 use quick_xml::{Reader, Writer};
+pub use resolver::resolve_instance;
 use std::{
     cmp::Ordering,
     collections::{HashMap, HashSet},
