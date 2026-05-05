@@ -1263,8 +1263,9 @@ fn matches_element_particle(
 mod tests {
     use super::{Fact, InstanceDocument, ItemFact, TaxonomySet, TupleFact};
     use crate::{
-        ElementDecl, ElementParticle, ExpandedName, GroupDef, GroupParticle, NamespaceUri,
-        Occurrence, Particle,
+        BaseSubstitutionGroup, Concept, ElementDecl, ElementParticle, ExpandedName, GroupDef,
+        GroupParticle, NamespaceUri, Occurrence, Particle, PeriodType, SubstitutionGroup, Unit,
+        XbrlType,
     };
 
     fn expanded_name(local_name: &str) -> ExpandedName {
@@ -1295,6 +1296,51 @@ mod tests {
         }
 
         Fact::Tuple(tuple)
+    }
+
+    #[test]
+    fn unit_ref_for_pure_concept_prefers_pure_unit() {
+        let concept = Concept {
+            id: Some("pureConcept".to_owned()),
+            name: expanded_name("pureConcept"),
+            data_type: XbrlType::Pure,
+            substitution_group: SubstitutionGroup {
+                base: BaseSubstitutionGroup::Item,
+                original: ExpandedName::new(
+                    NamespaceUri::from("http://www.xbrl.org/2003/instance"),
+                    "item".to_owned(),
+                ),
+            },
+            period_type: Some(PeriodType::Instant),
+            balance: None,
+            nillable: true,
+            is_abstract: false,
+            content_model: None,
+        };
+
+        let units = vec![
+            Unit::new(
+                "EUR".into(),
+                vec![ExpandedName::new(
+                    NamespaceUri::from("http://www.xbrl.org/2003/iso4217"),
+                    "EUR".to_owned(),
+                )],
+                vec![],
+            ),
+            Unit::new(
+                "pure".into(),
+                vec![ExpandedName::new(
+                    NamespaceUri::from("http://www.xbrl.org/2003/instance"),
+                    "pure".to_owned(),
+                )],
+                vec![],
+            ),
+        ];
+
+        assert_eq!(
+            super::unit_ref_for_concept(&concept, &units),
+            Some("pure".to_owned())
+        );
     }
 
     #[test]

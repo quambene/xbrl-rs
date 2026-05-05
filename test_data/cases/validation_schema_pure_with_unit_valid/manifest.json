@@ -1,0 +1,6 @@
+{
+  "name": "validation_schema_pure_with_unit_valid",
+  "type": "schema",
+  "expected": "pass",
+  "instance": "instance.xml"
+}
