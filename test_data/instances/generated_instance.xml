@@ -5512,68 +5512,12 @@
     <de-gaap-ci:notesBelowBalanceSheet.geninfo.number contextRef="D-2020" xsi:nil="true" />
     <de-gaap-ci:notesBelowBalanceSheet.geninfo.liquidationOrWindingUp contextRef="D-2020"
         xsi:nil="true" />
-    <de-gaap-ci:eqCh.group_beginning contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:eqCh.group.corrections contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:eqCh.group.corrections.comment contextRef="D-2020" xsi:nil="true" />
-    <de-gaap-ci:eqCh.group.paidInCapital contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:eqCh.group.ownSharesPurchase contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:eqCh.group.dividends contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:eqCh.group.taxWithdrawals contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:eqCh.group.movements contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:eqCh.group.movements.comment contextRef="D-2020" xsi:nil="true" />
-    <de-gaap-ci:eqCh.group.otherChanges contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:eqCh.group.otherChanges.currTransl contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:eqCh.group.otherChanges.revaluation contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:eqCh.group.otherChanges.revaluation.comment contextRef="D-2020" xsi:nil="true" />
-    <de-gaap-ci:eqCh.group.otherChanges.other contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:eqCh.group.otherChanges.other.comment contextRef="D-2020" xsi:nil="true" />
-    <de-gaap-ci:eqCh.group.groupResult contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:eqCh.group.netIncome contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:eqCh.group.otherResult contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:eqCh.group_all contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
     <de-gaap-ci:eqCH.notes.a contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
     <de-gaap-ci:eqCH.notes.b contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
     <de-gaap-ci:eqCH.notes.c contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
     <de-gaap-ci:eqCH.notes.d contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:eqCh.group_allDRS22K contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:eqCh.group_beginningDRS22K contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:eqCh.group_.increaseDecreaseSharesDRS22K contextRef="D-2020" unitRef="EUR"
-        xsi:nil="true" />
-    <de-gaap-ci:eqCh.group_.increaseDecreaseSharesDRS22K.paidInCapital contextRef="D-2020"
-        unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:eqCh.group_.increaseDecreaseSharesDRS22K.ownSharesPurchase contextRef="D-2020"
-        unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:eqCh.group_.increaseDecreaseSharesDRS22K.ownSharesRedemption contextRef="D-2020"
-        unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:eqCh.group_.increaseDecreaseSharesDRS22K.compCap contextRef="D-2020" unitRef="EUR"
-        xsi:nil="true" />
-    <de-gaap-ci:eqCh.group_.increaseDecreaseSharesDRS22K.other contextRef="D-2020" unitRef="EUR"
-        xsi:nil="true" />
-    <de-gaap-ci:eqCh.group_recPaidUnpaidContributionDRS22K contextRef="D-2020" unitRef="EUR"
-        xsi:nil="true" />
-    <de-gaap-ci:eqCh.group_additionReleaseReservesDRS22K contextRef="D-2020" unitRef="EUR"
-        xsi:nil="true" />
-    <de-gaap-ci:eqCh.group_dividendsPaidOutDRS22K contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:eqCh.group_currTranslDRS22K contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:eqCh.group_otherChangesDRS22K contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:eqCh.group_otherChangesDRS22K.comment contextRef="D-2020" xsi:nil="true" />
     <de-gaap-ci:eqCh.group_changeConsolDRS22K contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:eqCh.group_netIncomeDRS22K contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:eqCh.group_allDRS22P contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:eqCh.group_beginningDRS22P contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:eqCh.group_.increaseDecreaseSharesDRS22P contextRef="D-2020" unitRef="EUR"
-        xsi:nil="true" />
-    <de-gaap-ci:eqCh.group_recPaidUnpaidContributionDRS22P contextRef="D-2020" unitRef="EUR"
-        xsi:nil="true" />
-    <de-gaap-ci:eqCh.group_additionPartnersAccountLiabDRS22P contextRef="D-2020" unitRef="EUR"
-        xsi:nil="true" />
-    <de-gaap-ci:eqCh.group_additionReleaseReservesDRS22P contextRef="D-2020" unitRef="EUR"
-        xsi:nil="true" />
-    <de-gaap-ci:eqCh.group_currTranslDRS22P contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:eqCh.group_otherChangesDRS22P contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:eqCh.group_otherChangesDRS22P.comment contextRef="D-2020" xsi:nil="true" />
     <de-gaap-ci:eqCh.group_changeConsolDRS22P contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:eqCh.group_netIncomeDRS22P contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
     <de-gaap-ci:eqCH.notesDRS22.capRes contextRef="D-2020" xsi:nil="true" />
     <de-gaap-ci:eqCH.notesDRS22.capRes.a contextRef="D-2020" xsi:nil="true" />
     <de-gaap-ci:eqCH.notesDRS22.capRes.b contextRef="D-2020" xsi:nil="true" />
@@ -5590,99 +5534,7 @@
     <de-gaap-ci:eqCH.notesDRS22.netIncome.a contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
     <de-gaap-ci:eqCH.notesDRS22.netIncome.b contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
     <de-gaap-ci:eqCH.notesDRS22.netIncome.c contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:gross contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:grossCost.beginning contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:grossCost.beginning_short contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:gross.diff contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:gross.diff.currDiff contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:gross.diff.otherDiff contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:gross.addition contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:gross.addition.interest contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
     <de-gaap-ci:gross.addition.firstConsolidation contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:gross.addition_short contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:gross.addition_short.interest contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
     <de-gaap-ci:gross.addition_short.firstConsolidation contextRef="D-2020" unitRef="EUR"
         xsi:nil="true" />
-    <de-gaap-ci:gross.release contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:gross.release_short contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:gross.movements contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:gross.movements_short contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:gross.currChanges contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:revaluation contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:gross.revaluation_short contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:accDepr contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:DeprPeriod_short contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:accDepr.beginning contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:accDepr.diff contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:accDepr.diff.currDiff contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:accDepr.diff.otherDiff contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:accDepr.addition contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:accDepr.release contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:accDepr.movements contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:accDepr.currChanges contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:accDepr.DeprPeriod contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:accDepr.DeprPeriod.regular contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:accDepr.DeprPeriod.extraordinary contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:accDepr.DeprPeriod.impairment contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:accDepr.DeprPeriod.EStG7g_2 contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:accDepr.DeprPeriod.EStG6b_3 contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:accDepr.DeprPeriod.misc contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:accDepr.DeprPeriod_short contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:accDepr.DeprPeriod.specific_short contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:all_Prev_period contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:all_Prev_period_short contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:all contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:all_short contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:net_diff contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:net_diff.currDiff contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:net_diff.otherDiff contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:net_addition contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:net_addition.interest contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:net_release contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:depreciation contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:net_movements contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:net_currChanges contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:net_revaluation contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:net_all contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:net_beginning contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:receiv_primaryItem.total contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:receiv_primaryItem.total.upTo1year contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:receiv_primaryItem.total.above1year contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:liab_primaryItem.total contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:liab_primaryItem.total.collateralised contextRef="I-2020" unitRef="EUR"
-        xsi:nil="true" />
-    <de-gaap-ci:liab_primaryItem.total.upTo1year contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:liab_primaryItem.total.above1year contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:liab_primaryItem.total.above1year.upTo5years contextRef="I-2020" unitRef="EUR"
-        xsi:nil="true" />
-    <de-gaap-ci:liab_primaryItem.total.above1year.above5years contextRef="I-2020" unitRef="EUR"
-        xsi:nil="true" />
-    <de-gaap-ci:DeterminationOfTaxableIncomeSpec.forProfitOrganisationsAndUtilities.balanceSheet.valueOfItem
-        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:DeterminationOfTaxableIncomeSpec.forProfitOrganisationsAndUtilities.IncomeStatement.valueOfItem
-        contextRef="D-2020" unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:table.kke.sumEquityAccounts.sumYearEnd contextRef="D-2020" unitRef="EUR"
-        xsi:nil="true" />
-    <de-gaap-ci:table.kke.sumEquityAccounts.sumYearEnd.begin contextRef="D-2020" unitRef="EUR"
-        xsi:nil="true" />
-    <de-gaap-ci:table.kke.sumEquityAccounts.sumYearEnd.deposits contextRef="D-2020" unitRef="EUR"
-        xsi:nil="true" />
-    <de-gaap-ci:table.kke.sumEquityAccounts.sumYearEnd.withdrawals contextRef="D-2020" unitRef="EUR"
-        xsi:nil="true" />
-    <de-gaap-ci:table.kke.sumEquityAccounts.sumYearEnd.capAdjust6bRes contextRef="D-2020"
-        unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:table.kke.sumEquityAccounts.sumYearEnd.incomeShare contextRef="D-2020" unitRef="EUR"
-        xsi:nil="true" />
-    <de-gaap-ci:table.kke.sumEquityAccounts.sumYearEnd.capitalMovements contextRef="D-2020"
-        unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:table.kke.sumEquityAccounts.sumYearEnd.capitalAdjustmentOther contextRef="D-2020"
-        unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:table.kke.sumDebtCapitalAccounts.sumYearEnd contextRef="D-2020" unitRef="EUR"
-        xsi:nil="true" />
-    <de-gaap-ci:table.kke.sumDebtCapitalAccounts.sumYearEnd.begin contextRef="D-2020" unitRef="EUR"
-        xsi:nil="true" />
-    <de-gaap-ci:table.kke.sumDebtCapitalAccounts.sumYearEnd.increase contextRef="D-2020"
-        unitRef="EUR" xsi:nil="true" />
-    <de-gaap-ci:table.kke.sumDebtCapitalAccounts.sumYearEnd.decrease contextRef="D-2020"
-        unitRef="EUR" xsi:nil="true" />
 </xbrli:xbrl>

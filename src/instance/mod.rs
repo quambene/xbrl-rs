@@ -34,6 +34,10 @@ pub use unit::{Unit, UnitId};
 pub use view::{DocumentView, SectionView, TreeNode};
 pub use writer::InstanceWriter;
 
+const ARCROLE_ALL: &str = "http://xbrl.org/int/dim/arcrole/all";
+const ARCROLE_NOT_ALL: &str = "http://xbrl.org/int/dim/arcrole/notAll";
+const ARCROLE_DOMAIN_MEMBER: &str = "http://xbrl.org/int/dim/arcrole/domain-member";
+
 /// Represents a complete XBRL instance document
 #[derive(Debug, Default)]
 pub struct InstanceDocument {
@@ -89,6 +93,9 @@ impl InstanceDocument {
     /// - Assigns each fact the correct `unitRef` based on its XSD type:
     ///   monetary → first currency unit, shares → first shares unit,
     ///   other numeric → first pure unit, non-numeric → no unitRef
+    /// - Skips concepts that participate in dimensional hypercube base sets.
+    ///   Those facts require dimensional contexts and are not safe to emit into
+    ///   a plain instant/duration context template.
     ///
     /// Build the [`DocumentView`] once after this call, then fill values
     /// in-place via [`set_fact_value`] without rebuilding the view.
@@ -125,6 +132,7 @@ impl InstanceDocument {
         let mut emitted_items: HashSet<ExpandedName> = HashSet::new();
         let mut emitted_tuples: HashSet<ExpandedName> = HashSet::new();
         let concepts = taxonomy.concepts().collect::<Vec<_>>();
+        let dimensional_hypercube_items = dimensional_hypercube_items(taxonomy);
         let schema_index = build_schema_child_index(&concepts, taxonomy);
         let roots = schema_roots(&concepts, &schema_index);
         let mut seeded_nodes: HashSet<ExpandedName> = HashSet::new();
@@ -144,6 +152,7 @@ impl InstanceDocument {
                 &mut emitted_tuples,
                 &mut recursion_path,
                 None,
+                &dimensional_hypercube_items,
                 &mut hoisted,
             );
             instance.facts.extend(hoisted);
@@ -171,6 +180,7 @@ impl InstanceDocument {
                 &mut emitted_tuples,
                 &mut recursion_path,
                 None,
+                &dimensional_hypercube_items,
                 &mut hoisted,
             );
 
@@ -580,6 +590,7 @@ impl InstanceDocument {
         emitted_tuples: &mut HashSet<ExpandedName>,
         recursion_path: &mut HashSet<ExpandedName>,
         parent_tuple_element: Option<&Concept>,
+        dimensional_hypercube_items: &HashSet<ExpandedName>,
         hoisted: &mut Vec<Fact>,
     ) {
         if !recursion_path.insert(concept_name.clone()) {
@@ -640,6 +651,7 @@ impl InstanceDocument {
                             emitted_tuples,
                             recursion_path,
                             Some(concept),
+                            dimensional_hypercube_items,
                             hoisted,
                         );
                     }
@@ -655,6 +667,11 @@ impl InstanceDocument {
                     PeriodType::Duration => duration_ctx,
                     PeriodType::Instant => instant_ctx,
                 };
+
+                if dimensional_hypercube_items.contains(concept_name) {
+                    recursion_path.remove(concept_name);
+                    return;
+                }
 
                 if emitted_items.insert(concept_name.clone()) {
                     let mut fact = ItemFact::new(
@@ -696,6 +713,7 @@ impl InstanceDocument {
                 emitted_tuples,
                 recursion_path,
                 parent_tuple_element,
+                dimensional_hypercube_items,
                 hoisted,
             );
         }
@@ -922,6 +940,53 @@ impl InstanceDocument {
 
         touched
     }
+}
+
+/// Collect concepts that belong to dimensional base sets and therefore require
+/// dimensional contexts.
+///
+/// This is used as a conservative workaround in `from_taxonomy`: when only
+/// plain instant/duration contexts are provided, these concepts are skipped to
+/// avoid invalid hypercube assignments in downstream validators.
+fn dimensional_hypercube_items(taxonomy: &TaxonomySet) -> HashSet<ExpandedName> {
+    let mut result: HashSet<ExpandedName> = HashSet::new();
+
+    for arcs in taxonomy.definitions().values() {
+        let mut domain_children: HashMap<ExpandedName, Vec<ExpandedName>> = HashMap::new();
+        let mut roots: Vec<ExpandedName> = Vec::new();
+
+        for arc in arcs {
+            match arc.arcrole.as_str() {
+                ARCROLE_ALL | ARCROLE_NOT_ALL => {
+                    roots.push(arc.from.clone());
+                }
+                ARCROLE_DOMAIN_MEMBER => {
+                    domain_children
+                        .entry(arc.from.clone())
+                        .or_default()
+                        .push(arc.to.clone());
+                }
+                _ => {}
+            }
+        }
+
+        let mut stack = roots;
+        let mut visited: HashSet<ExpandedName> = HashSet::new();
+
+        while let Some(current) = stack.pop() {
+            if !visited.insert(current.clone()) {
+                continue;
+            }
+
+            if let Some(children) = domain_children.get(&current) {
+                stack.extend(children.iter().cloned());
+            }
+        }
+
+        result.extend(visited);
+    }
+
+    result
 }
 
 /// Determine the correct `unitRef` string for an element based on its XSD type.
