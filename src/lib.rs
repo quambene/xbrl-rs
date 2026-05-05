@@ -12,10 +12,11 @@ mod xml;
 
 pub use error::{LinkbaseType, Result, ValueError, XbrlError};
 pub use instance::{
-    Context, ContextId, Decimals, DocumentView, EntityIdentifier, Fact, FactValue, FootnoteArc,
-    FootnoteLink, FootnoteLocator, FootnoteResource, InstanceDocument, InstanceParser,
-    InstanceWriter, ItemFact, Period, SectionView, TreeNode, TupleFact, TypedFact,
-    TypedInstanceDocument, TypedItemFact, TypedTupleFact, Unit, UnitId, resolve_instance,
+    Context, ContextId, Decimals, DocumentView, EntityIdentifier, Fact, FactAttribute,
+    FactAttributeName, FactValue, FootnoteArc, FootnoteLink, FootnoteLocator, FootnoteResource,
+    InstanceDocument, InstanceParser, InstanceWriter, ItemFact, Period, SectionView, TreeNode,
+    TupleFact, TypedFact, TypedInstanceDocument, TypedItemFact, TypedTupleFact, Unit, UnitId,
+    resolve_instance,
 };
 pub use quick_xml::{Reader as XmlReader, Writer as XmlWriter};
 #[cfg(feature = "download")]
