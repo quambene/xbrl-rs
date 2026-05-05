@@ -76,6 +76,7 @@ fn build_view<'a>(
     for (i, (fact, parent)) in facts.iter().zip(parents.iter()).enumerate() {
         let concept = fact.concept_name().clone();
         fact_index.entry(concept.clone()).or_default().push(i);
+
         if let Some(parent) = parent {
             tuple_child_index
                 .entry((parent.clone(), concept))

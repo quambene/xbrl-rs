@@ -29,9 +29,9 @@ fn assert_dts(dts: &TaxonomySet, gcd_namespace: &str, gaap_ci_namespace: &str) {
     assert!(bs_ass.nillable);
 
     assert!(
-        dts.elements().len() > 1000,
+        dts.concepts().count() > 1000,
         "Expected >1000 elements, got {}",
-        dts.elements().len()
+        dts.concepts().count()
     );
 
     // Linkbases
@@ -82,7 +82,7 @@ fn discover_full_dts_2020() {
     .collect();
     let entry_point = PathBuf::from_str(TAXONOMY_ENTRY_POINT).unwrap();
     let dts = TaxonomySet::discover(schema_refs, entry_point).unwrap();
-    let concepts = dts.elements();
+    let concepts: Vec<_> = dts.concepts().collect();
 
     assert_eq!(concepts.len(), 7217);
     assert_dts(
@@ -110,7 +110,7 @@ fn discover_full_dts_2021() {
     .collect();
     let entry_point = PathBuf::from_str(TAXONOMY_ENTRY_POINT).unwrap();
     let dts = TaxonomySet::discover(schema_refs, entry_point).unwrap();
-    let concepts = dts.elements();
+    let concepts: Vec<_> = dts.concepts().collect();
 
     assert_eq!(concepts.len(), 7385);
     assert_dts(

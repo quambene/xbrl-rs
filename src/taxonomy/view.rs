@@ -177,8 +177,7 @@ fn build_section<'a>(
     taxonomy: &'a TaxonomySet,
 ) -> TaxonomySectionView<'a> {
     let concept_index = taxonomy
-        .elements()
-        .into_iter()
+        .concepts()
         .map(|concept| (&concept.name, concept))
         .collect::<HashMap<_, _>>();
 
@@ -404,7 +403,7 @@ fn find_concept_by_local_name<'a>(
     local_name: &str,
 ) -> Option<&'a Concept> {
     taxonomy
-        .elements()
+        .concepts()
         .into_iter()
         .find(|concept| concept.name.local_name == local_name)
 }

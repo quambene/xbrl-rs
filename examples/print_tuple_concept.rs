@@ -91,7 +91,7 @@ fn expand_report_element_heads<'a>(
 
     for concept in concepts {
         if concept.name.local_name.ends_with(".head") {
-            for candidate in taxonomy.elements() {
+            for candidate in taxonomy.concepts() {
                 if !candidate
                     .name
                     .local_name
@@ -118,7 +118,7 @@ fn find_target_tuple_concept(taxonomy: &TaxonomySet) -> Option<&Concept> {
         .filter(|concept| concept.is_tuple())
         .or_else(|| {
             taxonomy
-                .elements()
+                .concepts()
                 .into_iter()
                 .find(|concept| concept.is_tuple() && concept.name.local_name == TUPLE_LOCAL_NAME)
         })

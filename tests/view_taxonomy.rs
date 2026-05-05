@@ -38,7 +38,7 @@ fn taxonomy_and_concept_views_on_discovered_dts() {
     );
 
     let concept = dts
-        .elements()
+        .concepts()
         .into_iter()
         .find(|concept| concept.name.local_name == "bs.ass")
         .unwrap();
