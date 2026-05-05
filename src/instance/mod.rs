@@ -11,7 +11,7 @@ mod view;
 mod writer;
 
 use crate::{
-    ExpandedName, NamespacePrefix, NamespaceUri, PresentationArc, TaxonomySet,
+    ExpandedName, NamespacePrefix, NamespaceUri, TaxonomySet,
     error::Result,
     taxonomy::{Concept, ElementParticle, GroupParticle, Particle, PeriodType},
     validation::{self, ValidationResult},
@@ -82,8 +82,8 @@ impl InstanceDocument {
     ///
     /// - Registers all schema refs and role refs from the taxonomy
     /// - Adds both contexts and all provided units
-    /// - Pre-populates nil facts for concepts in the presentation linkbase,
-    ///   preserving tuple nesting derived directly from the presentation tree
+    /// - Pre-populates nil facts for concepts in taxonomy schemas, preserving
+    ///   tuple nesting and child order from XSD content models
     /// - For tuples with an exclusive single-choice content model, emits the
     ///   tuple as `xsi:nil=true` (without pre-populated choice children)
     /// - Assigns each fact the correct `unitRef` based on its XSD type:
@@ -118,78 +118,63 @@ impl InstanceDocument {
             instance.add_unit(unit.clone());
         }
 
-        // Walk the presentation tree in section order, depth-first within each section.
-        // The tree structure gives both the fact order and the tuple nesting directly,
-        // without needing to consult schema substitution groups.
+        // Build a deterministic schema graph using tuple content models. The
+        // traversal order is schema discovery order + in-schema declaration
+        // order + particle child order.
         let mut recursion_path: HashSet<ExpandedName> = HashSet::new();
         let mut emitted_items: HashSet<ExpandedName> = HashSet::new();
         let mut emitted_tuples: HashSet<ExpandedName> = HashSet::new();
+        let concepts = taxonomy.concepts().collect::<Vec<_>>();
+        let schema_index = build_schema_child_index(&concepts, taxonomy);
+        let roots = schema_roots(&concepts, &schema_index);
+        let mut seeded_nodes: HashSet<ExpandedName> = HashSet::new();
 
-        for arcs in taxonomy.presentations().values() {
-            let mut arc_index: HashMap<&ExpandedName, Vec<&PresentationArc>> = HashMap::new();
+        for root in roots {
+            seeded_nodes.insert(root.clone());
+            let mut hoisted: Vec<Fact> = Vec::new();
+            Self::populate_from_tree(
+                &schema_index,
+                root,
+                taxonomy,
+                &instant_context_ref,
+                &duration_context_ref,
+                units,
+                &mut instance.facts,
+                &mut emitted_items,
+                &mut emitted_tuples,
+                &mut recursion_path,
+                None,
+                &mut hoisted,
+            );
+            instance.facts.extend(hoisted);
+        }
 
-            for arc in arcs {
-                arc_index.entry(&arc.from).or_default().push(arc);
+        for concept in &concepts {
+            if !schema_participates(concept, &schema_index) {
+                continue;
+            }
+            if seeded_nodes.contains(&concept.name) {
+                continue;
             }
 
-            for children in arc_index.values_mut() {
-                children.sort_by(|a, b| match (a.order, b.order) {
-                    (Some(x), Some(y)) => x.cmp(&y),
-                    (Some(_), None) => Ordering::Less,
-                    (None, Some(_)) => Ordering::Greater,
-                    (None, None) => Ordering::Equal,
-                });
-            }
+            let mut hoisted: Vec<Fact> = Vec::new();
 
-            let roots = view::find_roots(arcs, &arc_index);
-            let mut seeded_nodes: HashSet<&ExpandedName> = HashSet::new();
+            Self::populate_from_tree(
+                &schema_index,
+                &concept.name,
+                taxonomy,
+                &instant_context_ref,
+                &duration_context_ref,
+                units,
+                &mut instance.facts,
+                &mut emitted_items,
+                &mut emitted_tuples,
+                &mut recursion_path,
+                None,
+                &mut hoisted,
+            );
 
-            for root_id in roots {
-                seeded_nodes.insert(root_id);
-                let mut hoisted: Vec<Fact> = Vec::new();
-                Self::populate_from_tree(
-                    &arc_index,
-                    root_id,
-                    taxonomy,
-                    &instant_context_ref,
-                    &duration_context_ref,
-                    units,
-                    &mut instance.facts,
-                    &mut emitted_items,
-                    &mut emitted_tuples,
-                    &mut recursion_path,
-                    None,
-                    &mut hoisted,
-                );
-                instance.facts.extend(hoisted);
-            }
-
-            let mut remaining_nodes = arcs
-                .iter()
-                .flat_map(|arc| [&arc.from, &arc.to])
-                .filter(|concept_name| !seeded_nodes.contains(concept_name))
-                .collect::<Vec<_>>();
-            remaining_nodes.sort_unstable();
-            remaining_nodes.dedup();
-
-            for concept_name in remaining_nodes {
-                let mut hoisted: Vec<Fact> = Vec::new();
-                Self::populate_from_tree(
-                    &arc_index,
-                    concept_name,
-                    taxonomy,
-                    &instant_context_ref,
-                    &duration_context_ref,
-                    units,
-                    &mut instance.facts,
-                    &mut emitted_items,
-                    &mut emitted_tuples,
-                    &mut recursion_path,
-                    None,
-                    &mut hoisted,
-                );
-                instance.facts.extend(hoisted);
-            }
+            instance.facts.extend(hoisted);
         }
 
         instance
@@ -584,7 +569,7 @@ impl InstanceDocument {
     /// - Abstract / grouping → recurse into children at the same level.
     #[allow(clippy::too_many_arguments)]
     fn populate_from_tree(
-        arc_index: &HashMap<&ExpandedName, Vec<&PresentationArc>>,
+        schema_index: &HashMap<ExpandedName, Vec<ExpandedName>>,
         concept_name: &ExpandedName,
         taxonomy: &TaxonomySet,
         instant_ctx: &ContextId,
@@ -601,8 +586,7 @@ impl InstanceDocument {
             return; // cycle guard within current recursion branch
         }
 
-        // Children are already sorted by `order`.
-        let children = arc_index
+        let children = schema_index
             .get(concept_name)
             .map(Vec::as_slice)
             .unwrap_or(&[]);
@@ -622,10 +606,10 @@ impl InstanceDocument {
                         // descendants and mark them as emitted so fallback
                         // traversal does not emit them at top level.
                         let mut skipped_visited: HashSet<ExpandedName> = HashSet::new();
-                        for arc in children {
-                            mark_presentation_subtree_as_emitted(
-                                arc_index,
-                                &arc.to,
+                        for child_name in children {
+                            mark_schema_subtree_as_emitted(
+                                schema_index,
+                                child_name,
                                 emitted_items,
                                 emitted_tuples,
                                 &mut skipped_visited,
@@ -643,10 +627,10 @@ impl InstanceDocument {
                         _ => unreachable!(),
                     };
 
-                    for arc in children {
+                    for child_name in children {
                         Self::populate_from_tree(
-                            arc_index,
-                            &arc.to,
+                            schema_index,
+                            child_name,
                             taxonomy,
                             instant_ctx,
                             duration_ctx,
@@ -698,11 +682,11 @@ impl InstanceDocument {
             }
         }
 
-        // Recurse children at the same level for non-structural presentation parents.
-        for arc in children {
+        // Recurse children at the same level for abstract/grouping parents.
+        for child_name in children {
             Self::populate_from_tree(
-                arc_index,
-                &arc.to,
+                schema_index,
+                child_name,
                 taxonomy,
                 instant_ctx,
                 duration_ctx,
@@ -983,7 +967,15 @@ fn item_allowed_in_tuple(
     let Some(model) = &parent_element.content_model else {
         return true;
     };
-    matches_particle_model(model, child_element, taxonomy)
+
+    if matches_particle_model(model, child_element, taxonomy) {
+        return true;
+    }
+
+    // Group references are not currently resolved into concrete particles in
+    // the semantic model. When they are present, avoid false-negative child
+    // rejection and keep generated tuple children in place.
+    particle_contains_group_ref(model)
 }
 
 /// Returns `true` when the tuple should be emitted as tuple-level nil in
@@ -1001,8 +993,8 @@ fn tuple_uses_nil_template(concept: &Concept) -> bool {
 
 /// Marks all concepts reachable from `start` in the presentation arc graph as
 /// emitted, so fallback traversal does not materialize them later.
-fn mark_presentation_subtree_as_emitted(
-    arc_index: &HashMap<&ExpandedName, Vec<&PresentationArc>>,
+fn mark_schema_subtree_as_emitted(
+    schema_index: &HashMap<ExpandedName, Vec<ExpandedName>>,
     start: &ExpandedName,
     emitted_items: &mut HashSet<ExpandedName>,
     emitted_tuples: &mut HashSet<ExpandedName>,
@@ -1015,17 +1007,165 @@ fn mark_presentation_subtree_as_emitted(
     emitted_items.insert(start.clone());
     emitted_tuples.insert(start.clone());
 
-    if let Some(children) = arc_index.get(start) {
-        for arc in children {
-            mark_presentation_subtree_as_emitted(
-                arc_index,
-                &arc.to,
+    if let Some(children) = schema_index.get(start) {
+        for child_name in children {
+            mark_schema_subtree_as_emitted(
+                schema_index,
+                child_name,
                 emitted_items,
                 emitted_tuples,
                 visited,
             );
         }
     }
+}
+
+/// Builds an index of parent concept name → child concept names based on tuple
+/// content models in the taxonomy.
+fn build_schema_child_index(
+    concepts: &[&Concept],
+    taxonomy: &TaxonomySet,
+) -> HashMap<ExpandedName, Vec<ExpandedName>> {
+    let mut index: HashMap<ExpandedName, Vec<ExpandedName>> = HashMap::new();
+
+    for parent in concepts {
+        if !parent.is_tuple() {
+            continue;
+        }
+        let Some(model) = &parent.content_model else {
+            continue;
+        };
+
+        let mut children: Vec<ExpandedName> = Vec::new();
+        collect_model_children(model, parent, concepts, &mut children);
+
+        children.retain(|child| child != &parent.name);
+        children.dedup();
+
+        if children.is_empty() {
+            children = fallback_presentation_children(parent, taxonomy);
+        }
+
+        if !children.is_empty() {
+            index.insert(parent.name.clone(), children);
+        }
+    }
+
+    index
+}
+
+/// Recursively collects allowed child concept names from a particle model.
+fn collect_model_children(
+    particle: &Particle,
+    parent: &Concept,
+    concepts: &[&Concept],
+    out: &mut Vec<ExpandedName>,
+) {
+    match particle {
+        Particle::Element { element, .. } => {
+            let allowed_local = match element {
+                ElementParticle::Ref(qname) => qname.local_name.as_str(),
+                ElementParticle::Decl(declaration) => declaration.name.as_str(),
+            };
+
+            let mut same_namespace_matches = Vec::new();
+            let mut any_namespace_matches = Vec::new();
+
+            for concept in concepts {
+                let direct_local_match = concept.name.local_name == allowed_local;
+                let direct_substitution_match =
+                    concept.substitution_group.original.local_name == allowed_local;
+
+                if !(direct_local_match || direct_substitution_match) {
+                    continue;
+                }
+
+                if concept.name.namespace_uri == parent.name.namespace_uri {
+                    same_namespace_matches.push(concept.name.clone());
+                } else {
+                    any_namespace_matches.push(concept.name.clone());
+                }
+            }
+
+            if same_namespace_matches.is_empty() {
+                out.extend(any_namespace_matches);
+            } else {
+                out.extend(same_namespace_matches);
+            }
+        }
+        Particle::Sequence { children, .. } | Particle::Choice { children, .. } => {
+            for child in children {
+                collect_model_children(child, parent, concepts, out);
+            }
+        }
+        Particle::Group { group, .. } => {
+            if let GroupParticle::Def(group_def) = group {
+                collect_model_children(&group_def.particle, parent, concepts, out);
+            }
+        }
+    }
+}
+
+/// Fallback child collection based on presentation relationships when no
+/// explicit content model is defined for a tuple concept.
+fn fallback_presentation_children(parent: &Concept, taxonomy: &TaxonomySet) -> Vec<ExpandedName> {
+    let mut children: Vec<(ExpandedName, Option<rust_decimal::Decimal>)> = taxonomy
+        .presentations()
+        .values()
+        .flat_map(|arcs| arcs.iter())
+        .filter(|arc| arc.from == parent.name)
+        .map(|arc| (arc.to.clone(), arc.order))
+        .collect();
+
+    children.sort_by(|a, b| match (a.1, b.1) {
+        (Some(x), Some(y)) => x.cmp(&y),
+        (Some(_), None) => Ordering::Less,
+        (None, Some(_)) => Ordering::Greater,
+        (None, None) => Ordering::Equal,
+    });
+
+    let mut ordered = Vec::new();
+    for (name, _) in children {
+        if !ordered.contains(&name) {
+            ordered.push(name);
+        }
+    }
+
+    ordered
+}
+
+/// Returns the root concept names that participate in the schema (tuple or
+/// concrete item concepts that are reachable from the presentation
+/// relationships).
+fn schema_roots<'a>(
+    concepts: &'a [&'a Concept],
+    schema_index: &HashMap<ExpandedName, Vec<ExpandedName>>,
+) -> Vec<&'a ExpandedName> {
+    let mut child_names: HashSet<&ExpandedName> = HashSet::new();
+
+    for children in schema_index.values() {
+        for child in children {
+            child_names.insert(child);
+        }
+    }
+
+    concepts
+        .iter()
+        .filter(|concept| schema_participates(concept, schema_index))
+        .map(|concept| &concept.name)
+        .filter(|name| !child_names.contains(name))
+        .collect()
+}
+
+/// Returns `true` when the concept participates in the schema as a tuple or
+/// concrete item, or as an abstract parent of other participating concepts.
+fn schema_participates(
+    concept: &Concept,
+    schema_index: &HashMap<ExpandedName, Vec<ExpandedName>>,
+) -> bool {
+    concept.is_tuple()
+        || concept.is_concrete_item()
+        || (concept.is_abstract() && schema_index.contains_key(&concept.name))
 }
 
 /// Returns `true` when `model` effectively represents an exclusive choice
@@ -1053,6 +1193,19 @@ fn is_exclusive_single_choice_particle(model: &Particle) -> bool {
                 }
         }
         Particle::Element { .. } => false,
+    }
+}
+
+fn particle_contains_group_ref(model: &Particle) -> bool {
+    match model {
+        Particle::Element { .. } => false,
+        Particle::Sequence { children, .. } | Particle::Choice { children, .. } => {
+            children.iter().any(particle_contains_group_ref)
+        }
+        Particle::Group { group, .. } => match group {
+            GroupParticle::Ref(_) => true,
+            GroupParticle::Def(group_def) => particle_contains_group_ref(&group_def.particle),
+        },
     }
 }
 

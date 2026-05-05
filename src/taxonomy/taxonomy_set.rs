@@ -32,7 +32,7 @@ pub struct TaxonomySet {
     /// order they were passed to [`TaxonomySet::discover`].
     schema_refs: IndexMap<SchemaRefUrl, PathBuf>,
     /// All schemas in the DTS, keyed by their canonical absolute path.
-    schemas: HashMap<PathBuf, TaxonomySchema>,
+    schemas: IndexMap<PathBuf, TaxonomySchema>,
     /// All linkbase file paths discovered (canonical absolute paths).
     linkbase_paths: Vec<PathBuf>,
     /// Resolved linkbase data merged from all linkbase files.
@@ -77,8 +77,7 @@ impl TaxonomySet {
 
         let mut visited: HashSet<PathBuf> = HashSet::new();
         let mut queue: VecDeque<PathBuf> = VecDeque::new();
-        let mut schemas: HashMap<PathBuf, TaxonomySchema> = HashMap::new();
-        let mut schema_order: Vec<PathBuf> = Vec::new(); // BFS discovery order
+        let mut schemas: IndexMap<PathBuf, TaxonomySchema> = IndexMap::new();
         let mut linkbase_set: IndexSet<PathBuf> = IndexSet::new();
 
         let canonical_entry_point =
@@ -137,14 +136,13 @@ impl TaxonomySet {
             for include in &schema.includes {
                 if let Some(resolved) = resolve_local_path(schema_dir, &include.schema_location)
                     && resolved.exists()
-                    && let Ok(canonical) = std::fs::canonicalize(&resolved)
+                    && let Ok(canonical) = fs::canonicalize(&resolved)
                     && visited.insert(canonical.clone())
                 {
                     queue.push_back(canonical);
                 }
             }
 
-            schema_order.push(path.clone());
             schemas.insert(path, schema);
         }
 
@@ -211,7 +209,7 @@ impl TaxonomySet {
     }
 
     /// Get all schemas in the DTS.
-    pub fn schemas(&self) -> &HashMap<PathBuf, TaxonomySchema> {
+    pub fn schemas(&self) -> &IndexMap<PathBuf, TaxonomySchema> {
         &self.schemas
     }
 
@@ -220,17 +218,19 @@ impl TaxonomySet {
         &self.linkbase_paths
     }
 
-    /// Get all element definitions across all schemas in the DTS.
-    pub fn elements(&self) -> Vec<&Concept> {
-        self.schemas.values().flat_map(|s| &s.concepts).collect()
-    }
-
     /// Get all role type definitions across all schemas in the DTS.
     pub fn role_types(&self) -> Vec<&RoleType> {
         self.schemas.values().flat_map(|s| &s.role_types).collect()
     }
 
-    /// Find an element definition by name across all schemas.
+    /// Get all element definitions across all schemas in the DTS.
+    pub fn concepts(&self) -> impl Iterator<Item = &Concept> {
+        self.schemas
+            .values()
+            .flat_map(|schema| schema.concepts.iter())
+    }
+
+    /// Find a concept definition by name across all schemas.
     pub fn find_concept(&self, name: &ExpandedName) -> Option<&Concept> {
         self.schemas
             .values()
@@ -238,7 +238,7 @@ impl TaxonomySet {
             .find(|concept| &concept.name == name)
     }
 
-    /// Find an element definition by its ID attribute (e.g., `de-gaap-ci_bs.ass`).
+    /// Find a concept definition by its ID attribute (e.g., `de-gaap-ci_bs.ass`).
     pub fn find_concept_by_id(&self, id: &str) -> Option<&Concept> {
         self.schemas
             .values()
