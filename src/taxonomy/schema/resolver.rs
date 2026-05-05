@@ -59,6 +59,7 @@ impl XbrlType {
                 | XbrlType::Fraction
                 | XbrlType::Percent
                 | XbrlType::PerShare
+                | XbrlType::Pure
         )
     }
 }
@@ -414,6 +415,14 @@ fn match_known_type(local_name: &str) -> Option<XbrlType> {
         | "escapedItemType" => Some(XbrlType::String),
         "decimalItemType" => Some(XbrlType::Decimal),
         "integerItemType"
+        | "longItemType"
+        | "intItemType"
+        | "shortItemType"
+        | "byteItemType"
+        | "unsignedLongItemType"
+        | "unsignedIntItemType"
+        | "unsignedShortItemType"
+        | "unsignedByteItemType"
         | "nonNegativeIntegerItemType"
         | "positiveIntegerItemType"
         | "nonPositiveIntegerItemType"
@@ -890,5 +899,34 @@ mod tests {
 
         assert_eq!(concepts.len(), 1);
         assert_eq!(concepts[0].name.namespace_uri, NamespaceUri::from(""));
+    }
+
+    #[test]
+    fn pure_is_classified_as_numeric() {
+        assert!(XbrlType::Pure.is_numeric());
+    }
+
+    #[test]
+    fn long_item_type_resolves_as_numeric_integer() {
+        let mut raw_schema = empty_schema();
+        raw_schema.elements.push(Element {
+            name: "LongCounter".to_owned(),
+            id: Some("LongCounter".to_owned()),
+            type_name: Some(QName {
+                prefix: Some(NamespacePrefix::from("xbrli")),
+                local_name: "longItemType".to_owned(),
+            }),
+            substitution_group: Some(item_qname()),
+            is_nillable: true,
+            is_abstract: false,
+            period_type: Some(PeriodType::Duration),
+            balance: None,
+            complex_type: None,
+        });
+
+        let schema = resolve_schema(raw_schema).unwrap();
+        assert_eq!(schema.concepts.len(), 1);
+        assert_eq!(schema.concepts[0].data_type, XbrlType::Integer);
+        assert!(schema.concepts[0].data_type.is_numeric());
     }
 }
