@@ -12,6 +12,15 @@ const ARCROLE_ALL: &str = "http://xbrl.org/int/dim/arcrole/all";
 const ARCROLE_NOT_ALL: &str = "http://xbrl.org/int/dim/arcrole/notAll";
 const ARCROLE_DOMAIN_MEMBER: &str = "http://xbrl.org/int/dim/arcrole/domain-member";
 
+/// Builds a template instance document based on the taxonomy structure, with
+/// nil facts for all concrete items and tuples. The generated instance includes
+/// all namespaces and schema refs declared in the taxonomy, and the provided
+/// contexts and units.
+///
+/// Tuple facts are emitted according to the schema structure defined by tuple
+/// content models. For exclusive single-choice tuple models, only a nil tuple
+/// placeholder is emitted without any children, since the template is intended
+/// to be fully populated by the user.
 pub(crate) fn build_instance(
     taxonomy: &TaxonomySet,
     namespaces: HashMap<NamespacePrefix, NamespaceUri>,

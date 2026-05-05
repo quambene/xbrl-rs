@@ -72,7 +72,7 @@ impl InstanceDocument {
         }
     }
 
-    /// Create a new instance pre-wired to a known taxonomy.
+    /// Builds a template instance document based on the taxonomy structure.
     ///
     /// - Registers all schema refs and role refs from the taxonomy
     /// - Adds both contexts and all provided units
@@ -81,8 +81,8 @@ impl InstanceDocument {
     /// - For tuples with an exclusive single-choice content model, emits the
     ///   tuple as `xsi:nil=true` (without pre-populated choice children)
     /// - Assigns each fact the correct `unitRef` based on its XSD type:
-    ///   monetary → first currency unit, shares → first shares unit,
-    ///   other numeric → first pure unit, non-numeric → no unitRef
+    ///   monetary → first currency unit, shares → first shares unit, other
+    ///   numeric → first pure unit, non-numeric → no unitRef
     /// - Skips concepts that participate in dimensional hypercube base sets.
     ///   Those facts require dimensional contexts and are not safe to emit into
     ///   a plain instant/duration context template.
