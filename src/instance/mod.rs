@@ -28,6 +28,24 @@ pub use unit::{Unit, UnitId};
 pub use view::{DocumentView, SectionView, TreeNode};
 pub use writer::InstanceWriter;
 
+/// Supported mutable attributes for item facts.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FactAttribute {
+    Id(String),
+    UnitRef(String),
+    Decimals(Decimals),
+    Precision(Decimals),
+}
+
+/// Names of removable item-fact attributes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FactAttributeName {
+    Id,
+    UnitRef,
+    Decimals,
+    Precision,
+}
+
 /// Represents a complete XBRL instance document
 #[derive(Debug, Default)]
 pub struct InstanceDocument {
@@ -318,6 +336,43 @@ impl InstanceDocument {
         panic!("fact index out of bounds: {index}");
     }
 
+    /// Set an item-fact attribute by its index (from [`DocumentView`]
+    /// `fact_indices`).
+    ///
+    /// When setting `decimals` or `precision`, the counterpart is cleared to
+    /// keep attributes mutually exclusive.
+    ///
+    /// # Panics
+    /// Panics if `index` is out of bounds.
+    pub fn set_fact_attribute(&mut self, index: usize, attribute: FactAttribute) {
+        let mut current_index = 0usize;
+
+        for fact in &mut self.facts {
+            if Self::set_item_attribute_by_index(fact, index, &attribute, &mut current_index) {
+                return;
+            }
+        }
+
+        panic!("fact index out of bounds: {index}");
+    }
+
+    /// Remove an optional item-fact attribute by its index (from
+    /// [`DocumentView`] `fact_indices`).
+    ///
+    /// # Panics
+    /// Panics if `index` is out of bounds.
+    pub fn clear_fact_attribute(&mut self, index: usize, attribute: FactAttributeName) {
+        let mut current_index = 0usize;
+
+        for fact in &mut self.facts {
+            if Self::clear_item_attribute_by_index(fact, index, attribute, &mut current_index) {
+                return;
+            }
+        }
+
+        panic!("fact index out of bounds: {index}");
+    }
+
     /// Sets `xsi:nil` on a tuple fact within all matching tuple instances.
     ///
     /// This is a mutation-only helper. It does not check taxonomy/schema
@@ -503,6 +558,88 @@ impl InstanceDocument {
             Fact::Tuple(tuple) => {
                 for child in tuple.children_mut() {
                     if Self::set_item_value_by_index(child, target_index, value, current_index) {
+                        return true;
+                    }
+                }
+                false
+            }
+        }
+    }
+
+    fn set_item_attribute_by_index(
+        fact: &mut Fact,
+        target_index: usize,
+        attribute: &FactAttribute,
+        current_index: &mut usize,
+    ) -> bool {
+        match fact {
+            Fact::Item(item) => {
+                if *current_index == target_index {
+                    match attribute {
+                        FactAttribute::Id(id) => item.set_id(id.clone()),
+                        FactAttribute::UnitRef(unit_ref) => {
+                            item.set_unit_ref(Some(unit_ref.clone()))
+                        }
+                        FactAttribute::Decimals(decimals) => {
+                            item.set_decimals(decimals.clone());
+                            item.clear_precision();
+                        }
+                        FactAttribute::Precision(precision) => {
+                            item.set_precision(precision.clone());
+                            item.clear_decimals();
+                        }
+                    }
+                    true
+                } else {
+                    *current_index += 1;
+                    false
+                }
+            }
+            Fact::Tuple(tuple) => {
+                for child in tuple.children_mut() {
+                    if Self::set_item_attribute_by_index(
+                        child,
+                        target_index,
+                        attribute,
+                        current_index,
+                    ) {
+                        return true;
+                    }
+                }
+                false
+            }
+        }
+    }
+
+    fn clear_item_attribute_by_index(
+        fact: &mut Fact,
+        target_index: usize,
+        attribute: FactAttributeName,
+        current_index: &mut usize,
+    ) -> bool {
+        match fact {
+            Fact::Item(item) => {
+                if *current_index == target_index {
+                    match attribute {
+                        FactAttributeName::Id => item.clear_id(),
+                        FactAttributeName::UnitRef => item.set_unit_ref(None),
+                        FactAttributeName::Decimals => item.clear_decimals(),
+                        FactAttributeName::Precision => item.clear_precision(),
+                    }
+                    true
+                } else {
+                    *current_index += 1;
+                    false
+                }
+            }
+            Fact::Tuple(tuple) => {
+                for child in tuple.children_mut() {
+                    if Self::clear_item_attribute_by_index(
+                        child,
+                        target_index,
+                        attribute,
+                        current_index,
+                    ) {
                         return true;
                     }
                 }
@@ -706,7 +843,10 @@ impl InstanceDocument {
 
 #[cfg(test)]
 mod tests {
-    use super::{Fact, InstanceDocument, ItemFact, TaxonomySet, TupleFact};
+    use super::{
+        Decimals, Fact, FactAttribute, FactAttributeName, InstanceDocument, ItemFact, TaxonomySet,
+        TupleFact,
+    };
     use crate::{ExpandedName, NamespaceUri};
 
     fn expanded_name(local_name: &str) -> ExpandedName {
@@ -1053,5 +1193,47 @@ mod tests {
             _ => panic!("expected tuple fact"),
         };
         assert!(tuple_fact.is_nil());
+    }
+
+    #[test]
+    fn set_fact_attribute_sets_and_replaces_numeric_accuracy() {
+        let mut instance = InstanceDocument::default();
+        instance.add_fact(item("metric", "1", false));
+
+        instance.set_fact_attribute(0, FactAttribute::Decimals(Decimals::Finite(2)));
+        let fact = &instance.item_facts()[0];
+        assert_eq!(fact.decimals(), Some(&Decimals::Finite(2)));
+        assert_eq!(fact.precision(), None);
+
+        instance.set_fact_attribute(0, FactAttribute::Precision(Decimals::Finite(5)));
+        let fact = &instance.item_facts()[0];
+        assert_eq!(fact.decimals(), None);
+        assert_eq!(fact.precision(), Some(&Decimals::Finite(5)));
+    }
+
+    #[test]
+    fn remove_fact_attribute_clears_optional_attributes() {
+        let mut instance = InstanceDocument::default();
+        let mut item = ItemFact::new(
+            None,
+            expanded_name("metric"),
+            "D-2020".to_owned(),
+            Some("u1".to_owned()),
+            "1".to_owned(),
+            false,
+            Some(Decimals::Finite(0)),
+            None,
+        );
+        item.set_id("id-1".to_owned());
+        instance.add_fact(Fact::Item(item));
+
+        instance.clear_fact_attribute(0, FactAttributeName::Id);
+        instance.clear_fact_attribute(0, FactAttributeName::UnitRef);
+        instance.clear_fact_attribute(0, FactAttributeName::Decimals);
+
+        let fact = &instance.item_facts()[0];
+        assert_eq!(fact.id(), None);
+        assert_eq!(fact.unit_ref(), None);
+        assert_eq!(fact.decimals(), None);
     }
 }

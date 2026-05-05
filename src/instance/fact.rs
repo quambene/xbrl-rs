@@ -110,6 +110,10 @@ impl ItemFact {
         self.id = Some(id);
     }
 
+    pub fn clear_id(&mut self) {
+        self.id = None;
+    }
+
     pub fn context_ref(&self) -> &str {
         &self.context_ref
     }
@@ -150,12 +154,20 @@ impl ItemFact {
         self.decimals = Some(decimals);
     }
 
+    pub fn clear_decimals(&mut self) {
+        self.decimals = None;
+    }
+
     pub fn precision(&self) -> Option<&Decimals> {
         self.precision.as_ref()
     }
 
     pub fn set_precision(&mut self, precision: Decimals) {
         self.precision = Some(precision);
+    }
+
+    pub fn clear_precision(&mut self) {
+        self.precision = None;
     }
 }
 

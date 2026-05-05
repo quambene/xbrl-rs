@@ -31,10 +31,8 @@
   - Write failed conformance tests to csv file
   - Support non-xbrl root in instance documents
   - Add `InstanceWriter`
-  - Add `InstanceDocument::set_fact_nil`,
-    `InstanceDocument::set_tuple_fact_nil`,
-    `InstanceDocument::set_tuple_child_nil`,
-    `InstanceDocument::add_tuple_child`, and `InstanceDocument::remove_tuple_child`
+  - Add `set_fact_nil`, `set_tuple_fact_nil`, `set_tuple_child_nil`,
+    `add_tuple_child`, `remove_tuple_child`, `set_fact_attribute`, and `clear_fact_attribute`
   - Add `TaxonomyView` and `ConceptView`
   - Add `InstanceDocument::contexts_mut` and `InstanceDocument::units_mut`
   - Add `ItemFact::set_context_ref` and `ItemFact::set_unit_ref`
