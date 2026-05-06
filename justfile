@@ -19,18 +19,18 @@ test-taxonomy:
 test-conformance:
     cargo test conformance_suite --features conformance-test
 
-# Run cargo check with env vars
+# Run cargo check
 check:
     cargo check
 
-# Run cargo clippy with env vars
+# Run cargo clippy
 clippy:
     cargo clippy --all-targets --all-features
 
-# Run cargo build with env vars
+# Run cargo build
 build:
     cargo build
 
-# Run cargo build with env vars in release mode
+# Run cargo build in release mode
 build-release:
     cargo build --release
