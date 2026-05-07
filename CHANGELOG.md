@@ -47,6 +47,7 @@
   - Update Rust to 1.95
   - Rename `TaxonomySet::version` to `TaxonomySet::date`
   - Provide `Fact`s instead of `ItemFact`s in `DocumentView::build`
+  - Make `InstanceDocument` clonable
 - removed
   - Remove `tuple_children` and `compositor` from `Concept`
   - Remove `context` for `XbrlError::FileOpen` and `XbrlError::FileRead`

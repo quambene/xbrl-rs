@@ -47,7 +47,7 @@ pub enum FactAttributeName {
 }
 
 /// Represents a complete XBRL instance document
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct InstanceDocument {
     /// Namespace prefixes used in the document (e.g. "xbrli" ->
     /// "http://www.xbrl.org/2003/instance")
