@@ -19,8 +19,6 @@ pub use instance::{
     resolve_instance,
 };
 pub use quick_xml::{Reader as XmlReader, Writer as XmlWriter};
-#[cfg(feature = "download")]
-pub use taxonomy::TaxonomyLoader;
 pub use taxonomy::{
     ArcroleType, Balance, BaseSubstitutionGroup, CalculationArc, Concept, ConceptView,
     DeclaredAccuracy, DefinitionArc, ElementDecl, ElementParticle, GroupDef, GroupParticle, Label,
@@ -29,6 +27,8 @@ pub use taxonomy::{
     TaxonomySchema, TaxonomySectionView, TaxonomySet, TaxonomyTreeNode, TaxonomyView,
     TupleElementView, TupleParticleView, XbrlType,
 };
+#[cfg(feature = "download")]
+pub use taxonomy::{DownloadResult, TaxonomyLoader};
 pub use validation::{Severity, ValidationMessage, ValidationResult};
 pub use xml::{
     ArcroleUri, ConceptId, ExpandedName, NamespacePrefix, NamespaceUri, QName, RoleUri,

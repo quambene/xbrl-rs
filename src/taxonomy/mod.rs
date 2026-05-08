@@ -11,7 +11,7 @@ pub use linkbases::{
     resolver::{CalculationArc, DefinitionArc, Label, PresentationArc, Reference, ReferencePart},
 };
 #[cfg(feature = "download")]
-pub use loader::TaxonomyLoader;
+pub use loader::{DownloadResult, TaxonomyLoader};
 pub use schema::{
     ArcroleType, Balance, BaseSubstitutionGroup, Concept, DeclaredAccuracy, ElementDecl,
     ElementParticle, GroupDef, GroupParticle, Occurrence, Particle, PeriodType, RoleType,
