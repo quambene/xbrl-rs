@@ -13,6 +13,14 @@ use std::{
     time::Duration,
 };
 
+/// Result of a [`TaxonomyLoader::download_all`] call.
+pub struct DownloadResult {
+    /// Local paths of files that were written to disk.
+    pub downloaded: Vec<PathBuf>,
+    /// `(url, error)` pairs for URLs that could not be completed.
+    pub failed: Vec<(String, io::Error)>,
+}
+
 /// Downloads taxonomy resources (schemas and linkbases) starting from an
 /// entry-point schema URL.
 #[derive(Debug, Clone)]
@@ -42,7 +50,7 @@ impl TaxonomyLoader {
         &self,
         entry_urls: I,
         destination_root: impl AsRef<Path>,
-    ) -> Result<()>
+    ) -> Result<DownloadResult>
     where
         I: IntoIterator<Item = S>,
         S: AsRef<str>,
@@ -71,6 +79,8 @@ impl TaxonomyLoader {
         }
 
         let mut visited: HashSet<String> = HashSet::new();
+        let mut downloaded: Vec<PathBuf> = Vec::new();
+        let mut failed: Vec<(String, io::Error)> = Vec::new();
 
         while let Some(url) = queue.pop_front() {
             if !visited.insert(url.as_str().to_owned()) {
@@ -97,6 +107,7 @@ impl TaxonomyLoader {
                     Ok(body) => body,
                     Err(err) => {
                         warn!("Failed downloading {url}: {err}");
+                        failed.push((url.to_string(), err));
                         continue;
                     }
                 };
@@ -109,6 +120,7 @@ impl TaxonomyLoader {
                         parent.display(),
                         url
                     );
+                    failed.push((url.to_string(), err));
                     continue;
                 }
 
@@ -117,8 +129,11 @@ impl TaxonomyLoader {
                         "Failed writing downloaded file {}: {err}",
                         local_path.display()
                     );
+                    failed.push((url.to_string(), err));
                     continue;
                 }
+
+                downloaded.push(local_path.clone());
             }
 
             if is_schema_url(&url) {
@@ -163,7 +178,7 @@ impl TaxonomyLoader {
             }
         }
 
-        Ok(())
+        Ok(DownloadResult { downloaded, failed })
     }
 
     fn fetch_text(&self, url: &Url) -> std::io::Result<String> {
