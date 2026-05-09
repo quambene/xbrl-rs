@@ -403,28 +403,30 @@ fn populate_from_tree(
                 return;
             }
 
-            if emitted_items.insert(concept_name.clone()) {
-                let mut fact = ItemFact::new(
-                    None,
-                    concept.name.clone(),
-                    context_ref.to_string(),
-                    unit_ref_for_concept(concept, units),
-                    String::new(),
-                    true,
-                    None,
-                    None,
-                );
-                fact.set_nil(true);
+            // Mark as emitted so `populate_from_presentation` does not re-emit
+            // this concept as a top-level fact later.
+            emitted_items.insert(concept_name.clone());
 
-                // Items not allowed by the tuple's content model are hoisted to
-                // the top level so they still appear in the generated template.
-                if let Some(parent_el) = parent_tuple_element
-                    && !item_allowed_in_tuple(parent_el, concept, taxonomy)
-                {
-                    hoisted.push(Fact::Item(fact));
-                } else {
-                    facts.push(Fact::Item(fact));
-                }
+            let mut fact = ItemFact::new(
+                None,
+                concept.name.clone(),
+                context_ref.to_string(),
+                unit_ref_for_concept(concept, units),
+                String::new(),
+                true,
+                None,
+                None,
+            );
+            fact.set_nil(true);
+
+            // Items not allowed by the tuple's content model are hoisted to
+            // the top level so they still appear in the generated template.
+            if let Some(parent_el) = parent_tuple_element
+                && !item_allowed_in_tuple(parent_el, concept, taxonomy)
+            {
+                hoisted.push(Fact::Item(fact));
+            } else {
+                facts.push(Fact::Item(fact));
             }
         }
     }
