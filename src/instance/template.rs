@@ -219,57 +219,56 @@ fn populate_from_presentation(
         return;
     }
 
-    if let Some(concept) = taxonomy.find_concept(concept_name) {
-        if !dimensional_hypercube_items.contains(concept_name) {
-            if concept.is_tuple() && !concept.is_abstract {
-                // Delegate entirely to schema-based traversal so tuple children
-                // follow the xs:complexType content model. Use a fresh
-                // recursion_path so the schema walk's visited set doesn't
-                // contaminate the outer presentation walk.
-                let mut tuple_recursion_path: HashSet<ExpandedName> = HashSet::new();
-                let mut hoisted: Vec<Fact> = Vec::new();
-                populate_from_tree(
-                    schema_index,
-                    concept_name,
-                    taxonomy,
-                    instant_ctx,
-                    duration_ctx,
-                    units,
-                    facts,
-                    emitted_items,
-                    emitted_tuples,
-                    &mut tuple_recursion_path,
-                    None,
-                    dimensional_hypercube_items,
-                    &mut hoisted,
-                );
-                facts.extend(hoisted);
-                recursion_path.remove(concept_name);
-                return;
-            }
+    if let Some(concept) = taxonomy.find_concept(concept_name)
+        && !dimensional_hypercube_items.contains(concept_name)
+    {
+        if concept.is_tuple() && !concept.is_abstract {
+            // Delegate entirely to schema-based traversal so tuple children
+            // follow the xs:complexType content model. Use a fresh
+            // recursion_path so the schema walk's visited set doesn't
+            // contaminate the outer presentation walk.
+            let mut tuple_recursion_path: HashSet<ExpandedName> = HashSet::new();
+            let mut hoisted: Vec<Fact> = Vec::new();
+            populate_from_tree(
+                schema_index,
+                concept_name,
+                taxonomy,
+                instant_ctx,
+                duration_ctx,
+                units,
+                facts,
+                emitted_items,
+                emitted_tuples,
+                &mut tuple_recursion_path,
+                None,
+                dimensional_hypercube_items,
+                &mut hoisted,
+            );
+            facts.extend(hoisted);
+            recursion_path.remove(concept_name);
+            return;
+        }
 
-            if !concept.is_abstract
-                && let Some(ref period_type) = concept.period_type
-            {
-                if emitted_items.insert(concept_name.clone()) {
-                    let context_ref = match period_type {
-                        PeriodType::Duration => duration_ctx,
-                        PeriodType::Instant => instant_ctx,
-                    };
-                    let mut fact = ItemFact::new(
-                        None,
-                        concept.name.clone(),
-                        context_ref.to_string(),
-                        unit_ref_for_concept(concept, units),
-                        String::new(),
-                        true,
-                        None,
-                        None,
-                    );
-                    fact.set_nil(true);
-                    facts.push(Fact::Item(fact));
-                }
-            }
+        if !concept.is_abstract
+            && let Some(ref period_type) = concept.period_type
+            && emitted_items.insert(concept_name.clone())
+        {
+            let context_ref = match period_type {
+                PeriodType::Duration => duration_ctx,
+                PeriodType::Instant => instant_ctx,
+            };
+            let mut fact = ItemFact::new(
+                None,
+                concept.name.clone(),
+                context_ref.to_string(),
+                unit_ref_for_concept(concept, units),
+                String::new(),
+                true,
+                None,
+                None,
+            );
+            fact.set_nil(true);
+            facts.push(Fact::Item(fact));
         }
     }
 
