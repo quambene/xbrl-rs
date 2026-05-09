@@ -12,7 +12,7 @@ mod view;
 mod writer;
 
 use crate::{
-    NamespacePrefix, NamespaceUri, TaxonomySet,
+    NamespacePrefix, NamespaceUri, RoleUri, TaxonomySet,
     error::Result,
     validation::{self, ValidationResult},
 };
@@ -90,39 +90,6 @@ impl InstanceDocument {
         }
     }
 
-    /// Builds a template instance document based on the taxonomy structure.
-    ///
-    /// - Registers all schema refs and role refs from the taxonomy
-    /// - Adds both contexts and all provided units
-    /// - Pre-populates nil facts for concepts in taxonomy schemas, preserving
-    ///   tuple nesting and child order from XSD content models
-    /// - For tuples with an exclusive single-choice content model, emits the
-    ///   tuple as `xsi:nil=true` (without pre-populated choice children)
-    /// - Assigns each fact the correct `unitRef` based on its XSD type:
-    ///   monetary → first currency unit, shares → first shares unit, other
-    ///   numeric → first pure unit, non-numeric → no unitRef
-    /// - Skips concepts that participate in dimensional hypercube base sets.
-    ///   Those facts require dimensional contexts and are not safe to emit into
-    ///   a plain instant/duration context template.
-    ///
-    /// Build the [`DocumentView`] once after this call, then fill values
-    /// in-place via [`set_fact_value`] without rebuilding the view.
-    pub fn from_taxonomy(
-        taxonomy: &TaxonomySet,
-        namespaces: HashMap<NamespacePrefix, NamespaceUri>,
-        instant_context: Context,
-        duration_context: Context,
-        units: &[Unit],
-    ) -> Self {
-        template::build_instance(
-            taxonomy,
-            namespaces,
-            instant_context,
-            duration_context,
-            units,
-        )
-    }
-
     /// Parse an XBRL instance document from the file at the given path.
     ///
     /// Automatically extracts the `<xbrli:xbrl>` element if the input
@@ -160,6 +127,61 @@ impl InstanceDocument {
         let instance = parser.parse()?;
         let doc = resolver::resolve_instance(instance)?;
         Ok(doc)
+    }
+
+    /// Builds a template instance document based on the taxonomy structure.
+    ///
+    /// - Registers all schema refs and role refs from the taxonomy
+    /// - Adds both contexts and all provided units
+    /// - Pre-populates nil facts for concepts in taxonomy schemas, preserving
+    ///   tuple nesting and child order from XSD content models
+    /// - For tuples with an exclusive single-choice content model, emits the
+    ///   tuple as `xsi:nil=true` (without pre-populated choice children)
+    /// - Assigns each fact the correct `unitRef` based on its XSD type:
+    ///   monetary → first currency unit, shares → first shares unit, other
+    ///   numeric → first pure unit, non-numeric → no unitRef
+    /// - Skips concepts that participate in dimensional hypercube base sets.
+    ///   Those facts require dimensional contexts and are not safe to emit into
+    ///   a plain instant/duration context template.
+    ///
+    /// Build the [`DocumentView`] once after this call, then fill values
+    /// in-place via [`set_fact_value`] without rebuilding the view.
+    pub fn from_taxonomy(
+        taxonomy: &TaxonomySet,
+        namespaces: HashMap<NamespacePrefix, NamespaceUri>,
+        instant_context: Context,
+        duration_context: Context,
+        units: &[Unit],
+    ) -> Self {
+        template::build_instance(
+            taxonomy,
+            namespaces,
+            instant_context,
+            duration_context,
+            units,
+        )
+    }
+
+    /// Builds a template instance document restricted to the given presentation
+    /// roles, in presentation-arc order. Concepts not covered by any of the
+    /// specified roles are omitted. Tuple subtrees are populated from the
+    /// schema content model.
+    pub fn from_sections(
+        taxonomy: &TaxonomySet,
+        roles: &[RoleUri],
+        namespaces: HashMap<NamespacePrefix, NamespaceUri>,
+        instant_context: Context,
+        duration_context: Context,
+        units: &[Unit],
+    ) -> Self {
+        template::build_instance_from_sections(
+            taxonomy,
+            roles,
+            namespaces,
+            instant_context,
+            duration_context,
+            units,
+        )
     }
 
     /// Validate this instance against a taxonomy.

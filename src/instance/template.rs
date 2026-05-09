@@ -1,6 +1,6 @@
 use super::{Context, ContextId, Fact, InstanceDocument, ItemFact, TupleFact, Unit};
 use crate::{
-    ExpandedName, NamespacePrefix, NamespaceUri, TaxonomySet,
+    ExpandedName, NamespacePrefix, NamespaceUri, PresentationArc, RoleUri, TaxonomySet,
     taxonomy::{Concept, ElementParticle, GroupParticle, Particle, PeriodType},
 };
 use std::{
@@ -110,6 +110,193 @@ pub(crate) fn build_instance(
     }
 
     instance
+}
+
+/// Builds a template instance document restricted to the given presentation
+/// roles. Facts are emitted in presentation-arc order; concepts not covered by
+/// any of the specified roles are omitted.
+///
+/// Tuple subtrees are always populated from the schema content model (same as
+/// [`build_instance`]) so the tuple structure stays consistent regardless of
+/// what the presentation linkbase says about tuple children.
+pub(crate) fn build_instance_from_sections(
+    taxonomy: &TaxonomySet,
+    roles: &[RoleUri],
+    namespaces: HashMap<NamespacePrefix, NamespaceUri>,
+    instant_context: Context,
+    duration_context: Context,
+    units: &[Unit],
+) -> InstanceDocument {
+    let mut instance = InstanceDocument::default();
+
+    for (prefix, uri) in namespaces {
+        instance.add_namespace(prefix, uri);
+    }
+
+    for schema_url in taxonomy.schema_refs().keys() {
+        instance.add_schema_ref(schema_url.to_string());
+    }
+
+    let instant_context_ref = instant_context.id.clone();
+    let duration_context_ref = duration_context.id.clone();
+    instance.add_context(instant_context);
+    instance.add_context(duration_context);
+
+    for unit in units {
+        instance.add_unit(unit.clone());
+    }
+
+    let dimensional_hypercube_items = dimensional_hypercube_items(taxonomy);
+    let concepts = taxonomy.concepts().collect::<Vec<_>>();
+    let schema_index = build_schema_child_index(&concepts, taxonomy);
+
+    let mut emitted_items: HashSet<ExpandedName> = HashSet::new();
+    let mut emitted_tuples: HashSet<ExpandedName> = HashSet::new();
+    let mut recursion_path: HashSet<ExpandedName> = HashSet::new();
+
+    for role in roles {
+        let Some(arcs) = taxonomy.presentation_arcs(role.as_str()) else {
+            continue;
+        };
+
+        let mut arc_index: HashMap<&ExpandedName, Vec<&PresentationArc>> = HashMap::new();
+        for arc in arcs {
+            arc_index.entry(&arc.from).or_default().push(arc);
+        }
+        for children in arc_index.values_mut() {
+            children.sort_by(|a, b| match (a.order, b.order) {
+                (Some(x), Some(y)) => x.cmp(&y),
+                (Some(_), None) => Ordering::Less,
+                (None, Some(_)) => Ordering::Greater,
+                (None, None) => Ordering::Equal,
+            });
+        }
+
+        let roots = super::view::find_roots(arcs, &arc_index);
+        for root in roots {
+            recursion_path.clear();
+            populate_from_presentation(
+                &arc_index,
+                &schema_index,
+                root,
+                taxonomy,
+                &instant_context_ref,
+                &duration_context_ref,
+                units,
+                &mut instance.facts,
+                &mut emitted_items,
+                &mut emitted_tuples,
+                &mut recursion_path,
+                &dimensional_hypercube_items,
+            );
+        }
+    }
+
+    instance
+}
+
+/// Walk one node of the presentation tree and emit facts.
+///
+/// - Concrete tuple  → delegates to [`populate_from_tree`] (schema content model owns children).
+/// - Concrete item   → emits a nil [`ItemFact`]; recurses into presentation children.
+/// - Abstract / grouping → recurses into presentation children.
+#[allow(clippy::too_many_arguments)]
+fn populate_from_presentation(
+    arc_index: &HashMap<&ExpandedName, Vec<&PresentationArc>>,
+    schema_index: &HashMap<ExpandedName, Vec<ExpandedName>>,
+    concept_name: &ExpandedName,
+    taxonomy: &TaxonomySet,
+    instant_ctx: &ContextId,
+    duration_ctx: &ContextId,
+    units: &[Unit],
+    facts: &mut Vec<Fact>,
+    emitted_items: &mut HashSet<ExpandedName>,
+    emitted_tuples: &mut HashSet<ExpandedName>,
+    recursion_path: &mut HashSet<ExpandedName>,
+    dimensional_hypercube_items: &HashSet<ExpandedName>,
+) {
+    if !recursion_path.insert(concept_name.clone()) {
+        return;
+    }
+
+    if let Some(concept) = taxonomy.find_concept(concept_name) {
+        if !dimensional_hypercube_items.contains(concept_name) {
+            if concept.is_tuple() && !concept.is_abstract {
+                // Delegate entirely to schema-based traversal so tuple children
+                // follow the xs:complexType content model. Use a fresh
+                // recursion_path so the schema walk's visited set doesn't
+                // contaminate the outer presentation walk.
+                let mut tuple_recursion_path: HashSet<ExpandedName> = HashSet::new();
+                let mut hoisted: Vec<Fact> = Vec::new();
+                populate_from_tree(
+                    schema_index,
+                    concept_name,
+                    taxonomy,
+                    instant_ctx,
+                    duration_ctx,
+                    units,
+                    facts,
+                    emitted_items,
+                    emitted_tuples,
+                    &mut tuple_recursion_path,
+                    None,
+                    dimensional_hypercube_items,
+                    &mut hoisted,
+                );
+                facts.extend(hoisted);
+                recursion_path.remove(concept_name);
+                return;
+            }
+
+            if !concept.is_abstract
+                && let Some(ref period_type) = concept.period_type
+            {
+                if emitted_items.insert(concept_name.clone()) {
+                    let context_ref = match period_type {
+                        PeriodType::Duration => duration_ctx,
+                        PeriodType::Instant => instant_ctx,
+                    };
+                    let mut fact = ItemFact::new(
+                        None,
+                        concept.name.clone(),
+                        context_ref.to_string(),
+                        unit_ref_for_concept(concept, units),
+                        String::new(),
+                        true,
+                        None,
+                        None,
+                    );
+                    fact.set_nil(true);
+                    facts.push(Fact::Item(fact));
+                }
+            }
+        }
+    }
+
+    // Recurse into presentation children for abstract concepts, concrete items,
+    // and concepts not found in the schema.
+    let children = arc_index
+        .get(concept_name)
+        .map(Vec::as_slice)
+        .unwrap_or(&[]);
+    for arc in children {
+        populate_from_presentation(
+            arc_index,
+            schema_index,
+            &arc.to,
+            taxonomy,
+            instant_ctx,
+            duration_ctx,
+            units,
+            facts,
+            emitted_items,
+            emitted_tuples,
+            recursion_path,
+            dimensional_hypercube_items,
+        );
+    }
+
+    recursion_path.remove(concept_name);
 }
 
 /// Recursively walk one node of the presentation tree and emit facts.

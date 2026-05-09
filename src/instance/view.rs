@@ -170,7 +170,7 @@ fn collect_tuple_fact_names(fact: &Fact, names: &mut HashSet<ExpandedName>) {
 }
 
 /// Find root concept IDs: those that appear as `from` but never as `to`.
-pub(super) fn find_roots<'a>(
+pub(crate) fn find_roots<'a>(
     arcs: &'a [PresentationArc],
     arc_index: &HashMap<&'a ExpandedName, Vec<&'a PresentationArc>>,
 ) -> Vec<&'a ExpandedName> {

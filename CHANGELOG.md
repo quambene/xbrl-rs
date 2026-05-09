@@ -34,7 +34,7 @@
   - Add `set_fact_nil`, `set_tuple_fact_nil`, `set_tuple_child_nil`,
     `add_tuple_child`, `remove_tuple_child`, `set_fact_attribute`, and `clear_fact_attribute`
   - Add `TaxonomyView` and `ConceptView`
-  - Add `InstanceDocument::contexts_mut` and `InstanceDocument::units_mut`
+  - Add `contexts_mut`, `units_mut`, and `from_sections` to `InstanceDocument`
   - Add `ItemFact::set_context_ref` and `ItemFact::set_unit_ref`
   - Add `TypedInstanceDocument` and `XbrlError::ValueError`
   - Make `resolve_instance` public
