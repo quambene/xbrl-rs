@@ -7,7 +7,6 @@
 # Test data
 /test_data/taxonomies
 /test_data/conformance/*
-/test_data/examples
 !/test_data/conformance/results.csv
 !/test_data/conformance/failures.csv
 
