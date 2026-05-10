@@ -136,6 +136,8 @@ fn generate_instance() {
         namespaces,
         instant_ctx,
         duration_ctx,
+        vec![],
+        vec![],
         &[monetary_unit, pure_unit],
     );
 

@@ -12,7 +12,7 @@ mod view;
 mod writer;
 
 use crate::{
-    NamespacePrefix, NamespaceUri, RoleUri, TaxonomySet,
+    ExpandedName, NamespacePrefix, NamespaceUri, RoleUri, TaxonomySet,
     error::Result,
     validation::{self, ValidationResult},
 };
@@ -140,9 +140,8 @@ impl InstanceDocument {
     /// - Assigns each fact the correct `unitRef` based on its XSD type:
     ///   monetary → first currency unit, shares → first shares unit, other
     ///   numeric → first pure unit, non-numeric → no unitRef
-    /// - Skips concepts that participate in dimensional hypercube base sets.
-    ///   Those facts require dimensional contexts and are not safe to emit into
-    ///   a plain instant/duration context template.
+    /// - Emits concepts that participate in dimensional hypercube base sets
+    ///   only when matching dimensional contexts are provided.
     ///
     /// Build the [`DocumentView`] once after this call, then fill values
     /// in-place via [`set_fact_value`] without rebuilding the view.
@@ -151,6 +150,8 @@ impl InstanceDocument {
         namespaces: HashMap<NamespacePrefix, NamespaceUri>,
         instant_context: Context,
         duration_context: Context,
+        dimensional_instant_contexts: Vec<Context>,
+        dimensional_duration_contexts: Vec<Context>,
         units: &[Unit],
     ) -> Self {
         template::build_instance(
@@ -158,6 +159,8 @@ impl InstanceDocument {
             namespaces,
             instant_context,
             duration_context,
+            dimensional_instant_contexts,
+            dimensional_duration_contexts,
             units,
         )
     }
@@ -165,14 +168,26 @@ impl InstanceDocument {
     /// Builds a template instance document restricted to the given presentation
     /// roles, in presentation-arc order. Concepts not covered by any of the
     /// specified roles are omitted. Tuple subtrees are populated from the
-    /// schema content model.
+    /// schema content model. Hypercube-related concepts are emitted only when
+    /// matching dimensional contexts are provided.
+    ///
+    /// `dimensional_hypercubes` narrows which hypercubes' members are assigned
+    /// the dimensional contexts. When non-empty, only facts that are domain
+    /// members of at least one of the listed hypercube concepts receive
+    /// dimensional context refs; facts from other hypercubes are omitted.
+    /// Pass an empty slice to apply
+    /// dimensional contexts to members of all hypercubes.
+    #[allow(clippy::too_many_arguments)]
     pub fn from_sections(
         taxonomy: &TaxonomySet,
         roles: &[RoleUri],
         namespaces: HashMap<NamespacePrefix, NamespaceUri>,
         instant_context: Context,
         duration_context: Context,
+        dimensional_instant_contexts: Vec<Context>,
+        dimensional_duration_contexts: Vec<Context>,
         units: &[Unit],
+        dimensional_hypercubes: &[ExpandedName],
     ) -> Self {
         template::build_instance_from_sections(
             taxonomy,
@@ -180,7 +195,10 @@ impl InstanceDocument {
             namespaces,
             instant_context,
             duration_context,
+            dimensional_instant_contexts,
+            dimensional_duration_contexts,
             units,
+            dimensional_hypercubes,
         )
     }
 

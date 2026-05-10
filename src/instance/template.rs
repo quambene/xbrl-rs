@@ -21,11 +21,18 @@ const ARCROLE_DOMAIN_MEMBER: &str = "http://xbrl.org/int/dim/arcrole/domain-memb
 /// content models. For exclusive single-choice tuple models, only a nil tuple
 /// placeholder is emitted without any children, since the template is intended
 /// to be fully populated by the user.
+///
+/// Dimensional items (members of dimensional base sets) are emitted with all
+/// applicable dimensional contexts for their period type. If no applicable
+/// dimensional contexts are provided for a dimensional item’s period type, that
+/// item is omitted.
 pub(crate) fn build_instance(
     taxonomy: &TaxonomySet,
     namespaces: HashMap<NamespacePrefix, NamespaceUri>,
     instant_context: Context,
     duration_context: Context,
+    dimensional_instant_contexts: Vec<Context>,
+    dimensional_duration_contexts: Vec<Context>,
     units: &[Unit],
 ) -> InstanceDocument {
     let mut instance = InstanceDocument::default();
@@ -40,8 +47,26 @@ pub(crate) fn build_instance(
 
     let instant_context_ref = instant_context.id.clone();
     let duration_context_ref = duration_context.id.clone();
+
     instance.add_context(instant_context);
     instance.add_context(duration_context);
+
+    let dimensional_instant_context_refs = dimensional_instant_contexts
+        .iter()
+        .map(|ctx| ctx.id.clone())
+        .collect::<Vec<_>>();
+    let dimensional_duration_context_refs = dimensional_duration_contexts
+        .iter()
+        .map(|ctx| ctx.id.clone())
+        .collect::<Vec<_>>();
+
+    for context in dimensional_instant_contexts {
+        instance.add_context(context);
+    }
+
+    for context in dimensional_duration_contexts {
+        instance.add_context(context);
+    }
 
     for unit in units {
         instance.add_unit(unit.clone());
@@ -52,12 +77,14 @@ pub(crate) fn build_instance(
     // order + particle child order.
     let mut recursion_path: HashSet<ExpandedName> = HashSet::new();
     let mut emitted_items: HashSet<ExpandedName> = HashSet::new();
+    let mut emitted_dimensional_items: HashSet<(ExpandedName, ContextId)> = HashSet::new();
     let mut emitted_tuples: HashSet<ExpandedName> = HashSet::new();
     let concepts = taxonomy.concepts().collect::<Vec<_>>();
-    let dimensional_hypercube_items = dimensional_hypercube_items(taxonomy);
+    let dimensional_hypercube_items = dimensional_hypercube_items(taxonomy, &[]);
     let schema_index = build_schema_child_index(&concepts, taxonomy);
     let roots = schema_roots(&concepts, &schema_index);
     let mut seeded_nodes: HashSet<ExpandedName> = HashSet::new();
+    let skip_items: HashSet<ExpandedName> = HashSet::new();
 
     for root in roots {
         seeded_nodes.insert(root.clone());
@@ -68,13 +95,17 @@ pub(crate) fn build_instance(
             taxonomy,
             &instant_context_ref,
             &duration_context_ref,
+            &dimensional_instant_context_refs,
+            &dimensional_duration_context_refs,
             units,
             &mut instance.facts,
             &mut emitted_items,
+            &mut emitted_dimensional_items,
             &mut emitted_tuples,
             &mut recursion_path,
             None,
             &dimensional_hypercube_items,
+            &skip_items,
             &mut hoisted,
         );
         instance.facts.extend(hoisted);
@@ -96,13 +127,17 @@ pub(crate) fn build_instance(
             taxonomy,
             &instant_context_ref,
             &duration_context_ref,
+            &dimensional_instant_context_refs,
+            &dimensional_duration_context_refs,
             units,
             &mut instance.facts,
             &mut emitted_items,
+            &mut emitted_dimensional_items,
             &mut emitted_tuples,
             &mut recursion_path,
             None,
             &dimensional_hypercube_items,
+            &skip_items,
             &mut hoisted,
         );
 
@@ -119,13 +154,17 @@ pub(crate) fn build_instance(
 /// Tuple subtrees are always populated from the schema content model (same as
 /// [`build_instance`]) so the tuple structure stays consistent regardless of
 /// what the presentation linkbase says about tuple children.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn build_instance_from_sections(
     taxonomy: &TaxonomySet,
     roles: &[RoleUri],
     namespaces: HashMap<NamespacePrefix, NamespaceUri>,
     instant_context: Context,
     duration_context: Context,
+    dimensional_instant_contexts: Vec<Context>,
+    dimensional_duration_contexts: Vec<Context>,
     units: &[Unit],
+    dimensional_hypercubes: &[ExpandedName],
 ) -> InstanceDocument {
     let mut instance = InstanceDocument::default();
 
@@ -139,18 +178,49 @@ pub(crate) fn build_instance_from_sections(
 
     let instant_context_ref = instant_context.id.clone();
     let duration_context_ref = duration_context.id.clone();
+
     instance.add_context(instant_context);
     instance.add_context(duration_context);
+
+    let dimensional_instant_context_refs = dimensional_instant_contexts
+        .iter()
+        .map(|ctx| ctx.id.clone())
+        .collect::<Vec<_>>();
+    let dimensional_duration_context_refs = dimensional_duration_contexts
+        .iter()
+        .map(|ctx| ctx.id.clone())
+        .collect::<Vec<_>>();
+
+    for context in dimensional_instant_contexts {
+        instance.add_context(context);
+    }
+
+    for context in dimensional_duration_contexts {
+        instance.add_context(context);
+    }
 
     for unit in units {
         instance.add_unit(unit.clone());
     }
 
-    let dimensional_hypercube_items = dimensional_hypercube_items(taxonomy);
+    let target_dimensional_items = dimensional_hypercube_items(taxonomy, dimensional_hypercubes);
+    // When a hypercube filter is active, facts from other hypercubes must not be
+    // emitted at all — neither with dimensional nor with plain contexts. Compute
+    // the "skip" set: all hypercube members minus the target ones.
+    let skip_items: HashSet<ExpandedName> = if dimensional_hypercubes.is_empty() {
+        HashSet::new()
+    } else {
+        let all_dimensional_items = dimensional_hypercube_items(taxonomy, &[]);
+        all_dimensional_items
+            .difference(&target_dimensional_items)
+            .cloned()
+            .collect()
+    };
     let concepts = taxonomy.concepts().collect::<Vec<_>>();
     let schema_index = build_schema_child_index(&concepts, taxonomy);
 
     let mut emitted_items: HashSet<ExpandedName> = HashSet::new();
+    let mut emitted_dimensional_items: HashSet<(ExpandedName, ContextId)> = HashSet::new();
     let mut emitted_tuples: HashSet<ExpandedName> = HashSet::new();
     let mut recursion_path: HashSet<ExpandedName> = HashSet::new();
 
@@ -160,9 +230,11 @@ pub(crate) fn build_instance_from_sections(
         };
 
         let mut arc_index: HashMap<&ExpandedName, Vec<&PresentationArc>> = HashMap::new();
+
         for arc in arcs {
             arc_index.entry(&arc.from).or_default().push(arc);
         }
+
         for children in arc_index.values_mut() {
             children.sort_by(|a, b| match (a.order, b.order) {
                 (Some(x), Some(y)) => x.cmp(&y),
@@ -173,6 +245,7 @@ pub(crate) fn build_instance_from_sections(
         }
 
         let roots = super::view::find_roots(arcs, &arc_index);
+
         for root in roots {
             recursion_path.clear();
             populate_from_presentation(
@@ -182,12 +255,16 @@ pub(crate) fn build_instance_from_sections(
                 taxonomy,
                 &instant_context_ref,
                 &duration_context_ref,
+                &dimensional_instant_context_refs,
+                &dimensional_duration_context_refs,
                 units,
                 &mut instance.facts,
                 &mut emitted_items,
+                &mut emitted_dimensional_items,
                 &mut emitted_tuples,
                 &mut recursion_path,
-                &dimensional_hypercube_items,
+                &target_dimensional_items,
+                &skip_items,
             );
         }
     }
@@ -200,6 +277,9 @@ pub(crate) fn build_instance_from_sections(
 /// - Concrete tuple  → delegates to [`populate_from_tree`] (schema content model owns children).
 /// - Concrete item   → emits a nil [`ItemFact`]; recurses into presentation children.
 /// - Abstract / grouping → recurses into presentation children.
+///
+/// `skip_items` lists concepts that belong to hypercubes for which no dimensional
+/// contexts were provided. These are marked as emitted but not pushed as facts.
 #[allow(clippy::too_many_arguments)]
 fn populate_from_presentation(
     arc_index: &HashMap<&ExpandedName, Vec<&PresentationArc>>,
@@ -208,20 +288,22 @@ fn populate_from_presentation(
     taxonomy: &TaxonomySet,
     instant_ctx: &ContextId,
     duration_ctx: &ContextId,
+    dimensional_instant_ctxs: &[ContextId],
+    dimensional_duration_ctxs: &[ContextId],
     units: &[Unit],
     facts: &mut Vec<Fact>,
     emitted_items: &mut HashSet<ExpandedName>,
+    emitted_dimensional_items: &mut HashSet<(ExpandedName, ContextId)>,
     emitted_tuples: &mut HashSet<ExpandedName>,
     recursion_path: &mut HashSet<ExpandedName>,
     dimensional_hypercube_items: &HashSet<ExpandedName>,
+    skip_items: &HashSet<ExpandedName>,
 ) {
     if !recursion_path.insert(concept_name.clone()) {
         return;
     }
 
-    if let Some(concept) = taxonomy.find_concept(concept_name)
-        && !dimensional_hypercube_items.contains(concept_name)
-    {
+    if let Some(concept) = taxonomy.find_concept(concept_name) {
         if concept.is_tuple() && !concept.is_abstract {
             // Delegate entirely to schema-based traversal so tuple children
             // follow the xs:complexType content model. Use a fresh
@@ -235,13 +317,17 @@ fn populate_from_presentation(
                 taxonomy,
                 instant_ctx,
                 duration_ctx,
+                dimensional_instant_ctxs,
+                dimensional_duration_ctxs,
                 units,
                 facts,
                 emitted_items,
+                emitted_dimensional_items,
                 emitted_tuples,
                 &mut tuple_recursion_path,
                 None,
                 dimensional_hypercube_items,
+                skip_items,
                 &mut hoisted,
             );
             facts.extend(hoisted);
@@ -251,24 +337,58 @@ fn populate_from_presentation(
 
         if !concept.is_abstract
             && let Some(ref period_type) = concept.period_type
-            && emitted_items.insert(concept_name.clone())
         {
-            let context_ref = match period_type {
-                PeriodType::Duration => duration_ctx,
-                PeriodType::Instant => instant_ctx,
-            };
-            let mut fact = ItemFact::new(
-                None,
-                concept.name.clone(),
-                context_ref.to_string(),
-                unit_ref_for_concept(concept, units),
-                String::new(),
-                true,
-                None,
-                None,
-            );
-            fact.set_nil(true);
-            facts.push(Fact::Item(fact));
+            if dimensional_hypercube_items.contains(concept_name) {
+                let context_refs = dimensional_context_refs_for_period(
+                    period_type,
+                    dimensional_instant_ctxs,
+                    dimensional_duration_ctxs,
+                );
+                if context_refs.is_empty() {
+                    recursion_path.remove(concept_name);
+                    return;
+                }
+
+                for context_ref in context_refs {
+                    if !emitted_dimensional_items
+                        .insert((concept_name.clone(), context_ref.clone()))
+                    {
+                        continue;
+                    }
+
+                    let mut fact = ItemFact::new(
+                        None,
+                        concept.name.clone(),
+                        context_ref.to_string(),
+                        unit_ref_for_concept(concept, units),
+                        String::new(),
+                        true,
+                        None,
+                        None,
+                    );
+                    fact.set_nil(true);
+                    facts.push(Fact::Item(fact));
+                }
+            } else if skip_items.contains(concept_name) {
+                // Member of a hypercube we have no contexts for: omit but mark
+                // as emitted so the fallback traversal doesn't re-emit it.
+                emitted_items.insert(concept_name.clone());
+            } else if emitted_items.insert(concept_name.clone()) {
+                let context_ref =
+                    default_context_ref_for_period(period_type, instant_ctx, duration_ctx);
+                let mut fact = ItemFact::new(
+                    None,
+                    concept.name.clone(),
+                    context_ref.to_string(),
+                    unit_ref_for_concept(concept, units),
+                    String::new(),
+                    true,
+                    None,
+                    None,
+                );
+                fact.set_nil(true);
+                facts.push(Fact::Item(fact));
+            }
         }
     }
 
@@ -286,12 +406,16 @@ fn populate_from_presentation(
             taxonomy,
             instant_ctx,
             duration_ctx,
+            dimensional_instant_ctxs,
+            dimensional_duration_ctxs,
             units,
             facts,
             emitted_items,
+            emitted_dimensional_items,
             emitted_tuples,
             recursion_path,
             dimensional_hypercube_items,
+            skip_items,
         );
     }
 
@@ -314,13 +438,17 @@ fn populate_from_tree(
     taxonomy: &TaxonomySet,
     instant_ctx: &ContextId,
     duration_ctx: &ContextId,
+    dimensional_instant_ctxs: &[ContextId],
+    dimensional_duration_ctxs: &[ContextId],
     units: &[Unit],
     facts: &mut Vec<Fact>,
     emitted_items: &mut HashSet<ExpandedName>,
+    emitted_dimensional_items: &mut HashSet<(ExpandedName, ContextId)>,
     emitted_tuples: &mut HashSet<ExpandedName>,
     recursion_path: &mut HashSet<ExpandedName>,
     parent_tuple_element: Option<&Concept>,
     dimensional_hypercube_items: &HashSet<ExpandedName>,
+    skip_items: &HashSet<ExpandedName>,
     hoisted: &mut Vec<Fact>,
 ) {
     if !recursion_path.insert(concept_name.clone()) {
@@ -375,13 +503,17 @@ fn populate_from_tree(
                         taxonomy,
                         instant_ctx,
                         duration_ctx,
+                        dimensional_instant_ctxs,
+                        dimensional_duration_ctxs,
                         units,
                         tuple_children,
                         emitted_items,
+                        emitted_dimensional_items,
                         emitted_tuples,
                         recursion_path,
                         Some(concept),
                         dimensional_hypercube_items,
+                        skip_items,
                         hoisted,
                     );
                 }
@@ -393,40 +525,79 @@ fn populate_from_tree(
         if !concept.is_abstract
             && let Some(ref period_type) = concept.period_type
         {
-            let context_ref = match period_type {
-                PeriodType::Duration => duration_ctx,
-                PeriodType::Instant => instant_ctx,
-            };
-
             if dimensional_hypercube_items.contains(concept_name) {
-                recursion_path.remove(concept_name);
-                return;
-            }
+                let context_refs = dimensional_context_refs_for_period(
+                    period_type,
+                    dimensional_instant_ctxs,
+                    dimensional_duration_ctxs,
+                );
 
-            // Mark as emitted so `populate_from_presentation` does not re-emit
-            // this concept as a top-level fact later.
-            emitted_items.insert(concept_name.clone());
+                if context_refs.is_empty() {
+                    recursion_path.remove(concept_name);
+                    return;
+                }
 
-            let mut fact = ItemFact::new(
-                None,
-                concept.name.clone(),
-                context_ref.to_string(),
-                unit_ref_for_concept(concept, units),
-                String::new(),
-                true,
-                None,
-                None,
-            );
-            fact.set_nil(true);
+                for context_ref in context_refs {
+                    if !emitted_dimensional_items
+                        .insert((concept_name.clone(), context_ref.clone()))
+                    {
+                        continue;
+                    }
 
-            // Items not allowed by the tuple's content model are hoisted to
-            // the top level so they still appear in the generated template.
-            if let Some(parent_el) = parent_tuple_element
-                && !item_allowed_in_tuple(parent_el, concept, taxonomy)
-            {
-                hoisted.push(Fact::Item(fact));
+                    let mut fact = ItemFact::new(
+                        None,
+                        concept.name.clone(),
+                        context_ref.to_string(),
+                        unit_ref_for_concept(concept, units),
+                        String::new(),
+                        true,
+                        None,
+                        None,
+                    );
+                    fact.set_nil(true);
+
+                    // Items not allowed by the tuple's content model are hoisted to
+                    // the top level so they still appear in the generated template.
+                    if let Some(parent_el) = parent_tuple_element
+                        && !item_allowed_in_tuple(parent_el, concept, taxonomy)
+                    {
+                        hoisted.push(Fact::Item(fact));
+                    } else {
+                        facts.push(Fact::Item(fact));
+                    }
+                }
+            } else if skip_items.contains(concept_name) {
+                // Member of a hypercube we have no contexts for: omit but mark
+                // as emitted so the fallback traversal doesn't re-emit it.
+                emitted_items.insert(concept_name.clone());
             } else {
-                facts.push(Fact::Item(fact));
+                // Mark as emitted so `populate_from_presentation` does not re-emit
+                // this concept as a top-level fact later.
+                emitted_items.insert(concept_name.clone());
+
+                let context_ref =
+                    default_context_ref_for_period(period_type, instant_ctx, duration_ctx);
+                let mut fact = ItemFact::new(
+                    None,
+                    concept.name.clone(),
+                    context_ref.to_string(),
+                    unit_ref_for_concept(concept, units),
+                    String::new(),
+                    true,
+                    None,
+                    None,
+                );
+                fact.set_nil(true);
+
+                // Items not allowed by the tuple's content model are hoisted to
+                // the top level so they still appear in the generated template.
+                if let Some(parent_el) = parent_tuple_element
+                    && !item_allowed_in_tuple(parent_el, concept, taxonomy)
+                {
+                    hoisted.push(Fact::Item(fact));
+                } else {
+                    facts.push(Fact::Item(fact));
+                }
             }
         }
     }
@@ -439,13 +610,17 @@ fn populate_from_tree(
             taxonomy,
             instant_ctx,
             duration_ctx,
+            dimensional_instant_ctxs,
+            dimensional_duration_ctxs,
             units,
             facts,
             emitted_items,
+            emitted_dimensional_items,
             emitted_tuples,
             recursion_path,
             parent_tuple_element,
             dimensional_hypercube_items,
+            skip_items,
             hoisted,
         );
     }
@@ -453,16 +628,54 @@ fn populate_from_tree(
     recursion_path.remove(concept_name);
 }
 
+fn default_context_ref_for_period<'a>(
+    period_type: &PeriodType,
+    instant_ctx: &'a ContextId,
+    duration_ctx: &'a ContextId,
+) -> &'a ContextId {
+    match period_type {
+        PeriodType::Duration => duration_ctx,
+        PeriodType::Instant => instant_ctx,
+    }
+}
+
+fn dimensional_context_refs_for_period<'a>(
+    period_type: &PeriodType,
+    dimensional_instant_ctxs: &'a [ContextId],
+    dimensional_duration_ctxs: &'a [ContextId],
+) -> &'a [ContextId] {
+    match period_type {
+        PeriodType::Duration => dimensional_duration_ctxs,
+        PeriodType::Instant => dimensional_instant_ctxs,
+    }
+}
+
 /// Collect concepts that belong to dimensional base sets and therefore require
 /// dimensional contexts.
 ///
-/// This is used as a conservative workaround in `from_taxonomy`: when only
-/// plain instant/duration contexts are provided, these concepts are skipped to
-/// avoid invalid hypercube assignments in downstream validators.
-fn dimensional_hypercube_items(taxonomy: &TaxonomySet) -> HashSet<ExpandedName> {
+/// When `hypercube_filter` is non-empty, only concepts that are domain members
+/// of the listed hypercubes are returned. Pass an empty slice to collect from
+/// all hypercubes.
+fn dimensional_hypercube_items(
+    taxonomy: &TaxonomySet,
+    hypercube_filter: &[ExpandedName],
+) -> HashSet<ExpandedName> {
+    let filter_set: HashSet<&ExpandedName> = hypercube_filter.iter().collect();
+    let use_filter = !filter_set.is_empty();
     let mut result: HashSet<ExpandedName> = HashSet::new();
 
     for arcs in taxonomy.definitions().values() {
+        if use_filter {
+            let has_target = arcs.iter().any(|arc| {
+                (arc.arcrole.as_str() == ARCROLE_ALL || arc.arcrole.as_str() == ARCROLE_NOT_ALL)
+                    && filter_set.contains(&arc.to)
+            });
+
+            if !has_target {
+                continue;
+            }
+        }
+
         let mut domain_children: HashMap<ExpandedName, Vec<ExpandedName>> = HashMap::new();
         let mut roots: Vec<ExpandedName> = Vec::new();
 

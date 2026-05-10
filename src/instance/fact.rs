@@ -44,7 +44,7 @@ impl fmt::Display for Decimals {
 }
 
 /// Represents a single fact (data point) in an XBRL instance
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Fact {
     /// An item fact with a value and optional unit reference.
     Item(ItemFact),
@@ -54,7 +54,7 @@ pub enum Fact {
 }
 
 /// Represents a single item fact (data point) in an XBRL instance.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ItemFact {
     /// The the resolved concept name (e.g. "de-gaap-ci:bs.ass.fixAss").
     concept_name: ExpandedName,
@@ -172,7 +172,7 @@ impl ItemFact {
 }
 
 /// Represents a tuple fact that can contain child facts.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TupleFact {
     /// Optional XML id attribute
     id: Option<String>,

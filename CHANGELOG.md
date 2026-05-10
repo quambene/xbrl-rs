@@ -39,6 +39,7 @@
   - Add `TypedInstanceDocument` and `XbrlError::ValueError`
   - Make `resolve_instance` public
   - Parse `parts` from reference linkbase
+  - Support dimensional-context fact emission in template builders
 - changed
   - Parse `ComplexType`s recursively
   - Rename `InstanceParser::parse_instance` to `InstanceParser::parse`
