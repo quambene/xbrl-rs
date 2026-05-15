@@ -113,9 +113,8 @@ category;testcase;variation_id;variation_name;expected;got
 300-instance;304-unitOfMeasure;V-03;monetaryItemType derivation has monetary units;Valid;Invalid
 300-instance;304-unitOfMeasure;V-04;An element with a type derived by restriction from monetaryItemType has monetary units (using a non-standard ISO namespace prefix);Valid;Invalid
 300-instance;304-unitOfMeasure;V-05;non monetaryItemType has monetary units;Valid;Invalid
-300-instance;304-unitOfMeasure;V-10;Units for pure numbers;Valid;Invalid
-300-instance;304-unitOfMeasure;V-12;Units for pure numbers - counterexample - the namespace string is incorrect;Valid;Invalid
 300-instance;304-unitOfMeasure;V-12a;Units for pure numbers - counterexample - the namespace string is incorrect;Valid;Invalid
+300-instance;305-decimalPrecision;V-08;UnitRefOnDecimalsOrPrecisionFixed;Invalid;Valid
 300-instance;306-required;V-3;RequiredDefinitionValid-TupleItemInvalid;Invalid;Valid
 300-instance;307-schemaRef;V-3;SchemaRefXMLBase;Invalid;Valid
 300-instance;309-FootnoteRoles-testcase;V-02;309-03 invalid but standard footnote role;Invalid;Valid
