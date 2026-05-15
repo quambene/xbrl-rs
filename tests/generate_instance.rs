@@ -107,7 +107,7 @@ fn generate_instance_from_taxonomy() {
     );
 
     // Deserialize fixture from XML
-    let fixture_path = Path::new("test_data/instances/generated_instance.xml");
+    let fixture_path = Path::new("test_data/instances/instance_from_sections.xml");
     let expected_instance = InstanceDocument::from_file(fixture_path).unwrap();
 
     // Fix the fixture
