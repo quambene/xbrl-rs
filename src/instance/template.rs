@@ -115,7 +115,15 @@ pub(crate) fn build_instance(
         if !schema_participates(concept, &schema_index) {
             continue;
         }
+
         if seeded_nodes.contains(&concept.name) {
+            continue;
+        }
+
+        // Skip items already emitted as tuple children during the root traversal
+        // above. Without this guard the fallback loop would re-emit them at the
+        // top level, producing duplicate facts.
+        if emitted_items.contains(&concept.name) {
             continue;
         }
 
