@@ -6,7 +6,7 @@
 - changed
 - removed
 
-## v0.3.0 (unreleased)
+## v0.3.0 (2026-05-15)
 
 - fixed
   - Fix conformance tests `TupleGroupCounterExample` and `TupleChoiceExample`
