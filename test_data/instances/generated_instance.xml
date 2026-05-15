@@ -386,8 +386,20 @@
     <de-gcd:genInfo.company.id.adress.country contextRef="D-2020" xsi:nil="true" />
     <de-gcd:genInfo.company.id.adress.country.isoCode contextRef="D-2020" xsi:nil="true" />
     <de-gcd:genInfo.company.id.idNo>
+        <de-gcd:genInfo.company.id.idNo.type.companyId.HRN contextRef="D-2020" xsi:nil="true" />
+        <de-gcd:genInfo.company.id.idNo.type.companyId.UID contextRef="D-2020" xsi:nil="true" />
+        <de-gcd:genInfo.company.id.idNo.type.companyId.ST13 contextRef="D-2020" xsi:nil="true" />
         <de-gcd:genInfo.company.id.idNo.type.companyId.STID contextRef="D-2020" xsi:nil="true" />
+        <de-gcd:genInfo.company.id.idNo.type.companyId.STWID contextRef="D-2020" xsi:nil="true" />
+        <de-gcd:genInfo.company.id.idNo.type.companyId.BF4 contextRef="D-2020" xsi:nil="true" />
+        <de-gcd:genInfo.company.id.idNo.type.companyId.BKN contextRef="D-2020" xsi:nil="true" />
+        <de-gcd:genInfo.company.id.idNo.type.companyId.BUN contextRef="D-2020" xsi:nil="true" />
+        <de-gcd:genInfo.company.id.idNo.type.companyId.IN contextRef="D-2020" xsi:nil="true" />
+        <de-gcd:genInfo.company.id.idNo.type.companyId.EN contextRef="D-2020" xsi:nil="true" />
+        <de-gcd:genInfo.company.id.idNo.type.companyId.SN contextRef="D-2020" xsi:nil="true" />
+        <de-gcd:genInfo.company.id.idNo.type.companyId.LEI contextRef="D-2020" xsi:nil="true" />
         <de-gcd:genInfo.company.id.idNo.type.companyId.customerID contextRef="D-2020" xsi:nil="true" />
+        <de-gcd:genInfo.company.id.idNo.type.companyId.S contextRef="D-2020" xsi:nil="true" />
     </de-gcd:genInfo.company.id.idNo>
     <de-gcd:genInfo.company.id.bankAcct>
         <de-gcd:genInfo.company.id.bankAcct.acctHolderName contextRef="D-2020" xsi:nil="true" />

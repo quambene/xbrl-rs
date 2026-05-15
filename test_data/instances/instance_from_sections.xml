@@ -1,0 +1,1498 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xbrli:xbrl xmlns:de-gaap-ci="http://www.xbrl.de/taxonomies/de-gaap-ci-2020-04-01"
+    xmlns:de-gcd="http://www.xbrl.de/taxonomies/de-gcd-2020-04-01"
+    xmlns:iso4217="http://www.xbrl.org/2003/iso4217" xmlns:link="http://www.xbrl.org/2003/linkbase"
+    xmlns:xbrli="http://www.xbrl.org/2003/instance" xmlns:xlink="http://www.w3.org/1999/xlink"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <link:schemaRef xlink:type="simple"
+        xlink:href="http://www.xbrl.de/taxonomies/de-gcd-2020-04-01/de-gcd-2020-04-01-shell.xsd" />
+    <link:schemaRef xlink:type="simple"
+        xlink:href="http://www.xbrl.de/taxonomies/de-gaap-ci-2020-04-01/de-gaap-ci-2020-04-01-shell-fiscal.xsd" />
+    <xbrli:context id="D-2020">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://example.com/id">0000000000000</xbrli:identifier>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2020-01-01</xbrli:startDate>
+            <xbrli:endDate>2020-12-31</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="I-2020">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://example.com/id">0000000000000</xbrli:identifier>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:instant>2020-12-31</xbrli:instant>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:unit id="EUR">
+        <xbrli:measure>iso4217:EUR</xbrli:measure>
+    </xbrli:unit>
+    <xbrli:unit id="pure">
+        <xbrli:measure>xbrli:pure</xbrli:measure>
+    </xbrli:unit>
+    <de-gaap-ci:bs.ass contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.unpaidCap.dueCapOfCoop contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.accountingConvenience contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.intan contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.intan.selfmade contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.intan.selfmade.finished contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.intan.selfmade.underConstr contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.intan.development contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.intan.concessionBrands contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.intan.concessionBrands.concession contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.intan.concessionBrands.tradeMarks contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.intan.concessionBrands.other contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.intan.concessionBrands.software contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.intan.concessionBrands.licenses contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.intan.concessionBrandsOtherForeign contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.intan.freeConcession contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.intan.freeConcession.concession contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.intan.freeConcession.propertyRight contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.intan.freeConcession.otherRight contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.intan.freeConcession.software contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.intan.freeConcession.licenses contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.intan.freeConcession.otherForeign contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.intan.freeAndPaidConcession contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.intan.freeAndPaidConcession.free contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.intan.freeAndPaidConcession.concession contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.intan.freeAndPaidConcession.concession.free contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.intan.freeAndPaidConcession.propertyRight contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.intan.freeAndPaidConcession.propertyRight.free contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.intan.freeAndPaidConcession.otherRight contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.intan.freeAndPaidConcession.otherRight.free contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.intan.freeAndPaidConcession.software contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.intan.freeAndPaidConcession.software.free contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.intan.freeAndPaidConcession.licenses contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.intan.freeAndPaidConcession.licenses.free contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.intan.freeAndPaidConcession.otherForeign contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.intan.freeAndPaidConcession.otherForeign.free contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.intan.goodwill contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.intan.goodwill.purchased contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.intan.goodwillOtherForeign contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.intan.advPaym contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.intan.other contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.tan contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.tan.landBuildings contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.tan.landBuildings.landWithoutBuildings contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.tan.landBuildings.rightEquivalentToLandWithoutBuildings
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.tan.landBuildings.buildingsOnOwnLand contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.tan.landBuildings.buildingsOnOwnLand.land contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.tan.landBuildings.buildingsOnOwnLand.misc contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.tan.landBuildings.buildingsOnOwnLand.buildings contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.tan.landBuildings.buildingsOnNonOwnedLand contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.tan.landBuildings.costAllocItem contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.tan.landBuildings.other contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.tan.landBuildingsOtherForeign contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.tan.landBuildings.misc contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.tan.machinery contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.tan.machinery.technEquipm contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.tan.machinery.machinery contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.tan.machinery.installations contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.tan.machinery.spareParts contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.tan.machinery.gwg contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.tan.machinery.gwgsammelposten contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.tan.machinery.othermachinery contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.tan.machinery.otherForeign contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.tan.otherEquipm contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.tan.otherEquipm.passengerCars contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.tan.otherEquipm.comVehicle contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.tan.otherEquipm.otherTransportMeans contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.tan.otherEquipm.other contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.tan.otherEquipm.factory contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.tan.otherEquipm.office contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.tan.otherEquipm.gwg contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.tan.otherEquipm.gwgsammelposten contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.tan.otherEquipm.otherbga contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.tan.otherEquipmOtherForeign contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.tan.otherEquipm.misc contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.tan.branche_kfz contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.tan.branche_kfz.compCar contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.tan.branche_kfz.demoModel contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.tan.inConstrAdvPaym contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.tan.inConstrAdvPaym.advPaym contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.tan.inConstrAdvPaym.buildingUnderConstr contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.tan.inConstrAdvPaym.equipmUnderConstr contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.tan.inConstrAdvPaymOtherForeign contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.tan.other contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.tan.other.leasedAss contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.tan.other.other contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.tan.other.misc contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.LoansToShareholder contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.sharesInAffil contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.sharesInAffil.partnerships contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.sharesInAffil.corporations contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.sharesInAffil.other contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.sharesInAffil.parentComp contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.sharesInAffil.generalPartners contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.sharesInAffil.subsidiaries contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.sharesInAffilOtherForeign contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.loansToSharehold contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.loansToSharehold.gmbhSilent contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.loansToSharehold.unlimitedLiable contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.loansToSharehold.limitedLiable contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.loansToSharehold.misc contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.loansToAffil contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.loansToAffil.partnerships contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.loansToAffil.corporations contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.loansToAffil.soleProprietor contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.loansToAffil.other contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.loansToAffil.parentComp contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.loansToAffil.subsidiaries contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.loansToAffilOtherForeign contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.particip contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.particip.generalPartners contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.particip.partnerships contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.particip.corporations contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.particip.silent contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.particip.silent.typical contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.particip.silent.atypical contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.particip.silent.misc contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.particip.other contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.participOtherForeign contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.loansToParticip contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.loansToParticip.parentComp contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.loansToParticip.subsidiaries contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.loansToParticip.partnerships contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.loansToParticip.corporations contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.loansToParticip.other contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.loansToParticipOtherForeign contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.securities contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.securities.shares contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.securities.warrants contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.securities.partCertificate contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.securities.mutInvestm contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.securities.bonds contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.securities.convertBond contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.securities.securities contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.securities.other contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.securitiesOtherForeign contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.otherLoans contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.otherLoans.employees contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.otherLoans.other contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.otherLoans.misc contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.otherLoansOtherForeign contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.otherFinAss contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.otherFinAss.profSharRights contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.otherFinAss.coopShares contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.otherFinAss.reInsurClaim contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.otherFinAss.silent contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.otherFinAss.other contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.fixAss.fin.otherFinAss.misc contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.assInbetwFixAndCurr contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.assInbetwFixAndCurr.nuclFuel contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.assInbetwFixAndCurr.filmRights contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.assInbetwFixAndCurr.miningOverburden contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.assInbetwFixAndCurr.other contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.inventory contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.inventory.allowanceAccounted contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.inventory.material contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.inventory.material.rawMaterial contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.inventory.material.supplMaterial contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.inventory.material.consumables contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.inventory.materialOtherForeign contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.inventory.inProgress contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.inventory.inProgress.goods contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.inventory.inProgress.services contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.inventory.inProgress.notYetInvoiced contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.inventory.inProgress.constructionInProgress contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.inventory.inProgress.ordersInProgress contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.inventory.inProgressOtherForeign contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.inventory.finishedAndMerch contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.inventory.finishedAndMerch.goods contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.inventory.finishedAndMerch.merchandise contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.inventory.finishedAndMerch.merchandise.new contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.inventory.finishedAndMerch.merchandise.used contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.inventory.finishedAndMerch.notYetInvoiced contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.inventory.finishedAndMerchOtherForeign contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.inventory.other contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.inventory.other.leased contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.inventory.advPaymPaid contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.inventory.gross contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.inventory.advPaymReceived contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.inventory.advPaymReceived.contractProgress contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.above1year contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.specValAllowanceAccounted contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.globValAllowanceAccounted contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.shareholder contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.unpaidCapital contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.unpaidCapitalUnlimitedLiablePartner contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.unpaidCapitalLimitedLiablePartner contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.trade contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.trade.upTo1year contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.trade.above1year contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.trade.bill contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.trade.shareholders contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.trade.generalPartner contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.trade.prepayment contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.trade.paymentOnAccount contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.trade.other contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.trade.misc contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.regulatory contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.regulatory.upTo1year contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.regulatory.above1year contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.shareholders contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.shareholders.upTo1year contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.shareholders.above1year contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.shareholders.trade contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.shareholders.generalPartnerFromTrade contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.shareholders.unpaidCapCalled contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.shareholders.affilCompanies contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.shareholders.gmbh contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.shareholders.unlimitedLiable contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.shareholders.limitedLiable contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.shareholders.silent contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.shareholders.other contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.shareholders.misc contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.unpaidCapitalPartners contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.unpaidCapitalPartners.unlimitedLiable contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.unpaidCapitalPartners.limitedLiable contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.unpaidCapitalPartners.misc contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.affil contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.affil.upTo1year contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.affil.above1year contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.affil.trade contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.affil.parentComp contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.affil.subsidiaries contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.affil.partner contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.affilOtherForeign contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.particip contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.particip.upTo1year contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.particip.above1year contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.particip.trade contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.particip.shareholders contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.particip.subsidiaries contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.colEntity contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.claim contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.other.unpaidCapital contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.other.unpaidCapitalUnlimitedLiablePartner contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.other.unpaidCapitalLimitedLiablePartner contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.other.unpaidSupplementaryCalls contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.other contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.other.upTo1year contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.other.above1year contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.other.profSharRights contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.other.secondaryPaym contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.other.coopShares contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.other.reInsurClaim contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.other.vat contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.other.corpTaxOverpayment contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.other.tradeTaxOverpayment contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.other.minTaxFingov contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.other.InterstMinTaxFingovAO contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.other.corpTaxCredit37KStG contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.other.otherTaxRec contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.other.socInsur contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.other.employees contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.other.bodies contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.other.jointWork contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.other.shareholders contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.other.other contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.other.misc contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.receiv.otherForeign contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.securities contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.securities.affil contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.securities.affil.parentComp contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.securities.affil.subsidiaries contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.securities.other contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.securities.other.shares contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.securities.other.warrants contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.securities.other.partCertificate contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.securities.other.mutInvestm contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.securities.other.bonds contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.securities.other.convertBond contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.securities.other.securities contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.securities.other.other contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.securities.otherNonMappable contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.cashEquiv contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.cashEquiv.cheques contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.cashEquiv.cash contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.cashEquiv.centralBank contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.cashEquiv.bank contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.cashEquiv.other contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.cashEquivOtherForeign contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.currAss.cashEquiv.misc contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.prepaidExp contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.prepaidExp.loadRedempt contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.prepaidExp.premium contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.prepaidExp.moneyProv contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.prepaidExp.customTaxDuty contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.prepaidExp.vat contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.prepaidExp.rentPaid contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.prepaidExp.other contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.prepaidExpOtherForeign contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.defTax contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.SurplusFromOffsetting contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.taxbalanceOrgancomp contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.InvStG contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.taxbalanceGenerally contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.InvStGs56 contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.privateAccountSP contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.privateAccountSP.beginYear contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.privateAccountSP.capAdjust contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.privateAccountSP.incomeUseDeposits
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.privateAccountSP.incomeUseWithdrawals
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.privateAccountSP.reallocation contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.privateAccountSP.capAdjust6bRes
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.privateAccountSP.netIncome contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.lossUnlimitedLiablePartnerS contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.lossUnlimitedLiablePartnerS.beginYear
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.lossUnlimitedLiablePartnerS.capAdjust
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.lossUnlimitedLiablePartnerS.incomeUseDeposits
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.lossUnlimitedLiablePartnerS.incomeUseWithdrawals
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.lossUnlimitedLiablePartnerS.capAdjust6bRes
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.lossUnlimitedLiablePartnerS.netIncome
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.lossUnlimitedLiablePartnerS.capMovements
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.lossLimitedLiablePartnerS contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.lossLimitedLiablePartnerS.beginYear
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.lossLimitedLiablePartnerS.capAdjust
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.lossLimitedLiablePartnerS.incomeUseDeposits
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.lossLimitedLiablePartnerS.incomeUseWithdrawals
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.lossLimitedLiablePartnerS.capAdjust6bRes
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.lossLimitedLiablePartnerS.netIncome
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.lossLimitedLiablePartnerS.capMovements
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.withdrawalsUnlimitedLiablePartner
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.withdrawalsUnlimitedLiablePartner.beginYear
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.withdrawalsUnlimitedLiablePartner.capAdjust
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.withdrawalsUnlimitedLiablePartner.incomeUseDeposit
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.withdrawalsUnlimitedLiablePartner.incomeUseWithdrawals
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.withdrawalsUnlimitedLiablePartner.capAdjust6bRules
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.withdrawalsUnlimitedLiablePartner.netIncome
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.withdrawalsUnlimitedLiablePartner.capMovements
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.withdrawalLimitedLiablePartner contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.withdrawalLimitedLiablePartner.beginYear
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.withdrawalLimitedLiablePartner.capAdjust
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.withdrawalLimitedLiablePartner.incomeUseDeposits
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.withdrawalLimitedLiablePartner.incomeUseWithdrawals
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.withdrawalLimitedLiablePartner.capAdjust6bRules
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.withdrawalLimitedLiablePartner.netIncome
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.withdrawalLimitedLiablePartner.capMovements
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.compensationUnlimitedLiablePartner
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.compensationLimitedLiablePartner
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.unpaidContributionUnlimitedLiablelPartner
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.unpaidContributionLimitedLiablelPartner
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.unlimitedLiablePartners.fixed contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.unlimitedLiablePartners.variable
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.unlimitedLiablePartners.accumLoss
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.limitedLiablePartners.fixed contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.limitedLiablePartners.variable contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.limitedLiablePartners.accumLoss
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.unpaidCapt contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.dueToPartners contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.profitParticipation contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.lastrange contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.silentPartner contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.reservesPartnership contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.reservesPartnership.finalPrev contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.reservesPartnership.capAdjust contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.reservesPartnership.movements contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.reservesPartnership.changePresentYear
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.retainedEarnings.showndebit contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.netIncome.showndebit contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.deficitNotCoveredByCapital.profitLoss.showndebit contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.ass.other contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.corp contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.corp.finalPrev contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.corp.capAdjust contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.corp.movements contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.corp.changePresentYear contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.corp.premium contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.unpaidCap contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.privateAccountSP contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.privateAccountSP.beginYear contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.privateAccountSP.capAdjust contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.privateAccountSP.incomeUseDeposits contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.privateAccountSP.incomeUseWithdrawals
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.privateAccountSP.adjustment contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.privateAccountSP.capAdjust6bRes contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.privateAccountSP.netIncome contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.unlimitedLiablePartners contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.unlimitedLiablePartners.beginYear contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.unlimitedLiablePartners.capAdjust contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.unlimitedLiablePartners.incomeUseDeposits
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.unlimitedLiablePartners.incomeUseWithdrawals
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.unlimitedLiablePartners.capAdjust6bRes
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.unlimitedLiablePartners.netIncome contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.unlimitedLiablePartners.capMovements contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.unlimitedLiablePartners.fixed contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.unlimitedLiablePartners.variable contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.unlimitedLiablePartners.accumLoss contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.unlimitedLiablePartners.unpaidCap contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.unlimitedLiablePartners.calledIn contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.limitedLiablePartners contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.limitedLiablePartners.beginYear contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.limitedLiablePartners.capAdjust contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.limitedLiablePartners.incomeUseDeposits
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.limitedLiablePartners.incomeUseWithdrawals
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.limitedLiablePartners.capAdjust6bRes contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.limitedLiablePartners.netIncome contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.limitedLiablePartners.capMovements contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.limitedLiablePartners.fixed contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.limitedLiablePartners.variable contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.limitedLiablePartners.accumLoss contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.taxBalanceGenerally contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.limitedLiablePartners.unpaidCap contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.limitedLiablePartners.calledIn contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.calledIn contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.ownSharesdeducted contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.ownSharesdeducted.finalPrev contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.ownSharesdeducted.capAdjust contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.ownSharesdeducted.movements contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.ownSharesdeducted.changePresentYear contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.coopPartners contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.coopPartners.staying contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.coopPartners.leaving contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.coopPartners.cancelledShares contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.coopPartners.unpaidSharesDue contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.coopPartners.minimumCapital contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.coopPartners.finalPrev contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.coopPartners.capAdjust contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.coopPartners.movements contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.subscribed.coopPartners.changePresentYear contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.endowmentCapital contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.association contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.association.finalPrev contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.association.contributions contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.association.withdrawals contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.association.capAdjust contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.association.movements contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.association.changePresentYear contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.foundation contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.foundation.estab contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.foundation.estab.finalPrev contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.foundation.estab.capAdjust contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.foundation.estab.movements contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.foundation.estab.changePresentYear contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.foundation.donation contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.foundation.donation.finalPrev contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.foundation.donation.capAdjust contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.foundation.donation.movements contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.foundation.donation.changePresentYear contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.foundation.injectionRevRes contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.dueToPartners contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.profSharing contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.lastrangecapital contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.silentPartner contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.capRes contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.capRes.sharePremium contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.capRes.warrantPremium contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.capRes.contrPremShares contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.capRes.other contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.capRes.cashRequGmbh contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.capRes.capReduction contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.capRes.addPresentYear contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.capRes.usePresentYear contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.capRes.finalPrev contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.capRes.capAdjust contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.capRes.movements contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.capRes.changePresentYear contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.reservesPartnership contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.reservesPartnership.finalPrev contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.reservesPartnership.capAdjust contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.reservesPartnership.movements contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.reservesPartnership.changePresentYear contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.statutoryBoundCapital contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.statutoryBoundCapital.finalPrev contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.statutoryBoundCapital.capAdjust contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.statutoryBoundCapital.movement contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.statutoryBoundCapital.changePresentYear contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.incomeUseFormerYearHV contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.profitPresentYear contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.forPresentYear contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.legal contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.legal.profitformeryear contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.legal.profitPresentYear contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.legal.forPresentYear contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.legal.finalPrev contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.legal.capAdjust contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.legal.movements contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.legal.changePresentYear contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.charityAppropriated contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.charityAppropriated.project contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.charityAppropriated.project.finalPrev
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.charityAppropriated.project.capAdjust
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.charityAppropriated.project.movements
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.charityAppropriated.project.changePresentYear
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.charityAppropriated.workingCapital contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.charityAppropriated.workingCapital.finalPrev
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.charityAppropriated.workingCapital.capAdjust
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.charityAppropriated.workingCapital.movements
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.charityAppropriated.changePresentYear
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.charityAppropriated.replacement contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.charityAppropriated.replacement.finalPrev
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.charityAppropriated.replacement.capAdjust
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.charityAppropriated.replacement.movements
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.charityAppropriated.replacement.changePresentYear
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.charityAppropriated.shareAcquisition contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.charityAppropriated.shareAcquisition.finalPrev
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.charityAppropriated.shareAcquisition.capAdjust
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.charityAppropriated.shareAcquisition.movements
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.charityAppropriated.shareAcquisition.changePresentYear
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.charityAppropriated.assetManagement contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.charityAppropriated.assetManagement.finalPrev
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.charityAppropriated.assetManagement.capAdjust
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.charityAppropriated.assetManagement.movements
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.charityAppropriated.assetManagement.changePresentYear
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.unappropriated contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.unappropriated.assetManagement contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.unappropriated.assetManagement.finalPrev
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.unappropriated.assetManagement.capAdjust
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.unappropriated.assetManagement.movements
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.unappropriated.assetManagement.changePresentYear
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.unappropriated.otherMeansDueCourse contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.unappropriated.otherMeansDueCourse.finalPrev
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.unappropriated.otherMeansDueCourse.capAdjust
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.unappropriated.otherMeansDueCourse.movements
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.unappropriated.otherMeansDueCourse.changePresentYear
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.capMaintenance contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.capMaintenance.finalPrev contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.capMaintenance.capAdjust contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.capMaintenance.movements contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.capMaintenance.changePresentYear contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.investment contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.investment.finalPrev contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.investment.capAdjust contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.investment.movements contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.investment.changePresentYear contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.sharesParentComp contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.sharesParentComp.netRetainedProfitFormerYear
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.sharesParentComp.profitPresentYear contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.sharesParentComp.forPresentYear contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.sharesParentComp.finalPrev contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.sharesParentComp.capAdjust contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.sharesParentComp.movements contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.sharesParentComp.changePresentYear contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.statutory contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.statutory.netRetainedProfitFormerYear
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.statutory.profitPresentYear contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.statutory.forPresentYear contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.statutory.finalPrev contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.statutory.capAdjust contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.statutory.movements contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.statutory.changePresentYear contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.defTax contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.defTax.finalPrev contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.defTax.capAdjust contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.defTax.movements contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.defTax.changePresentYear contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.intanAss contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.intanAss.finalPrev contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.intanAss.capAdjust contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.intanAss.movements contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.intanAss.changePresentYear contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.assMeasuredAtFairValue contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.assMeasuredAtFairValue.finalPrev contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.assMeasuredAtFairValue.capAdjust contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.assMeasuredAtFairValue.movements contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.assMeasuredAtFairValue.changePresentYear
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.surplusFromPensionAccruals contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.surplusFromPensionAccruals.finalPrev contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.surplusFromPensionAccruals.capAdjust contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.surplusFromPensionAccruals.movements contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.surplusFromPensionAccruals.changePresentYear
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.otherResWithDistrRestrict contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.otherResWithDistrRestrict.finalPrev contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.otherResWithDistrRestrict.capAdjust contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.otherResWithDistrRestrict.movements contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.otherResWithDistrRestrict.changePresYear
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.special contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.special.finalPrev contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.special.capAdjust contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.special.movements contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.special.changePresentYear contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.other contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.other.netRetainedProfitFormerYear contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.other.profitPresentYear contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.other.forPresentYear contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.other.AktG58_2a contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.other.free contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.other.ownSharesPlus contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.other.finalPrev contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.other.capAdjust contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.other.movements contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.other.changePresentYear contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.otherCoop contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.fromPriorPeriod contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.fromProfitPresentYear contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.withdrawnForPresentYear contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.otherCoop.finalPrev contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.otherCoop.capAdjust contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.otherCoop.movements contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.otherCoop.changePresentYear contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.taxablePurposeBusiness contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.taxablePurposeBusiness.finalPrev contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.taxablePurposeBusiness.revenueRes.capAdjust contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.taxablePurposeBusiness.movements contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.taxablePurposeBusiness.changePresYear
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.revenueRes.forRepaymToCoop contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.paymForCapitalIncrease contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.retainedEarningsPartnerships contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.retainedEarningsPartnershipsHGBs264c contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.retainedEarnings contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.retainedEarnings.finalPrev contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.retainedEarnings.capAdjust contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.retainedEarnings.movements contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.retainedEarnings.movementsProfitLoss contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.retainedEarnings.changePresentYear contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.SurplusOfUnspentFunds contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.SurplusOfUnspentFunds.finalPrev contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.SurplusOfUnspentFunds.capAdjust contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.SurplusOfUnspentFunds.movements contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.SurplusOfUnspentFunds.changePresentYear contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.netIncome contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.netIncomePartnerships contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.netIncomePartnershipsHGBs264c contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.profitLossPartnerships contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.profitLossPartnerships.retainedEarnings contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.profitLossPartnerships.toBePaidOut contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.profitLossPartnerships.additionReserves contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.profitLossPartnerships.releaseReserves contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.profitLossPartnerships.intCoop contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.reallocationSurplus contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.reallocationSurplus.finalPrev contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.reallocationSurplus.capAdjust contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.reallocationSurplus.movement contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.reallocationSurplus.changePresentYear contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.profitLossPartnershipsHGBs264c contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.netIncome.taxBalanceGenerally contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.netIncome.taxBalanceGenerally.finalPrev contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.netIncome.taxBalanceGenerally.capAdjust contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.netIncome.taxBalanceGenerally.movements contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.netIncome.taxBalanceGenerally.corrDeposit contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.netIncome.taxBalanceGenerally.corrWithdrawal contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.netIncome.taxBalanceGenerally.changePresentYear contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.netIncome.taxBalanceGenerally.transferDiffTaxAccounts
+        contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.profitLoss contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.profitLoss.retainedEarnings contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.profitLoss.toBePaidOut contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.profitLoss.additionReserves contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.profitLoss.releaseReserves contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.profitLoss.intCoop contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.profitLoss.finalPrev contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.profitLoss.capAdjust contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.profitLoss.movements contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.profitLoss.changePresentYear contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.currTransl contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.deficitNotCoveredByCapital contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.deficitNotCovered contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.coopPartners contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.equity.legalResCoopPartners contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.pretaxRes contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.pretaxRes.equityShare contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.pretaxRes.liabShare contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.pretaxRes.res contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.pretaxRes.res.gainAssetSale contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.pretaxRes.res.subsidies contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.pretaxRes.res.replacement contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.pretaxRes.res.taxRelifAct contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.pretaxRes.res.other contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.pretaxRes.specAmort contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.pretaxRes.specAmort.fixAssTan contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.pretaxRes.specAmort.fixAssFin contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.pretaxRes.specAmort.currAss contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.pretaxRes.misc contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.otherSpecRes contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.otherSpecRes.equitySilentPartner contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.otherSpecRes.paymForCapitalIncrease contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.otherSpecRes.subsidies contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.otherSpecRes.ownShares contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.otherSpecRes.taxbalanceOrgancomp contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.otherSpecRes.taxbalanceGenerally contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.otherSpecRes.unspentDonationFunds contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.otherSpecRes.unspentDonationFunds.statutoryUse contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.otherSpecRes.unspentDonationFunds.bound contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.otherSpecRes.statutoryBoundCapital contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.otherSpecRes.other contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.otherSpecRes.other.releaseWithdrawalEStG4g contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.otherSpecRes.obligationAssumption contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.otherSpecRes.costAllocItem contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.otherSpecRes.other.InvStG contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.otherSpecRes.other.adjustmentItemInvStG contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.otherSpecRes.other.EStG6b contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.otherSpecRes.other.subsidies contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.otherSpecRes.other.replacement contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.otherSpecRes.other.UmwStG6_1 contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.otherSpecRes.other.EStR6_11_3 contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.otherSpecRes.other.other contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.otherSpecRes.other.misc contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.accruals contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.accruals.pensions contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.accruals.pensions.upTo1year contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.accruals.pensions.above1year contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.accruals.pensions.shareholder contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.accruals.pensions.direct contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.accruals.pensions.externalFunds contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.accruals.pensions.other contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.accruals.pensions.offsetAssets contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.accruals.pensionsOtherForeign contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.accruals.tax contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.accruals.tax.upTo1year contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.accruals.tax.above1year contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.accruals.tax.gewst contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.accruals.tax.kst contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.accruals.tax.other contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.accruals.tax.defTax contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.accruals.tax.additionalTax contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.accruals.tax.AO233aOnAdditionalTax contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.accruals.taxOtherForeign contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.accruals.tax.misc contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.accruals.other contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.accruals.other.upTo1year contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.accruals.other.above1year contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.accruals.other.uncertainLiab contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.accruals.other.guarantees contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.accruals.other.anniversary contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.accruals.other.germanEarlyRetirementProgramme contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.accruals.other.businessRecordsRetension contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.accruals.other.taxAudits contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.accruals.other.statutoryLiab contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.accruals.other.uncertainLiab.landReclaim contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.accruals.other.uncertainLiab.infringementOfRights contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.accruals.other.uncertainLiab.litigation contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.accruals.other.uncertainLiab.maintenance contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.accruals.other.uncertainLiab.other contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.accruals.other.uncertainLiab.nonAllocable contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.accruals.other.imminentLoss contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.accruals.other.imminentLoss.exposureEStGsec5_1aSent2 contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.accruals.other.imminentLoss.other contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.accruals.other.imminentLoss.nonAllocable contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.accruals.other.expenditure contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.accruals.other.other contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.accruals.other.misc contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.accruals.otherForeign contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.upTo1year contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.above1year contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.ofWhichToShareholders contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.securities contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.securities.collateralised contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.securities.convertible contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.securities.upTo1year contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.securities.upTo1year.warrants contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.securities.upTo1year.nonConvertible contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.securities.upTo1year.profSharRights contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.securities.above1year contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.otherDebtInstruments contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.otherDebtInstruments.above1year contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.otherDebtInstruments.upTo1year contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.bank contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.bank.collateralised contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.bank.equityhelp contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.bank.upTo1year contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.bank.above1year contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.advPaym contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.advPaym.collateralised contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.advPaym.contractProgress contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.advPaym.contractProgress.OnInProgress contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.advPaym.prepayments contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.advPaym.upTo1year contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.advPaym.above1year contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.trade contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.trade.collateralised contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.trade.shareholders contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.trade.upTo1year contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.trade.above1year contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.trade.genOther contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.trade.misc contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.regulatory contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.regulatory.collateralised contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.regulatory.upTo1year contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.regulatory.above1year contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.notes contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.notes.collateralised contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.notes.upTo1year contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.notes.upTo1year.billsAccepted contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.notes.upTo1year.billsDrawn contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.notes.above1year contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.shareholders contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.shareholders.collateralised contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.shareholders.equitysubst contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.shareholders.lastRange contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.shareholders.upTo1year contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.shareholders.upTo1year.dividendDue contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.shareholders.upTo1year.trade contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.shareholders.upTo1year.gmbhSilent contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.shareholders.upTo1year.unlimitedLiable contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.shareholders.upTo1year.limitedLiable contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.shareholders.above1year contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.shareholders.affilComp contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.shareholders.gmbhSilent contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.shareholders.unlimitedPartner contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.shareholders.limitedPartner contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.shareholders.misc contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.assocComp contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.assocComp.collateralised contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.assocComp.upTo1year contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.assocComp.upTo1year.trade contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.assocComp.upTo1year.other contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.assocComp.upTo1year.other.parentComp contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.assocComp.upTo1year.other.subsidiaries contextRef="I-2020"
+        unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.assocComp.above1year contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.assocComp.partner contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.particip contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.particip.collateralised contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.particip.upTo1year contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.particip.upTo1year.trade contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.particip.upTo1year.shareholders contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.particip.upTo1year.particip contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.particip.above1year contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.colEntity contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.conditionalRepayableDonations contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.statutoryBenefits contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.statutoryBenefits.commitments contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.statutoryBenefits.other contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.other contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.other.collateralised contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.other.trust contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.other.capitalLease contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.other.theroffTax contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.other.theroffTax.vat contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.other.theroffTax.operatingTaxes contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.other.theroffTax.otherTaxes contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.other.thereoffSocSec contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.other.shareholders contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.other.thereoffCoopertiveRefunds contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.other.upTo1year contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.other.upTo1year.socSec contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.other.upTo1year.jointVent contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.other.upTo1year.thereofTaxOffice contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.other.upTo1year.thereofSocSec contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.other.above1year contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.other.employees contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.other.profitPartLoans contextRef="I-2020" unitRef="EUR"
+        xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.other.jointVent contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.other.profSharRights contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.other.other contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.liab.otherForeign contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.defIncome contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+    <de-gaap-ci:bs.eqLiab.defTax contextRef="I-2020" unitRef="EUR" xsi:nil="true" />
+</xbrli:xbrl>
