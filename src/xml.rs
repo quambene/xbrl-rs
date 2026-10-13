@@ -1,10 +1,18 @@
 use crate::XbrlError;
+use quick_xml::XmlVersion;
 use std::{
     borrow::Borrow,
     fmt::{self, Display},
     ops::Deref,
     str::FromStr,
 };
+
+/// XML version used when normalizing attribute values and decoding text.
+///
+/// Only XML 1.0 is supported. XBRL 2.1 requires XML 1.0 documents, and the
+/// declared `version` in the XML declaration is not inspected, so XML 1.1
+/// line-ending rules (`\x85`, `\u{2028}`) are never applied.
+pub(crate) const XML_VERSION: XmlVersion = XmlVersion::Explicit1_0;
 
 /// The `link:schemaRef` element in an XML document, referencing a schema
 /// definition.
@@ -396,5 +404,20 @@ impl ExpandedName {
 impl Display for ExpandedName {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{{{}}}{}", self.namespace_uri, self.local_name)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::XML_VERSION;
+    use quick_xml::events::BytesText;
+
+    #[test]
+    fn xml_10_decoding_preserves_nel_and_line_separator() {
+        let text = BytesText::from_escaped("a\u{85}b\u{2028}c\r\u{85}d\re\r\nf\ng");
+        assert_eq!(
+            text.xml_content(XML_VERSION).unwrap(),
+            "a\u{85}b\u{2028}c\n\u{85}d\ne\nf\ng"
+        );
     }
 }

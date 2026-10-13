@@ -1,6 +1,6 @@
 use crate::{
     Balance, NamespacePrefix, NamespaceUri, PeriodType, RoleUri, XbrlError,
-    xml::{self, ArcroleUri, QName},
+    xml::{self, ArcroleUri, QName, XML_VERSION},
 };
 use quick_xml::{
     Reader,
@@ -674,7 +674,7 @@ impl<R: BufRead> SchemaParser<R> {
                 source: err.into(),
             })?;
             let local_name = attribute.key.local_name();
-            let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+            let value = attribute.normalized_value(XML_VERSION)?;
 
             match attribute.key.prefix() {
                 Some(prefix) if prefix.as_ref() == b"xmlns" => {
@@ -738,7 +738,7 @@ impl<R: BufRead> SchemaParser<R> {
                 source: err.into(),
             })?;
             let local_name = attribute.key.local_name();
-            let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+            let value = attribute.normalized_value(XML_VERSION)?;
 
             match local_name.as_ref() {
                 b"namespace" => namespace = Some(value.to_string()),
@@ -774,7 +774,7 @@ impl<R: BufRead> SchemaParser<R> {
                 source: err.into(),
             })?;
             let local_name = attribute.key.local_name();
-            let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+            let value = attribute.normalized_value(XML_VERSION)?;
 
             if local_name.as_ref() == b"schemaLocation" {
                 schema_location = Some(value.to_string());
@@ -806,7 +806,7 @@ impl<R: BufRead> SchemaParser<R> {
                 source: err.into(),
             })?;
             let local_name = attribute.key.local_name();
-            let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+            let value = attribute.normalized_value(XML_VERSION)?;
 
             match local_name.as_ref() {
                 b"href" => {
@@ -846,7 +846,7 @@ impl<R: BufRead> SchemaParser<R> {
                 source: err.into(),
             })?;
             let local_name = attribute.key.local_name();
-            let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+            let value = attribute.normalized_value(XML_VERSION)?;
             match local_name.as_ref() {
                 b"id" => id = value.into_owned(),
                 b"roleURI" => role_uri = value.into_owned(),
@@ -864,7 +864,7 @@ impl<R: BufRead> SchemaParser<R> {
                     b"definition" => {
                         if let Event::Text(text) = self.reader.read_event_into(&mut buf)? {
                             definition = Some(
-                                text.xml_content()
+                                text.xml_content(XML_VERSION)
                                     .map_err(quick_xml::Error::from)?
                                     .into_owned(),
                             );
@@ -873,7 +873,9 @@ impl<R: BufRead> SchemaParser<R> {
                     b"usedOn" => {
                         if let Event::Text(text) = self.reader.read_event_into(&mut buf)? {
                             used_on.push(xml::parse_qname(
-                                &text.xml_content().map_err(quick_xml::Error::from)?,
+                                &text
+                                    .xml_content(XML_VERSION)
+                                    .map_err(quick_xml::Error::from)?,
                             ));
                         }
                     }
@@ -907,7 +909,7 @@ impl<R: BufRead> SchemaParser<R> {
                 source: err.into(),
             })?;
             let local_name = attribute.key.local_name();
-            let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+            let value = attribute.normalized_value(XML_VERSION)?;
             match local_name.as_ref() {
                 b"id" => id = value.into_owned(),
                 b"arcroleURI" => arcrole_uri = value.into_owned(),
@@ -926,7 +928,7 @@ impl<R: BufRead> SchemaParser<R> {
                     b"definition" => {
                         if let Event::Text(text) = self.reader.read_event_into(&mut buf)? {
                             definition = Some(
-                                text.xml_content()
+                                text.xml_content(XML_VERSION)
                                     .map_err(quick_xml::Error::from)?
                                     .into_owned(),
                             );
@@ -935,7 +937,9 @@ impl<R: BufRead> SchemaParser<R> {
                     b"usedOn" => {
                         if let Event::Text(text) = self.reader.read_event_into(&mut buf)? {
                             used_on.push(xml::parse_qname(
-                                &text.xml_content().map_err(quick_xml::Error::from)?,
+                                &text
+                                    .xml_content(XML_VERSION)
+                                    .map_err(quick_xml::Error::from)?,
                             ));
                         }
                     }
@@ -1105,7 +1109,7 @@ impl<R: BufRead> SchemaParser<R> {
             })?;
             let qname = attribute.key;
             let local_name = qname.local_name();
-            let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+            let value = attribute.normalized_value(XML_VERSION)?;
 
             match local_name.as_ref() {
                 b"name" => name = Some(value.to_string()),
@@ -1192,7 +1196,7 @@ impl<R: BufRead> SchemaParser<R> {
             let local_name = qname.local_name();
 
             if local_name.as_ref() == b"name" {
-                let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+                let value = attribute.normalized_value(XML_VERSION)?;
                 name = Some(value.to_string());
             }
         }
@@ -1217,8 +1221,7 @@ impl<R: BufRead> SchemaParser<R> {
                                 })?;
 
                                 if attribute.key.as_ref() == b"base" {
-                                    let value = attribute
-                                        .decode_and_unescape_value(self.reader.decoder())?;
+                                    let value = attribute.normalized_value(XML_VERSION)?;
                                     base = Some(xml::parse_qname(&value));
                                 }
                             }
@@ -1233,8 +1236,7 @@ impl<R: BufRead> SchemaParser<R> {
                                 })?;
 
                                 if attribute.key.as_ref() == b"value" {
-                                    let value = attribute
-                                        .decode_and_unescape_value(self.reader.decoder())?;
+                                    let value = attribute.normalized_value(XML_VERSION)?;
                                     enumerations.push(value.to_string());
                                 }
                             }
@@ -1283,12 +1285,12 @@ impl<R: BufRead> SchemaParser<R> {
             })?;
 
             if attribute.key.local_name().as_ref() == b"name" {
-                let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+                let value = attribute.normalized_value(XML_VERSION)?;
                 complex_type.name = Some(value.to_string());
             }
 
             if attribute.key.local_name().as_ref() == b"mixed" {
-                let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+                let value = attribute.normalized_value(XML_VERSION)?;
                 complex_type.mixed = value == "true";
             }
         }
@@ -1417,7 +1419,7 @@ impl<R: BufRead> SchemaParser<R> {
                 element: None,
                 source: err.into(),
             })?;
-            let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+            let value = attribute.normalized_value(XML_VERSION)?;
             match attribute.key.local_name().as_ref() {
                 b"minOccurs" => min = xml::parse_u32(&value)?,
                 b"maxOccurs" => {
@@ -1524,7 +1526,7 @@ impl<R: BufRead> SchemaParser<R> {
                 element: Some("element".to_string()),
                 source: err.into(),
             })?;
-            let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+            let value = attribute.normalized_value(XML_VERSION)?;
             match attribute.key.local_name().as_ref() {
                 b"ref" => ref_name = Some(xml::parse_qname(&value)),
                 b"name" => decl_name = Some(value.to_string()),
@@ -1589,7 +1591,7 @@ impl<R: BufRead> SchemaParser<R> {
                 element: Some("group".to_string()),
                 source: err.into(),
             })?;
-            let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+            let value = attribute.normalized_value(XML_VERSION)?;
             if attribute.key.local_name().as_ref() == b"ref" {
                 ref_name = Some(xml::parse_qname(&value));
             }
@@ -1631,8 +1633,7 @@ impl<R: BufRead> SchemaParser<R> {
                         })?;
 
                         if attribute.key.local_name().as_ref() == b"base" {
-                            let value =
-                                attribute.decode_and_unescape_value(self.reader.decoder())?;
+                            let value = attribute.normalized_value(XML_VERSION)?;
                             base = Some(xml::parse_qname(&value));
                         }
                     }
@@ -1709,7 +1710,7 @@ impl<R: BufRead> SchemaParser<R> {
                 source: err.into(),
             })?;
             if attribute.key.local_name().as_ref() == b"mixed" {
-                let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+                let value = attribute.normalized_value(XML_VERSION)?;
                 complex_type.mixed = value == "true";
             }
         }
@@ -1737,8 +1738,7 @@ impl<R: BufRead> SchemaParser<R> {
                         })?;
 
                         if attribute.key.local_name().as_ref() == b"base" {
-                            let value =
-                                attribute.decode_and_unescape_value(self.reader.decoder())?;
+                            let value = attribute.normalized_value(XML_VERSION)?;
                             base = Some(xml::parse_qname(&value));
                         }
                     }
@@ -1847,7 +1847,7 @@ impl<R: BufRead> SchemaParser<R> {
             })?;
 
             if attribute.key.local_name().as_ref() == b"namespace" {
-                let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+                let value = attribute.normalized_value(XML_VERSION)?;
 
                 namespace = match value.as_ref() {
                     "##any" => AnyAttributeNamespace::Any,
@@ -1878,11 +1878,11 @@ impl<R: BufRead> SchemaParser<R> {
 
             match attribute.key.local_name().as_ref() {
                 b"ref" => {
-                    let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+                    let value = attribute.normalized_value(XML_VERSION)?;
                     ref_name = value.to_string();
                 }
                 b"use" => {
-                    let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+                    let value = attribute.normalized_value(XML_VERSION)?;
 
                     if value.as_ref() == "required" {
                         required = true;

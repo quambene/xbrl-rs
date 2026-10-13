@@ -4,6 +4,8 @@
 
 - added
 - changed
+  - Update `quick-xml` to 0.41 (RUSTSEC-2026-0194, RUSTSEC-2026-0195)
+  - Use XML 1.0 for attribute normalization and text decoding; NEL and line separator no longer become line feeds before fact whitespace cleanup
 - removed
 
 ## v0.3.1 (unreleased)

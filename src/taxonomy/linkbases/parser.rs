@@ -1,4 +1,7 @@
-use crate::{RoleUri, XbrlError, xml::ArcroleUri};
+use crate::{
+    RoleUri, XbrlError,
+    xml::{ArcroleUri, XML_VERSION},
+};
 use quick_xml::{
     Reader,
     events::{BytesStart, Event},
@@ -380,7 +383,7 @@ impl<R: BufRead> LinkbaseParser<R> {
             })?;
 
             if attribute.key.as_ref() == b"xlink:role" {
-                let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+                let value = attribute.normalized_value(XML_VERSION)?;
                 role = Some(value.to_string());
             }
         }
@@ -418,28 +421,23 @@ impl<R: BufRead> LinkbaseParser<R> {
 
                             match attribute.key.as_ref() {
                                 b"xlink:from" => {
-                                    let value = attribute
-                                        .decode_and_unescape_value(self.reader.decoder())?;
+                                    let value = attribute.normalized_value(XML_VERSION)?;
                                     from = Some(value.to_string())
                                 }
                                 b"xlink:to" => {
-                                    let value = attribute
-                                        .decode_and_unescape_value(self.reader.decoder())?;
+                                    let value = attribute.normalized_value(XML_VERSION)?;
                                     to = Some(value.to_string())
                                 }
                                 b"order" => {
-                                    let value = attribute
-                                        .decode_and_unescape_value(self.reader.decoder())?;
+                                    let value = attribute.normalized_value(XML_VERSION)?;
                                     order = Some(parse_decimal(&value)?);
                                 }
                                 b"preferredLabel" => {
-                                    let value = attribute
-                                        .decode_and_unescape_value(self.reader.decoder())?;
+                                    let value = attribute.normalized_value(XML_VERSION)?;
                                     preferred_label = Some(value.to_string())
                                 }
                                 b"xlink:arcrole" => {
-                                    let value = attribute
-                                        .decode_and_unescape_value(self.reader.decoder())?;
+                                    let value = attribute.normalized_value(XML_VERSION)?;
                                     arcrole = Some(value.to_string())
                                 }
                                 _ => {}
@@ -505,7 +503,7 @@ impl<R: BufRead> LinkbaseParser<R> {
             })?;
 
             if attribute.key.as_ref() == b"xlink:role" {
-                let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+                let value = attribute.normalized_value(XML_VERSION)?;
                 role = Some(value.to_string());
             }
         }
@@ -543,28 +541,23 @@ impl<R: BufRead> LinkbaseParser<R> {
 
                             match attribute.key.as_ref() {
                                 b"xlink:from" => {
-                                    let value = attribute
-                                        .decode_and_unescape_value(self.reader.decoder())?;
+                                    let value = attribute.normalized_value(XML_VERSION)?;
                                     from = Some(value.to_string())
                                 }
                                 b"xlink:to" => {
-                                    let value = attribute
-                                        .decode_and_unescape_value(self.reader.decoder())?;
+                                    let value = attribute.normalized_value(XML_VERSION)?;
                                     to = Some(value.to_string())
                                 }
                                 b"xlink:arcrole" => {
-                                    let value = attribute
-                                        .decode_and_unescape_value(self.reader.decoder())?;
+                                    let value = attribute.normalized_value(XML_VERSION)?;
                                     arcrole = Some(value.to_string())
                                 }
                                 b"order" => {
-                                    let value = attribute
-                                        .decode_and_unescape_value(self.reader.decoder())?;
+                                    let value = attribute.normalized_value(XML_VERSION)?;
                                     order = Some(parse_decimal(&value)?);
                                 }
                                 b"weight" => {
-                                    let value = attribute
-                                        .decode_and_unescape_value(self.reader.decoder())?;
+                                    let value = attribute.normalized_value(XML_VERSION)?;
                                     weight = Some(parse_decimal(&value)?);
                                 }
                                 _ => {}
@@ -630,7 +623,7 @@ impl<R: BufRead> LinkbaseParser<R> {
             })?;
 
             if attribute.key.as_ref() == b"xlink:role" {
-                let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+                let value = attribute.normalized_value(XML_VERSION)?;
                 role = Some(value.to_string());
             }
         }
@@ -666,23 +659,19 @@ impl<R: BufRead> LinkbaseParser<R> {
 
                             match attribute.key.as_ref() {
                                 b"xlink:from" => {
-                                    let value = attribute
-                                        .decode_and_unescape_value(self.reader.decoder())?;
+                                    let value = attribute.normalized_value(XML_VERSION)?;
                                     from = Some(value.to_string());
                                 }
                                 b"xlink:to" => {
-                                    let value = attribute
-                                        .decode_and_unescape_value(self.reader.decoder())?;
+                                    let value = attribute.normalized_value(XML_VERSION)?;
                                     to = Some(value.to_string());
                                 }
                                 b"xlink:arcrole" => {
-                                    let value = attribute
-                                        .decode_and_unescape_value(self.reader.decoder())?;
+                                    let value = attribute.normalized_value(XML_VERSION)?;
                                     arcrole = Some(value.to_string());
                                 }
                                 b"order" => {
-                                    let value = attribute
-                                        .decode_and_unescape_value(self.reader.decoder())?;
+                                    let value = attribute.normalized_value(XML_VERSION)?;
                                     order = Some(parse_decimal(&value)?);
                                 }
                                 _ => {}
@@ -745,7 +734,7 @@ impl<R: BufRead> LinkbaseParser<R> {
             })?;
 
             if attribute.key.as_ref() == b"xlink:role" {
-                let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+                let value = attribute.normalized_value(XML_VERSION)?;
                 role = value.to_string();
             }
         }
@@ -776,13 +765,11 @@ impl<R: BufRead> LinkbaseParser<R> {
 
                             match attribute.key.as_ref() {
                                 b"xlink:from" => {
-                                    let value = attribute
-                                        .decode_and_unescape_value(self.reader.decoder())?;
+                                    let value = attribute.normalized_value(XML_VERSION)?;
                                     from = Some(value.to_string());
                                 }
                                 b"xlink:to" => {
-                                    let value = attribute
-                                        .decode_and_unescape_value(self.reader.decoder())?;
+                                    let value = attribute.normalized_value(XML_VERSION)?;
                                     to = Some(value.to_string());
                                 }
                                 _ => {}
@@ -815,18 +802,15 @@ impl<R: BufRead> LinkbaseParser<R> {
 
                             match attribute.key.as_ref() {
                                 b"xlink:label" => {
-                                    let value = attribute
-                                        .decode_and_unescape_value(self.reader.decoder())?;
+                                    let value = attribute.normalized_value(XML_VERSION)?;
                                     label = Some(value.to_string());
                                 }
                                 b"xlink:role" => {
-                                    let value = attribute
-                                        .decode_and_unescape_value(self.reader.decoder())?;
+                                    let value = attribute.normalized_value(XML_VERSION)?;
                                     label_role = Some(value.to_string());
                                 }
                                 b"xml:lang" => {
-                                    let value = attribute
-                                        .decode_and_unescape_value(self.reader.decoder())?;
+                                    let value = attribute.normalized_value(XML_VERSION)?;
                                     label_lang = Some(value.to_string());
                                 }
                                 _ => {}
@@ -891,7 +875,7 @@ impl<R: BufRead> LinkbaseParser<R> {
             })?;
 
             if attribute.key.as_ref() == b"xlink:role" {
-                let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+                let value = attribute.normalized_value(XML_VERSION)?;
                 role = value.to_string();
             }
         }
@@ -922,13 +906,11 @@ impl<R: BufRead> LinkbaseParser<R> {
 
                             match attribute.key.as_ref() {
                                 b"xlink:from" => {
-                                    let value = attribute
-                                        .decode_and_unescape_value(self.reader.decoder())?;
+                                    let value = attribute.normalized_value(XML_VERSION)?;
                                     from = Some(value.to_string());
                                 }
                                 b"xlink:to" => {
-                                    let value = attribute
-                                        .decode_and_unescape_value(self.reader.decoder())?;
+                                    let value = attribute.normalized_value(XML_VERSION)?;
                                     to = Some(value.to_string());
                                 }
                                 _ => {}
@@ -971,13 +953,11 @@ impl<R: BufRead> LinkbaseParser<R> {
 
                             match attribute.key.as_ref() {
                                 b"xlink:from" => {
-                                    let value = attribute
-                                        .decode_and_unescape_value(self.reader.decoder())?;
+                                    let value = attribute.normalized_value(XML_VERSION)?;
                                     from = Some(value.to_string());
                                 }
                                 b"xlink:to" => {
-                                    let value = attribute
-                                        .decode_and_unescape_value(self.reader.decoder())?;
+                                    let value = attribute.normalized_value(XML_VERSION)?;
                                     to = Some(value.to_string());
                                 }
                                 _ => {}
@@ -1043,11 +1023,11 @@ impl<R: BufRead> LinkbaseParser<R> {
 
             match attribute.key.as_ref() {
                 b"xlink:label" => {
-                    let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+                    let value = attribute.normalized_value(XML_VERSION)?;
                     label = Some(value.to_string());
                 }
                 b"xlink:role" => {
-                    let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+                    let value = attribute.normalized_value(XML_VERSION)?;
                     ref_role = Some(value.to_string());
                 }
                 _ => {}
@@ -1126,11 +1106,11 @@ impl<R: BufRead> LinkbaseParser<R> {
 
             match attribute.key.as_ref() {
                 b"xlink:label" => {
-                    let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+                    let value = attribute.normalized_value(XML_VERSION)?;
                     label = Some(value.to_string())
                 }
                 b"xlink:href" => {
-                    let value = attribute.decode_and_unescape_value(self.reader.decoder())?;
+                    let value = attribute.normalized_value(XML_VERSION)?;
                     href = Some(value.to_string())
                 }
                 _ => {}
