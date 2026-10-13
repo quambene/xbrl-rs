@@ -142,6 +142,11 @@ pub struct FootnoteResource {
 
 #[derive(Debug, PartialEq, Eq, Default)]
 pub struct RawInstance {
+    /// XML version declared in the `<?xml version="..."?>` declaration, if
+    /// present.
+    ///
+    /// Informational only: the document is always decoded as XML 1.0.
+    pub xml_version: Option<String>,
     /// Namespace declarations (prefix -> URI)
     pub namespaces: HashMap<NamespacePrefix, NamespaceUri>,
     /// Schema references
@@ -179,6 +184,7 @@ impl RawInstance {
         footnote_links: Vec<RawFootnoteLink>,
     ) -> Self {
         Self {
+            xml_version: None,
             namespaces,
             schema_refs,
             role_refs,
@@ -306,6 +312,15 @@ impl<R: BufRead> InstanceParser<R> {
                         }
                         _ => {}
                     }
+                }
+                Ok(Event::Decl(ref decl)) => {
+                    let version = decl.version().map_err(|err| XbrlError::XmlParse {
+                        path: self.path.clone(),
+                        position: self.reader.buffer_position(),
+                        element: None,
+                        source: err,
+                    })?;
+                    instance.xml_version = Some(std::str::from_utf8(&version)?.to_owned());
                 }
                 Ok(Event::End(ref event)) if event.name().local_name().as_ref() == b"xbrl" => {
                     break;
@@ -1500,6 +1515,21 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_xml_version() {
+        for (decl, expected) in [
+            ("", None),
+            ("<?xml version=\"1.0\"?>", Some("1.0")),
+            ("<?xml version=\"1.1\" encoding=\"UTF-8\"?>", Some("1.1")),
+        ] {
+            let xml = format!(
+                "{decl}<xbrli:xbrl xmlns:xbrli=\"http://www.xbrl.org/2003/instance\"></xbrli:xbrl>"
+            );
+            let instance = InstanceParser::from_reader(xml.as_bytes()).parse().unwrap();
+            assert_eq!(instance.xml_version.as_deref(), expected, "decl={decl:?}");
+        }
+    }
+
+    #[test]
     fn test_parse_fact_xml_10_attribute_normalization() {
         let xml = "<xbrli:xbrl xmlns:xbrli=\"http://www.xbrl.org/2003/instance\"
                    xmlns:t=\"http://example.com/taxonomy\">
@@ -1689,6 +1719,7 @@ mod tests {
         assert_eq!(
             instance,
             RawInstance {
+                xml_version: None,
                 namespaces: {
                     let mut namespaces = HashMap::new();
                     namespaces.insert("xbrli".into(), "http://www.xbrl.org/2003/instance".into());

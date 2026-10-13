@@ -37,6 +37,8 @@ pub fn resolve_instance(raw: RawInstance) -> Result<InstanceDocument, XbrlError>
         footnote_links,
     );
 
+    instance.set_xml_version(raw.xml_version);
+
     for role_ref in raw.role_refs {
         instance.add_role_ref(role_ref.role_uri);
     }

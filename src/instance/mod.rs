@@ -49,6 +49,9 @@ pub enum FactAttributeName {
 /// Represents a complete XBRL instance document
 #[derive(Debug, Default, Clone)]
 pub struct InstanceDocument {
+    /// XML version declared in the `<?xml version="..."?>` declaration, if
+    /// present. The document is always decoded as XML 1.0.
+    xml_version: Option<String>,
     /// Namespace prefixes used in the document (e.g. "xbrli" ->
     /// "http://www.xbrl.org/2003/instance")
     namespaces: HashMap<NamespacePrefix, NamespaceUri>,
@@ -79,6 +82,7 @@ impl InstanceDocument {
         footnote_links: Vec<FootnoteLink>,
     ) -> Self {
         Self {
+            xml_version: None,
             schema_refs,
             role_refs: Vec::new(),
             arcrole_refs: Vec::new(),
@@ -245,6 +249,17 @@ impl InstanceDocument {
     /// Get all schema references declared in the instance document.
     pub fn schema_refs(&self) -> &[String] {
         &self.schema_refs
+    }
+
+    /// Set the XML version declared in the `<?xml version="..."?>` declaration.
+    pub fn set_xml_version(&mut self, xml_version: Option<String>) {
+        self.xml_version = xml_version;
+    }
+
+    /// Get the XML version declared in the `<?xml version="..."?>`
+    /// declaration, if present.
+    pub fn xml_version(&self) -> Option<&str> {
+        self.xml_version.as_deref()
     }
 
     /// Add a role reference URI from a roleRef element.

@@ -39,6 +39,7 @@ impl TypedInstanceDocument {
         taxonomy: &TaxonomySet,
     ) -> Result<Self, XbrlError> {
         let InstanceDocument {
+            xml_version: _,
             namespaces,
             schema_refs,
             role_refs,

@@ -9,9 +9,10 @@ use std::{
 
 /// XML version used when normalizing attribute values and decoding text.
 ///
-/// Only XML 1.0 is supported. XBRL 2.1 requires XML 1.0 documents, and the
-/// declared `version` in the XML declaration is not inspected, so XML 1.1
-/// line-ending rules (`\x85`, `\u{2028}`) are never applied.
+/// Only XML 1.0 is supported. XBRL 2.1 requires XML 1.0 documents, so XML 1.1
+/// line-ending rules (`\x85`, `\u{2028}`) are never applied. The declared
+/// `version` is recorded on the instance and reported as a validation warning
+/// if it is not `1.0`, but does not change how the document is decoded.
 pub(crate) const XML_VERSION: XmlVersion = XmlVersion::Explicit1_0;
 
 /// The `link:schemaRef` element in an XML document, referencing a schema

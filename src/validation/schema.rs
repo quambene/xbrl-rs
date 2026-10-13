@@ -28,6 +28,7 @@ pub(super) fn validate_schema(
     _prepared: &PreparedFactValues,
     result: &mut ValidationResult,
 ) {
+    validate_xml_version(instance, result);
     validate_contexts(instance, taxonomy, result);
     validate_footnotes(instance, result);
     validate_instance_refs(instance, result);
@@ -35,6 +36,25 @@ pub(super) fn validate_schema(
 
     for fact in instance.facts() {
         validate_fact(fact, None, instance, taxonomy, result);
+    }
+}
+
+/// Validate the XML version declared in the instance document.
+///
+/// XBRL 2.1 is based on XML 1.0. Documents declaring another version are still
+/// decoded as XML 1.0, so a warning is added because XML 1.1 line-ending rules
+/// (`\u{85}`, `\u{2028}`) are not applied.
+fn validate_xml_version(instance: &InstanceDocument, result: &mut ValidationResult) {
+    if let Some(version) = instance.xml_version()
+        && version != "1.0"
+    {
+        result.add(
+            Severity::Warning,
+            "spec.unsupported_xml_version",
+            format!("Unsupported XML version '{version}'; document is processed as XML 1.0"),
+            None,
+            None,
+        );
     }
 }
 
@@ -1040,4 +1060,27 @@ fn is_valid_numeric_lexical(value: &str) -> bool {
     let trimmed = value.trim();
     !trimmed.is_empty()
         && (Decimal::from_str(trimmed).is_ok() || Decimal::from_scientific(trimmed).is_ok())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn xml_version_messages(xml_version: Option<&str>) -> Vec<String> {
+        let mut instance = InstanceDocument::default();
+        instance.set_xml_version(xml_version.map(str::to_owned));
+        let mut result = ValidationResult::new();
+        validate_xml_version(&instance, &mut result);
+        result.messages.into_iter().map(|m| m.code).collect()
+    }
+
+    #[test]
+    fn test_validate_xml_version() {
+        assert!(xml_version_messages(None).is_empty());
+        assert!(xml_version_messages(Some("1.0")).is_empty());
+        assert_eq!(
+            xml_version_messages(Some("1.1")),
+            vec!["spec.unsupported_xml_version"]
+        );
+    }
 }

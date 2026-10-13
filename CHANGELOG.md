@@ -3,15 +3,12 @@
 ## Unreleased
 
 - added
+  - Add `InstanceDocument::xml_version` and warn with `spec.unsupported_xml_version` when an instance declares an XML version other than 1.0
 - changed
+  - Update Rust to 1.96
   - Update `quick-xml` to 0.41 (RUSTSEC-2026-0194, RUSTSEC-2026-0195)
   - Use XML 1.0 for attribute normalization and text decoding; NEL and line separator no longer become line feeds before fact whitespace cleanup
 - removed
-
-## v0.3.1 (unreleased)
-
-- changed
-  - Update Rust to 1.96
 
 ## v0.3.0 (2026-05-16)
 
