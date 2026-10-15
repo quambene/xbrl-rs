@@ -8,6 +8,7 @@
   - Update Rust to 1.96
   - Update `quick-xml` to 0.41 (RUSTSEC-2026-0194, RUSTSEC-2026-0195)
   - Use XML 1.0 for attribute normalization and text decoding; NEL and line separator no longer become line feeds before fact whitespace cleanup
+  - Update `reqwest` to 0.13 (RUSTSEC-2026-0346, RUSTSEC-2026-0347, RUSTSEC-2026-0348, RUSTSEC-2026-0349)
 - removed
 
 ## v0.3.0 (2026-05-16)
